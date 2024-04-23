@@ -527,6 +527,11 @@
 <a href="#527" id="527">527</a>
 <a href="#528" id="528">528</a>
 <a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
 </pre></div><pre class="rust"><code><span class="doccomment">//! This script runs a publish subscribe broker.
 //! It accepts JSON messages on port 3400 and distribute the messages over the subscribers.
 
@@ -562,14 +567,18 @@
 ///}
 /// ```
 </span><span class="kw">fn </span>main(){
-    <span class="kw">let </span>socket = UdpSocket::bind(<span class="string">&quot;127.0.0.1:3400&quot;</span>).expect(<span class="string">&quot;couldn&#39;t bind to address&quot;</span>);
-    <span class="kw">let </span><span class="kw-2">mut </span>nodes: HashMap&lt;std::net::SocketAddr, HashSet&lt;String&gt;&gt; = HashMap::new();
+    <span class="kw">let </span>socket = UdpSocket::bind(<span class="string">&quot;0.0.0.0:3400&quot;</span>).expect(<span class="string">&quot;couldn&#39;t bind to address&quot;</span>);
 
+    <span class="kw">let </span>local_addr = socket.local_addr().expect(<span class="string">&quot;Failed to get local address&quot;</span>);
+    <span class="macro">println!</span>(<span class="string">&quot;Listening for UDP messages on {}&quot;</span>, local_addr);
+
+    <span class="kw">let </span><span class="kw-2">mut </span>nodes: HashMap&lt;std::net::SocketAddr, HashSet&lt;String&gt;&gt; = HashMap::new();
+    
     <span class="kw">loop</span>{
         <span class="kw">let </span>(msg, src_addr) = <span class="kw">match </span>receive_json_msg(<span class="kw-2">&amp;</span>socket) {
             <span class="prelude-val">Ok</span>((msg,src_addr)) =&gt; (msg,src_addr),
             <span class="prelude-val">Err</span>(e) =&gt; {
-                <span class="macro">eprintln!</span>(<span class="string">&quot;Error: {:?}&quot;</span>, e.context(<span class="string">&quot;Cannot receive json message&quot;</span>));
+                <span class="macro">println!</span>(<span class="string">&quot;Error: {:?}&quot;</span>, e.context(<span class="string">&quot;Cannot receive json message&quot;</span>));
                 <span class="kw">continue</span>;
             }
         };
@@ -586,6 +595,37 @@
         }
     }                       
 }
+
+<span class="doccomment">/// Receives a JSON message from a UDP socket.
+///
+/// This function reads data from the provided `UdpSocket`, parses it as JSON, and returns
+/// the parsed JSON message along with the source address from which the message was received.
+///
+/// If the received data cannot be parsed as JSON, or if there is an error receiving data
+/// from the socket, an error is returned.
+///
+/// # Arguments
+///
+/// * `socket` - A reference to a `UdpSocket` from which the JSON message will be received.
+///
+/// # Returns
+///
+/// A Result containing a tuple with the parsed JSON message as a `serde_json::Value` and the
+/// source address (`std::net::SocketAddr`) from which the message was received, if successful.
+/// If an error occurs during receiving or parsing, an error is returned.
+/// # Examples
+/// Check the included unit test for good examples on how to use this function.
+</span><span class="kw">fn </span>receive_json_msg(socket: <span class="kw-2">&amp;</span>UdpSocket) -&gt; <span class="prelude-ty">Result</span>&lt;(serde_json::Value, std::net::SocketAddr)&gt;{
+    <span class="kw">const </span>MAX_BUFFER_OPERATING_SYS: usize = <span class="number">65507</span>;
+    <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0</span>; MAX_BUFFER_OPERATING_SYS];
+
+    <span class="kw">let </span>(number_of_bytes, src_addr) = socket.recv_from(<span class="kw-2">&amp;mut </span>buf)<span class="question-mark">?</span>;
+    <span class="kw">let </span>filled_buf = <span class="kw-2">&amp;mut </span>buf[..number_of_bytes];
+
+    <span class="kw">let </span>parsed = serde_json::from_slice(filled_buf)<span class="question-mark">?</span>;
+    <span class="kw">return </span><span class="prelude-val">Ok</span>((parsed, src_addr));
+}
+
 
 <span class="doccomment">/// Publishes a message to nodes subscribed to the specified topic.
 ///
@@ -756,42 +796,12 @@
     };
 }
 
-<span class="doccomment">/// Receives a JSON message from a UDP socket.
-///
-/// This function reads data from the provided `UdpSocket`, parses it as JSON, and returns
-/// the parsed JSON message along with the source address from which the message was received.
-///
-/// If the received data cannot be parsed as JSON, or if there is an error receiving data
-/// from the socket, an error is returned.
-///
-/// # Arguments
-///
-/// * `socket` - A reference to a `UdpSocket` from which the JSON message will be received.
-///
-/// # Returns
-///
-/// A Result containing a tuple with the parsed JSON message as a `serde_json::Value` and the
-/// source address (`std::net::SocketAddr`) from which the message was received, if successful.
-/// If an error occurs during receiving or parsing, an error is returned.
-/// # Examples
-/// Check the included unit test for good examples on how to use this function.
-</span><span class="kw">fn </span>receive_json_msg(socket: <span class="kw-2">&amp;</span>UdpSocket) -&gt; <span class="prelude-ty">Result</span>&lt;(serde_json::Value, std::net::SocketAddr)&gt;{
-    <span class="kw">const </span>MAX_BUFFER_OPERATING_SYS: usize = <span class="number">65507</span>;
-    <span class="kw">let </span><span class="kw-2">mut </span>buf = [<span class="number">0</span>; MAX_BUFFER_OPERATING_SYS];
-
-    <span class="kw">let </span>(number_of_bytes, src_addr) = socket.recv_from(<span class="kw-2">&amp;mut </span>buf)<span class="question-mark">?</span>;
-    <span class="kw">let </span>filled_buf = <span class="kw-2">&amp;mut </span>buf[..number_of_bytes];
-
-    <span class="kw">let </span>parsed = serde_json::from_slice(filled_buf)<span class="question-mark">?</span>;
-    <span class="kw">return </span><span class="prelude-val">Ok</span>((parsed, src_addr));
-}
-
 
 <span class="doccomment">/// Extracts a string value from a JSON object based on the specified key.
 ///
 /// This function takes a reference to a key and a reference to a `serde_json::Value` object,
 /// attempts to retrieve the corresponding value from the JSON object using the provided key,
-/// and returns the value as an Option&lt;String&gt;.
+/// and returns the value as an Option(String).
 ///
 /// If the key is found in the JSON object and the corresponding value is a string, it returns
 /// Some(String) containing the value. If the key does not exist or the corresponding value

@@ -1,0 +1,48 @@
+version: '3'
+
+x-node: &common_node
+  image: base_node
+  depends_on:
+    - _baseNode
+  pull_policy: never
+  networks:
+    - drone
+  ports:
+    - "3000/udp"
+  deploy:
+    mode: replicated
+    replicas: 5
+
+services:
+  broker:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    ports:
+      - "3400:${BROKER_PORT}/udp"
+    networks:
+      drone:
+        ipv4_address: ${BROKER_IP}
+
+  _baseNode:
+    image: base_node
+    pull_policy: build
+    build:
+      context: ./send_receive
+      dockerfile: Dockerfile
+  
+  talker:
+    <<: *common_node
+    command: ["python3", "./send.py", "${BROKER_IP}", "${BROKER_PORT}"]
+
+  listener:
+    <<: *common_node
+    command: ["python3", "./receive.py", "${BROKER_IP}", "${BROKER_PORT}"]
+    
+
+networks:
+  drone:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

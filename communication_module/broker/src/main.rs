@@ -33,14 +33,18 @@ use topic_validator::*;
 ///}
 /// ```
 fn main(){
-    let socket = UdpSocket::bind("127.0.0.1:3400").expect("couldn't bind to address");
-    let mut nodes: HashMap<std::net::SocketAddr, HashSet<String>> = HashMap::new();
+    let socket = UdpSocket::bind("0.0.0.0:3400").expect("couldn't bind to address");
 
+    let local_addr = socket.local_addr().expect("Failed to get local address");
+    println!("Listening for UDP messages on {}", local_addr);
+
+    let mut nodes: HashMap<std::net::SocketAddr, HashSet<String>> = HashMap::new();
+    
     loop{
         let (msg, src_addr) = match receive_json_msg(&socket) {
             Ok((msg,src_addr)) => (msg,src_addr),
             Err(e) => {
-                eprintln!("Error: {:?}", e.context("Cannot receive json message"));
+                println!("Error: {:?}", e.context("Cannot receive json message"));
                 continue;
             }
         };
@@ -57,6 +61,37 @@ fn main(){
         }
     }                       
 }
+
+/// Receives a JSON message from a UDP socket.
+///
+/// This function reads data from the provided `UdpSocket`, parses it as JSON, and returns
+/// the parsed JSON message along with the source address from which the message was received.
+///
+/// If the received data cannot be parsed as JSON, or if there is an error receiving data
+/// from the socket, an error is returned.
+///
+/// # Arguments
+///
+/// * `socket` - A reference to a `UdpSocket` from which the JSON message will be received.
+///
+/// # Returns
+///
+/// A Result containing a tuple with the parsed JSON message as a `serde_json::Value` and the
+/// source address (`std::net::SocketAddr`) from which the message was received, if successful.
+/// If an error occurs during receiving or parsing, an error is returned.
+/// # Examples
+/// Check the included unit test for good examples on how to use this function.
+fn receive_json_msg(socket: &UdpSocket) -> Result<(serde_json::Value, std::net::SocketAddr)>{
+    const MAX_BUFFER_OPERATING_SYS: usize = 65507;
+    let mut buf = [0; MAX_BUFFER_OPERATING_SYS];
+
+    let (number_of_bytes, src_addr) = socket.recv_from(&mut buf)?;
+    let filled_buf = &mut buf[..number_of_bytes];
+
+    let parsed = serde_json::from_slice(filled_buf)?;
+    return Ok((parsed, src_addr));
+}
+
 
 /// Publishes a message to nodes subscribed to the specified topic.
 ///
@@ -227,42 +262,12 @@ fn remove_topic_from_subscription_list(msg: serde_json::Value, src_addr: std::ne
     };
 }
 
-/// Receives a JSON message from a UDP socket.
-///
-/// This function reads data from the provided `UdpSocket`, parses it as JSON, and returns
-/// the parsed JSON message along with the source address from which the message was received.
-///
-/// If the received data cannot be parsed as JSON, or if there is an error receiving data
-/// from the socket, an error is returned.
-///
-/// # Arguments
-///
-/// * `socket` - A reference to a `UdpSocket` from which the JSON message will be received.
-///
-/// # Returns
-///
-/// A Result containing a tuple with the parsed JSON message as a `serde_json::Value` and the
-/// source address (`std::net::SocketAddr`) from which the message was received, if successful.
-/// If an error occurs during receiving or parsing, an error is returned.
-/// # Examples
-/// Check the included unit test for good examples on how to use this function.
-fn receive_json_msg(socket: &UdpSocket) -> Result<(serde_json::Value, std::net::SocketAddr)>{
-    const MAX_BUFFER_OPERATING_SYS: usize = 65507;
-    let mut buf = [0; MAX_BUFFER_OPERATING_SYS];
-
-    let (number_of_bytes, src_addr) = socket.recv_from(&mut buf)?;
-    let filled_buf = &mut buf[..number_of_bytes];
-
-    let parsed = serde_json::from_slice(filled_buf)?;
-    return Ok((parsed, src_addr));
-}
-
 
 /// Extracts a string value from a JSON object based on the specified key.
 ///
 /// This function takes a reference to a key and a reference to a `serde_json::Value` object,
 /// attempts to retrieve the corresponding value from the JSON object using the provided key,
-/// and returns the value as an Option<String>.
+/// and returns the value as an Option(String).
 ///
 /// If the key is found in the JSON object and the corresponding value is a string, it returns
 /// Some(String) containing the value. If the key does not exist or the corresponding value

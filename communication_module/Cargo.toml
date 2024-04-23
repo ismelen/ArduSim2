@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+	"broker",
+	"topic_validator"
+]
