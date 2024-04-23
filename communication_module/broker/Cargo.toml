@@ -1,0 +1,15 @@
+[package]
+name = "broker"
+version = "1.0.0"
+edition = "2021"
+authors = ["Jamie Wubben"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.79"
+serde_json = "1.0.113"
+serial_test = "3.0.0"
+
+[dependencies.topic_validator]
+path = "../topic_validator"
