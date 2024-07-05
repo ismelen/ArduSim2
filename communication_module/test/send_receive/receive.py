@@ -3,17 +3,15 @@ import time
 import random 
 import sys
 import json
+from statistics import mean
 
 def getData(json_bytes):
     decoded_message = json.loads(json_bytes.decode('utf-8'))
-    if decoded_message.get("topic") == "timing":
-        message_time = decoded_message.get("time")
-        current_time = int(time.time() * 1000)
-        time_difference = current_time - message_time
-        sender = decoded_message.get("sender")
-        return time_difference,sender
-    else:
-        return None
+    message_time = decoded_message.get("time")
+    current_time = time.time()
+    time_difference = current_time - message_time
+    sender = decoded_message.get("sender")
+    return time_difference,sender
 
 HOST_IP = "0.0.0.0"
 HOST_PORT = 3000
@@ -41,23 +39,45 @@ remote_address = (BROKER_IP, BROKER_PORT)
 message = subscribe = b"""
 {
   "topic": "$subscribe",
-  "subscribe_to": "timing"
+  "subscribe_to": "algo/#"
 }"""
+
 
 udp_socket.sendto(message, remote_address)
 
-while True:
+latencyDict = {}
+
+waitingForFirstMessage = True
+lastMessageReceived = 0
+timeDiffLastMessage = 0
+
+while timeDiffLastMessage < 5000 or waitingForFirstMessage:
     # Receive data from any IP address and port
     try:
         data, address = udp_socket.recvfrom(1024)
         time_difference,sender = getData(data)
 
-        print(f"Time to receive from {sender} = {time_difference} ms",flush=True)
+        waitingForFirstMessage = False
+        lastMessageReceived = time.time() * 1000
+        if sender not in latencyDict:
+            latencyDict[sender] = []
+
+        latencyDict[sender].append(time_difference*1000)
+
+        #print(f"Time to receive from {sender} = {time_difference} ms",flush=True)
         #print(f"Received message from {address}: {data.decode()}",flush=True)
     except:
         pass
-    
 
-# Close the socket when finished
+    timeDiffLastMessage = (time.time()*1000) - lastMessageReceived
+    
 udp_socket.close()
+
+averages = []
+for sender, time_diffs in latencyDict.items():
+    average = mean(time_diffs)
+    averages.append(average)
+    print(sender, ":", average, ":", len(time_diffs))
+
+print("total: ", mean(averages), len(averages))
 

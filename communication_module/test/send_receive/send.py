@@ -5,29 +5,15 @@ import sys
 import json
 
 def createTimeMessage():
-    current_time_millis = int(time.time() * 1000)
-    message = {"topic": "timing", "sender":socket.gethostname(), "time": current_time_millis}
+    current_time_nano = time.time()
+    message = {"topic": topic, "sender":socket.gethostname(), "time": current_time_nano}
     json_bytes = json.dumps(message).encode('utf-8')
     return json_bytes
 
-def getRandomMessage():
-    data = [
-        b"""
-        {
-          "topic": "receive",
-          "payload": "hello world"
-        }""",
-        b"""
-        {
-          "topic": "other_topic",
-          "payload": "test test"
-        }"""
-    ]
-    message = random.choice(data)
-    return message
-
 HOST_IP = "0.0.0.0"
 HOST_PORT = 3000
+
+topic = "algo/" + socket.gethostname() + "/timing"
 
 try:
     BROKER_IP = sys.argv[1]
@@ -46,14 +32,19 @@ local_address = (HOST_IP, HOST_PORT)
 # Send data to a specific IP address and port
 remote_address = (BROKER_IP, BROKER_PORT)
 
-print("start sending messages",flush=True)
-while True:
+
+print("start sending messages in 60 seconds",flush=True)
+
+time.sleep(5)
+start = time.time() * 1000
+
+counter = 0
+while (time.time()*1000) - start < 10000:
     message = createTimeMessage()
     udp_socket.sendto(message, remote_address)
-    #print("send ", message.decode(),flush=True)
 
-    # Receive data from any IP address and port
-    time.sleep(random.randint(0,5))
+    time.sleep(1)
+    counter +=1
 
 # Close the socket when finished
 udp_socket.close()
