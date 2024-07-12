@@ -40,16 +40,22 @@ public class Connection {
             MavlinkMessage<?> inMsg = this.connection.next();
             if (inMsg != null) {
                 message = MessageFactory.identifyMessage(inMsg);
+                Config.logger.trace("Obtained Mavlink message {}", message);
             }
         }catch(EOFException e) {
+            Config.logger.error("EOFException while obtaining MAVlink message: {}", e.getMessage());
             close();
-        } catch (IOException ignored) {}
+        } catch (IOException e) {
+            Config.logger.error("IO exception while obtaining MAVlink message: {}", e.getMessage());
+        }
         return message;
     }
     public void send(int systemId, int componentId, Object payload){
         try {
             this.connection.send1(systemId,componentId,payload);
-        } catch (IOException ignored) {}
+        } catch (IOException e) {
+            Config.logger.error("Error in sending MAVlink message {} \n. {} ", payload.toString(), e.getMessage());
+        }
     }
     public void send(Command command){
         send(Config.GCS_ID,0,command.payload);
