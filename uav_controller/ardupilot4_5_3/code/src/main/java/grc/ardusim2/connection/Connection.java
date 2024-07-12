@@ -40,7 +40,6 @@ public class Connection {
             MavlinkMessage<?> inMsg = this.connection.next();
             if (inMsg != null) {
                 message = MessageFactory.identifyMessage(inMsg);
-                Config.logger.trace("Obtained Mavlink message {}", message);
             }
         }catch(EOFException e) {
             Config.logger.error("EOFException while obtaining MAVlink message: {}", e.getMessage());

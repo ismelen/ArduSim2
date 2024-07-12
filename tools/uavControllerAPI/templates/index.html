@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UDP Sender</title>
+    <script>
+        const commands = {
+            command1: '{"endpoint": "Arm"}',
+            command2: '{"endpoint": "SetFlightmode", "flightmode": "GUIDED"}',
+            command3: '{"endpoint": "Takeoff", "altitude": 10.0}',
+            command4: '{"endpoint": "Land"}',
+            command5: '{"endpoint": "MoveToPosition", "latitude": 39.48123904418849, "longitude": -0.3459353223274813, "altitude": 15}',
+            command6: '{"endpoint": "RequestMessage", "messageID": 25}'
+        };
+
+        function fillTextField(command) {
+            document.getElementById('jsonMessage').value = commands[command];
+            document.getElementById('response').value = "";
+        }
+
+        async function sendUDPMessage() {
+            const jsonMessage = document.getElementById('jsonMessage').value;
+            document.getElementById('jsonMessage').value = "";
+            const responseField = document.getElementById('response');
+            const ipAddress = document.getElementById('ipAddress').value;
+            const port = document.getElementById('port').value;
+
+            try {
+                const response = await fetch('/send_udp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: jsonMessage, ip: ipAddress, port: parseInt(port) })
+                });
+
+                const data = await response.json();
+                responseField.value = data.response;
+            } catch (error) {
+                responseField.value = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>UDP Sender</h1>
+    <label for="ipAddress">IP Address:</label>
+    <input type="text" id="ipAddress" value="127.0.0.1"><br><br>
+    <label for="port">Port:</label>
+    <input type="text" id="port" value="9876"><br><br>
+    <button onclick="fillTextField('command1')">Arm</button>
+    <button onclick="fillTextField('command2')">SetFlightmode</button>
+    <button onclick="fillTextField('command3')">Takeoff</button>
+    <button onclick="fillTextField('command4')">Land</button>
+    <button onclick="fillTextField('command5')">MoveToPosition</button>
+    <button onclick="fillTextField('command6')">RequestMessage</button>
+    <br><br>
+    <textarea id="jsonMessage" rows="4" cols="50"></textarea>
+    <br><br>
+    <button onclick="sendUDPMessage()">Send</button>
+    <br><br>
+    <textarea id="response" rows="4" cols="50" readonly></textarea>
+</body>
+</html>
