@@ -40,7 +40,7 @@ In order to use this service, you have three options:
   ```
 2. With **docker:** to run this code using a docker container, run 
 	```
-	docker built -t uavController
+	docker built -f SITL -t copter453 .
 	```
 3. With **docker compose:** this is only if you want to run the entire system including other services, but it should not be done from here.
 
@@ -256,7 +256,11 @@ The code runs four threads
 
 ### 3.2 Dataflow:
 
-In order to work with this code it is essential that the data flow is well understood. Therefore, I created the following figure, and explain each step in more detail. We start with the *API thread*:
+In order to work with this code it is essential that the data flow is well understood. Therefore, I created the following figure, and explain each step in more detail.
+
+![flowchart](./documentationAssets/dataflow.drawio.png)
+
+ We start with the *API thread*:
 *notice that the numbers in the figure correspond with the steps explained below. Nevertheless, these numbers are only indicating the steps, and in fact we could start at any point with the explanation.*
 
 1. The API thread is listening to the socket, waiting for messages.
@@ -304,7 +308,7 @@ Each package is carefully designed, I will now explain how it was designed, and 
 
 #### a) Command:
 
-The command package corresponds to the MAVlink commands that can be send to the drone. In order to add a new command one must follow a few steps. We will use the arm command as an example:
+The command package corresponds to the MAVlink commands that can be sent to the drone. In order to add a new command one must follow a few steps. We will use the arm command as an example:
 
 1. Create a new class called "Arm", that extends from the "Command" class.
 
@@ -336,7 +340,7 @@ The command package corresponds to the MAVlink commands that can be send to the 
 	```
 	The drone status might also be set to FATAL_ERROR, but do realize that this will land the drone.
 
-6. Implement the *public static Function<JSONObject, Boolean> isValidMessage()* method. This method is important but cannot be inherited, so make sure to implement it! You can check the other commands for examples, but here you should check wheter the JSON message is valid or not and return a boolean.
+6. Implement the *public static Function<JSONObject, Boolean> isValidMessage()* method. This method is important but cannot be inherited, so make sure to implement it! You can check the other commands for examples, but here you should check whether the JSON message is valid or not and return a boolean.
 
 7. Now the command code is done but you still need to use it. For that make sure to change the *CommandFactory* class and add the case of your command.
 
@@ -346,13 +350,13 @@ Now you should be able to use the new command.
 
 #### b) Message:
 
-The message package corresponds to the MAVlink messages that a drones sends to this service. In order to receive a specifc message, one must first request this message using the [Set message interval](#a-set-message-interval) or [Request message](#b-request-message) command. The Ardupilot instance, will then respond with this message (and in case of using *set message interval* keep on sending this message four times a second). In order to add a new message one must follow a few steps. We will use the *AutopilotVersionMessage* class as an example
+The message package corresponds to the MAVlink messages that a drone sends to this service. In order to receive a specific message, one must first request this message using the [Set message interval](#a-set-message-interval) or [Request message](#b-request-message) command. The Ardupilot instance, will then respond with this message (and in case of using *set message interval* keep on sending this message four times a second). In order to add a new message one must follow a few steps. We will use the *AutopilotVersionMessage* class as an example
 
 1. Create a new class called *AutopilotVersionMessage* that extends the "Message" class.
 
-2. Search on the [MAVLINK website messages](https://mavlink.io/en/messages/common.html#messages) the desired message, in this case [AUTOPILOT_VERSION](https://mavlink.io/en/messages/common.html#AUTOPILOT_VERSION). Read the documentation in order tounderstand which datafields you want to use, and how to request them.
+2. Search on the [MAVLINK website messages](https://mavlink.io/en/messages/common.html#messages) the desired message, in this case [AUTOPILOT_VERSION](https://mavlink.io/en/messages/common.html#AUTOPILOT_VERSION). Read the documentation in order to understand which datafields you want to use, and how to request them.
 
-3. In the constructur cast your generic *Mavlink<?> inMsg* to the specific MAVLink message like this:
+3. In the constructor cast your generic *Mavlink<?> inMsg* to the specific MAVLink message like this:
 	```
 	AutopilotVersion msg = (AutopilotVersion) inMsg.getPayload();
 	```
@@ -363,8 +367,8 @@ The message package corresponds to the MAVlink messages that a drones sends to t
 
 #### c) Drone:
 
-The drone package is a small package that contains just three classes. One is the *Drone* class, which holds the current information of the drone e.g. position, speed, battery, etc. This information is updated using the MAVLink messages (inside specific message classes), and is used by the *infoPublisherThread* to send the information of the drone to another system. The other class in this package is an enum called *FlightModes*. It contains the different flightmodes that a drone can use. This enum is used in the [Set flightmode](#e-set-flightmode) command (to set the flightmode), and also in the *heartbeat message* to determine the current flightmode (by reading the custommode field). **Flightmodes are different for each ardupilot version** to if you want to use this code for ArduPlane, make sure to change this enum. The available flightmodes can be found in the [arducopter documentation](https://ardupilot.org/copter/docs/parameters.html#fltmode1). The value in this list corresponds with the custom mode that is send in the heartbeat message. The last class is called *FlightMode* (notice it is not FlightModes). The FlightMode class is holds more information about the flightmode. In particular it includes the basemode field. This field is set by the flightcontroller. This basemode include information suchs as armed, stabilize, auto, etc. These values (a bitmask) can be found in the [base mode field](https://mavlink.io/en/messages/minimal.html#MAV_MODE_FLAG). When changing the flightmode custom mode (as we do with the [Set flightmode](#e-set-flightmode) command), this base mode might change automatically.
+The drone package is a small package that contains just three classes. One is the *Drone* class, which holds the current information of the drone e.g. position, speed, battery, etc. This information is updated using the MAVLink messages (inside specific message classes), and is used by the *infoPublisherThread* to send the information of the drone to another system. The other class in this package is an enum called *FlightModes*. It contains the different flightmodes that a drone can use. This enum is used in the [Set flightmode](#e-set-flightmode) command (to set the flightmode), and also in the *heartbeat message* to determine the current flightmode (by reading the custommode field). **Flightmodes are different for each ardupilot version** to if you want to use this code for ArduPlane, make sure to change this enum. The available flightmodes can be found in the [arducopter documentation](https://ardupilot.org/copter/docs/parameters.html#fltmode1). The value in this list corresponds with the custom mode that is sent in the heartbeat message. The last class is called *FlightMode* (notice it is not FlightModes). The FlightMode class is holds more information about the flightmode. In particular, it includes the basemode field. This field is set by the flightcontroller. This basemode include information suchs as armed, stabilize, auto, etc. These values (a bitmask) can be found in the [base mode field](https://mavlink.io/en/messages/minimal.html#MAV_MODE_FLAG). When changing the flightmode custom mode (as we do with the [Set flightmode](#e-set-flightmode) command), this base mode might change automatically.
 
 #### d) connection:
 
-The connection package is another small package. It holds classes to connect to an MAVlink device. For now we have two different connection types (and I do not forsee that new types will be added). We have a serial connection in which we connect to a serial port using the [jSerialComm](https://github.com/Fazecast/jSerialComm) library. This connection should be used for real UAVs. We also have a TCPConnection which uses TCP. This connection should be used for SITL simulations. Each connection type/class should inherht from the *Connection* class, since this class already implements sending a message (using MAVlink v1), and receiving (and identifiying) a MAVlink message.
+The connection package is another small package. It holds classes to connect to an MAVlink device. For now, we have two different connection types (and I do not foresee that new types will be added). We have a serial connection in which we connect to a serial port using the [jSerialComm](https://github.com/Fazecast/jSerialComm) library. This connection should be used for real UAVs. We also have a TCPConnection which uses TCP. This connection should be used for SITL simulations. Each connection type/class should inherit from the *Connection* class, since this class already implements sending a message (using MAVlink v1), and receiving (and identifying) a MAVlink message.
