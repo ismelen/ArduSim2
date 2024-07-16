@@ -11,7 +11,10 @@
             command3: '{"endpoint": "Takeoff", "altitude": 10.0}',
             command4: '{"endpoint": "Land"}',
             command5: '{"endpoint": "MoveToPosition", "latitude": 39.48123904418849, "longitude": -0.3459353223274813, "altitude": 15}',
-            command6: '{"endpoint": "RequestMessage", "messageID": 25}'
+            command6: '{"endpoint": "RequestMessage", "messageID": 25}',
+            command7: '{"endpoint": "MoveByVector","vx": 0.0,"vy": 0.0,"vz": -3.0}',
+            command8: '{"endpoint": "Rotate","yaw": 45.0,"speed": 10,"direction": 0,"relative": 0}',
+            command9: '{"endpoint": "RecoverControl"}'
         };
 
         function fillTextField(command) {
@@ -55,6 +58,9 @@
     <button onclick="fillTextField('command4')">Land</button>
     <button onclick="fillTextField('command5')">MoveToPosition</button>
     <button onclick="fillTextField('command6')">RequestMessage</button>
+    <button onclick="fillTextField('command7')">MoveByVector</button>
+    <button onclick="fillTextField('command8')">Rotate</button>
+    <button onclick="fillTextField('command9')">Recover control</button>
     <br><br>
     <textarea id="jsonMessage" rows="4" cols="50"></textarea>
     <br><br>

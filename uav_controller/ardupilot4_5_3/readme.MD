@@ -16,6 +16,9 @@ The main idea behind this code is that a user/system can send JSON messages to a
     	- [Take off](#f-take-off)
     	- [Land](#g-land)
     	- [Move to position](#h-move-to-position)
+    	- [Move by vector](#i=Move-by-vector)
+    	- [Rotate](#j-Rotate)
+    	- [Recover control](#k-recover-control)
 2. [Ardupilot:](#2-ardupilot)
 3. [Code:](#3-code)
   	- [Threads:](#31-threads)
@@ -28,9 +31,9 @@ The main idea behind this code is that a user/system can send JSON messages to a
 
 ## 1. Usage:
 
-In order to use this service, you have three options:
+In order to use this service, you have two options:
 
-1. Directly using **java:** to run this code directly run
+1. Directly using **java:** to run this code directly execute from the console:
   ```
   java -jar Arducopter453Controller.jar config.json
   ```
@@ -38,13 +41,13 @@ In order to use this service, you have three options:
   ```
   ./arducopter4_5_3 -S --base-port 5760 --home 39.482594,-0.346265,0.0,0.0 --model + --defaults copter.parm --sim-port-in 5501 --sim-port-out 5502 --rc-in-port 5503 --irlock-port 9005
   ```
-2. With **docker:** to run this code using a docker container, run 
+2. With **docker:** to run this code using a docker container, execute from the console: 
 	```
 	docker built -f SITL -t copter453 .
+	docker run -it --device=/dev/serial0 copter453
 	```
-3. With **docker compose:** this is only if you want to run the entire system including other services, but it should not be done from here.
 
-When you run the Arducopter453Controller service, a configuration file is used. This file is a JSON and must follow the following JSON scheme:
+When you run the Arducopter453Controller service, a configuration file is used. An example is given [here](./config.json). This file is a JSON and must follow the following JSON schema (general information about json-schemas can be found [here](https://blog.postman.com/what-is-json-schema/):
 ```
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -193,6 +196,7 @@ Example:
 #### g) Land
 Land the drone.
 Corresponds to sending [MAV CMD DO SET MODE](https://mavlink.io/en/messages/common.html#MAV_CMD_DO_SET_MODE) message with flightmode LANDED_ARMED.
+Drone status is set to LANDING. Once its relative altitude is below 0.1m ArduSim2 will shutdown.
 
 Example:
 ```
@@ -216,6 +220,58 @@ Example:
 }
 ```
 
+#### i) Move by vector
+Move the drone with a speed vector:
+vx: X velocity in m/s (positive is North)
+vy: Y velocity in m/s (positive is East)
+vz: Z velocity in m/s (positive is down)
+This command should be re-sent every second (the vehicle will stop after 3 seconds if no command is received)
+Notice that this message will not expect an ack from the flightcontroller.
+Corresponds to sending a [SET POSITION TARGET GLOBAL INT](https://mavlink.io/en/messages/common.html#SET_POSITION_TARGET_GLOBAL_INT) message.
+
+Example:
+```
+{
+	"endpoint": "MoveByVector",
+	"vx": 0.0,
+	"vy": 5.0,
+	"vz": -3.0
+}
+```
+
+#### j) Rotate
+Rotate the drone (yaw) to a specific angle.
+yaw: target angle [0-360] degrees. Absolute angles: 0 is north. Relative angle: 0 is initial yaw.
+speed: angular speed [0-360] deg/s (60 = slow, 180 = Medium, 360 = Fast). Higher then 360 is not allowed for safety issues although it might be possible. 
+direction: direction: -1: counter clockwise, 0: shortest direction, 1: clockwise
+relative: 0: absolute angle, 1: relative offset
+yaw angle in degrees (0 is forward), should be between 0 and 360 degrees.
+Notice that this message will not expect an ack from the flightcontroller.
+Corresponds to sending a [SET POSITION TARGET GLOBAL INT](https://mavlink.io/en/messages/common.html#SET_POSITION_TARGET_GLOBAL_INT) message.
+Example:
+```
+{
+	"endpoint": "Rotate",
+	"yaw": 45.0,
+	"speed": 10,
+	"direction": 0,
+	"relative": 0
+}
+```
+
+
+#### k) Recover control
+Returns control to the Remote controller. This call is to be used when the user want to control the UAV using the remote controller.
+Notice that this message will not expect an ack from the flightcontroller.
+Corresponding to sending a [RC CHANNEL OVERRIDE](https://mavlink.io/en/messages/common.html#RC_CHANNELS_OVERRIDE) message with all fields to 0.
+
+Example:
+```
+{
+	"endpoint": "RecoverControl"
+}
+```
+
 ## 2. Ardupilot: 
 
 The Ardupilot folder contains the Software In The Loop (SITL) of ArduCopter 4.5.3, and the copter.parm file. We created these files for quick installation. However, they are just the standard files obtained after following the ArduCopter SITL setup instructions. Which can be found [here](https://ardupilot.org/dev/docs/building-setup-linux.html#building-setup-linux).
@@ -232,11 +288,11 @@ The instructions given by ArduCopter are a bit long (and not all of them are nec
     ../Tools/autotest/sim_vehicle.py -w
 ```
 
-The command will start the compilation process, and when it finishes it should show a message like "IMU1 is using GPS", which means that the virtual copter is running. Then, use "Ctrl+C" to close the running program. The multicopter runnable file *arducopter* is located in *ardupilot/build/sitl/bin*. Copy that file, and also the file *ardupilot/Tools/autotest/default_params/copter.parm*
+The command will start the compilation process, and when it finishes it should show a message like "IMU1 is using GPS", which means that the virtual copter is running. Then, use "Ctrl+C" to close the running program. The multicopter runnable file *arducopter* is located in *ardupilot/build/sitl/bin*. Copy that file, and also the file *ardupilot/Tools/autotest/default_params/copter.parm* (copy them to any desired directory but make sure the two files are in the same directory).
 
 ## 3. Code:
 
-This folder contains the code for the UAV controller service, which is (arguably) the most important service of ArduSim2. If everything goes well, this code should not be changed. However, for new versions of ArduCopter or perhabs for ArduPlane and ArduRover this might be a good starting point. It might also be useful to add new features. The code that I implemented maybe only has 20% of all the features of ArduCopter. However, in my opinion, it already does 80% of the work. Hence, this code provides a way to arm, take-off, hover, move, and land ArduCopter 4.5.3. In order to use it, an ArduCopter instance must be running. This might be on a real UAV, but it will probably be the SITL version. So if you use it outside the docker container, make sure to start ArduCopter using the following command:
+This folder contains the code for the UAV controller service, which is (arguably) the most important service of ArduSim2. If everything goes well, this code should not be changed. However, for new versions of ArduCopter or perhabs for ArduPlane and ArduRover this might be a good starting point. It might also be useful to add new features. The code that I implemented maybe only has 20% of all the features of ArduCopter. However, with this, it already does 80% of the work. Hence, this code provides a way to arm, take-off, hover, move, and land ArduCopter 4.5.3. In order to use it, an ArduCopter instance must be running. This might be on a real UAV, but it will probably be the SITL version. So if you use it outside the docker container, make sure to start ArduCopter using the following command:
 
 ```
 ./arducopter4_5_3 -S --base-port 5760 --home 39.482594,-0.346265,0.0,0.0 --model + --defaults copter.parm --sim-port-in 5501 --sim-port-out 5502 --rc-in-port 5503 --irlock-port 9005
@@ -290,19 +346,21 @@ At the same time the *main thread* is also active.
 	a. In most cases the data from the message is read, and the drone's data is updated. For instance, a GPS message arrives and the drone's latitude, longitud, and altitude are processed and stored.
 	b. Sometimes (i.e. after sending a command), we receive a [Command_ACK message](https://mavlink.io/en/messages/common.html#COMMAND_ACK). This message will indicate wheter the command we sent has been executed correctly or not. The *commandAckMessage* class, has (as any Message class) a *process* method. In this method, we check wheter the command ack message corresponds with the last command we send to the ArduCopter instance. If this is the case, we obtain this last command, and perform either *Process ACK* or *Process Error*. Each command class has its own implementation of these methods. But in general the following happends:
 		- Process ACK: (i) the drone status is set to OK, and (ii) the API is notified to send an ACK to the user.
-		- Process Error: (i) the drone status is set. Most often it is set to OK. Although this might seem strange at first, this is perfectly normal. This because the other alternative is to set it to FATAL_ERROR. Meaning that the drone will stop its flight and land. In many cases, this is too much and resulting to OK is good enough so that other services can solve this problem.
+		- Process Error: (i) the drone status is set. You can choose between OK and FATAL. Only use FATAL if it is really necessary. Notice that this will land the UAV so probably using OK is fine (even when there is a "small" error in processing). (ii) the API is notified to send an NACK to the user.
 13. If the API is notified, it will obtain the response (ACK or NACK) and respond to the original sender.
-14. The main thread continues by checking the drone status. There are three states:
+14. The main thread continues by checking the drone status. There are five states:
 	- OK: the main thread continues by obtaining commands from the API.
 	- PENDING: the main thread does not check commands from the API. (this because we shouldn't send a new command to the drone before it has acknowledged the last one), and directly returns to receiving messages from the drone.
-	- FATAL_ERROR: (not depicted), the drone tries to land and shutsdown.       
+	- FATAL_ERROR: (not depicted), the drone tries to land and shutsdown.
+	- LANDING: the land command is issues and the UAV is landing.
+	- FINISHED: the drones altitude is below 0.1 meter and the entire system is shutting down.       
 
-While all of this is happening the *info publisher thread* is obtaining the data from the drone (period is set in the json.config file), and publish this data using UDP.
+While all of this is happening, the *info publisher thread* is obtaining the data from the drone (period is set in the json.config file), and publishes this data using UDP.
 
 
 ### 3.3 Structure:
 
-This code is all placed in the root package *grc.ardusim2* and is subdivided into four packages: (i) command, (ii) connection, (iii) drone, (iv) message. 
+This code is all placed in the root package *grc.ardusim2* and is subdivided into four packages: (i) command, (ii) connection, (iii) drone, and (iv) message. 
 In the root package, we can find the four threads, and a configuration class that reads the configuration from the config.json file.
 Each package is carefully designed, I will now explain how it was designed, and how one can add extra features.
 
@@ -312,7 +370,7 @@ The command package corresponds to the MAVlink commands that can be sent to the 
 
 1. Create a new class called "Arm", that extends from the "Command" class.
 
-2. Search on the [MAVlink website commands](https://mavlink.io/en/messages/common.html#mav_commands) the desired command, in this case [MAV CMD COMPONENT ARM DISARM](https://mavlink.io/en/messages/common.html#MAV_CMD_COMPONENT_ARM_DISARM) Arm.
+2. Search on the [MAVlink website commands](https://mavlink.io/en/messages/common.html#mav_commands) the desired command, in this case [MAV CMD COMPONENT ARM DISARM](https://mavlink.io/en/messages/common.html#MAV_CMD_COMPONENT_ARM_DISARM).
 
 3. The construct should be similar to the code below. You should change the commandID with the ID of the corresponding command, and adapt the payload to whatever is required. The payload is almost always created by using the [Command protocol](https://mavlink.io/en/services/command.html#command-protocol). When using this protocol ArduPilot wil respond with an ACKMessage so the expectsACKMEssage must be set to true (this is done by default).
 	```
@@ -340,7 +398,7 @@ The command package corresponds to the MAVlink commands that can be sent to the 
 	```
 	The drone status might also be set to FATAL_ERROR, but do realize that this will land the drone.
 
-6. Implement the *public static Function<JSONObject, Boolean> isValidMessage()* method. This method is important but cannot be inherited, so make sure to implement it! You can check the other commands for examples, but here you should check whether the JSON message is valid or not and return a boolean.
+6. Implement the *public static Function<JSONObject, Boolean> isValidMessage()* method. This method is important but cannot be inherited, so make sure to implement it! You can check the other commands for examples, but here you should check whether the JSON message is valid or not, and return a boolean.
 
 7. Now the command code is done but you still need to use it. For that make sure to change the *CommandFactory* class and add the case of your command.
 
@@ -369,6 +427,6 @@ The message package corresponds to the MAVlink messages that a drone sends to th
 
 The drone package is a small package that contains just three classes. One is the *Drone* class, which holds the current information of the drone e.g. position, speed, battery, etc. This information is updated using the MAVLink messages (inside specific message classes), and is used by the *infoPublisherThread* to send the information of the drone to another system. The other class in this package is an enum called *FlightModes*. It contains the different flightmodes that a drone can use. This enum is used in the [Set flightmode](#e-set-flightmode) command (to set the flightmode), and also in the *heartbeat message* to determine the current flightmode (by reading the custommode field). **Flightmodes are different for each ardupilot version** to if you want to use this code for ArduPlane, make sure to change this enum. The available flightmodes can be found in the [arducopter documentation](https://ardupilot.org/copter/docs/parameters.html#fltmode1). The value in this list corresponds with the custom mode that is sent in the heartbeat message. The last class is called *FlightMode* (notice it is not FlightModes). The FlightMode class is holds more information about the flightmode. In particular, it includes the basemode field. This field is set by the flightcontroller. This basemode include information suchs as armed, stabilize, auto, etc. These values (a bitmask) can be found in the [base mode field](https://mavlink.io/en/messages/minimal.html#MAV_MODE_FLAG). When changing the flightmode custom mode (as we do with the [Set flightmode](#e-set-flightmode) command), this base mode might change automatically.
 
-#### d) connection:
+#### d) Connection:
 
-The connection package is another small package. It holds classes to connect to an MAVlink device. For now, we have two different connection types (and I do not foresee that new types will be added). We have a serial connection in which we connect to a serial port using the [jSerialComm](https://github.com/Fazecast/jSerialComm) library. This connection should be used for real UAVs. We also have a TCPConnection which uses TCP. This connection should be used for SITL simulations. Each connection type/class should inherit from the *Connection* class, since this class already implements sending a message (using MAVlink v1), and receiving (and identifying) a MAVlink message.
+The connection package is another small package. It holds classes to connect to a MAVlink device. For now, we have two different connection types (and no new types are foreseen). We have a serial connection in which we connect to a serial port using the [jSerialComm](https://github.com/Fazecast/jSerialComm) library. This connection should be used for real UAVs. We also have a TCPConnection which uses TCP. This connection should be used for SITL simulations. Each connection type/class should inherit from the *Connection* class, since this class already implements sending a message (using MAVlink v1), and receiving (and identifying) a MAVlink message.

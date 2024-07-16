@@ -1,11 +1,11 @@
 package grc.ardusim2;
 
 import grc.ardusim2.command.*;
-import grc.ardusim2.drone.Drone;
 import io.dronefleet.mavlink.annotations.MavlinkMessageInfo;
 import io.dronefleet.mavlink.common.AutopilotVersion;
 import io.dronefleet.mavlink.common.GlobalPositionInt;
 import io.dronefleet.mavlink.common.SysStatus;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 
@@ -14,6 +14,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -79,7 +80,12 @@ public class APIThread extends Thread{
                     logger.warn("Got a new command request, but request was invalid: {}",jsonMessage);
                     sendData(receivePacket,"NACK");
                 }
-            } catch (IOException ignored) {}
+            } catch (IOException ignored) {
+                //Timed out
+            } catch (JSONException e){
+                Config.logger.warn("JSON message was not valid: {}", Arrays.toString(receivePacket.getData()));
+                sendData(receivePacket,"N/A");
+            }
         }
     }
 
@@ -109,6 +115,9 @@ public class APIThread extends Thread{
         endPoints.put("Takeoff", Takeoff.isValidMessage());
         endPoints.put("Land", Land.isValidMessage());
         endPoints.put("MoveToPosition", MoveToPosition.isValidMessage());
+        endPoints.put("MoveByVector", MoveByVector.isValidMessage());
+        endPoints.put("Rotate", Rotate.isValidMessage());
+        endPoints.put("RecoverControl", RecoverControl.isValidMessage());
     }
 
     private void sendData(DatagramPacket receivePacket,String sendData) {

@@ -21,7 +21,7 @@ public class CommandAckMessage extends Message{
     public void process() {
         logger.trace("Command ACK message: {}",msg.toString());
         Command lastCommandSend = drone.getLastCommandSend();
-        if(lastCommandSend.commandID == msg.command().entry().ordinal()){
+        if(lastCommandSend.commandID == msg.command().value()){
             if(msg.result().entry() == MavResult.MAV_RESULT_ACCEPTED){
                 lastCommandSend.processACK();
             }else{

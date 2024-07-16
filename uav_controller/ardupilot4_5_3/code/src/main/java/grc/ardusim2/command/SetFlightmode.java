@@ -5,6 +5,7 @@ import grc.ardusim2.Config;
 import grc.ardusim2.drone.Drone;
 import grc.ardusim2.drone.FlightMode;
 import grc.ardusim2.drone.FlightModes;
+import io.dronefleet.mavlink.annotations.MavlinkEntryInfo;
 import io.dronefleet.mavlink.common.CommandLong;
 import io.dronefleet.mavlink.common.MavCmd;
 import org.json.JSONObject;
@@ -21,14 +22,18 @@ public class SetFlightmode extends Command {
 
     public SetFlightmode(FlightModes mode) {
         super();
-        super.commandID = MavCmd.MAV_CMD_DO_SET_MODE.ordinal();
+        try {
+            super.commandID = MavCmd.class.getField(MavCmd.MAV_CMD_DO_SET_MODE.name()).getAnnotation(MavlinkEntryInfo.class).value();
+        } catch (NoSuchFieldException e) {
+            super.commandID = MavCmd.MAV_CMD_DO_SET_MODE.ordinal();
+        }
         this.mode = mode;
         super.payload = CommandLong.builder()
                 .targetSystem(Drone.getInstance().getMavID())
                 .targetComponent(0) // MavComponent.MAV_COMP_ID_ALL
                 .command(MavCmd.MAV_CMD_DO_SET_MODE)
                 .param1(1)
-                .param2(mode.ordinal())
+                .param2(mode.customMode)
                 .build();
     }
 

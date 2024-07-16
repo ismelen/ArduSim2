@@ -38,7 +38,7 @@ public class Arducopter453Controller {
         apiThread.start();
 
         logger.info("ArduSim init done, now starting");
-        while (drone.getStatus() != Drone.Status.FATAL_ERROR){
+        while (drone.getStatus() != Drone.Status.FATAL_ERROR && drone.getStatus() != Drone.Status.FINISHED){
             Message inmsg = droneConnection.getNext();
             if(inmsg != null){
                 inmsg.process();
@@ -52,6 +52,12 @@ public class Arducopter453Controller {
                     if(command.expectsACKMessage){
                         drone.setStatus(Drone.Status.PENDING_ACK);
                     }
+                }
+            }
+
+            if(drone.getStatus() == Drone.Status.LANDING){
+                if(drone.getRelAltitude() < 0.1){
+                    drone.setStatus(Drone.Status.FINISHED);
                 }
             }
         }

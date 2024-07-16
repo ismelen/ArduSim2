@@ -7,7 +7,7 @@ public class Drone {
 
     private static Drone INSTANCE;
 
-    public enum Status{OK, PENDING_ACK, FATAL_ERROR}
+    public enum Status{OK, PENDING_ACK, FATAL_ERROR, LANDING, FINISHED}
     private Status status;
     private Command lastCommandSend;
 
@@ -86,6 +86,8 @@ public class Drone {
     public void setVersion(String version) {
         this.version = version;
     }
+
+    public double getRelAltitude(){return this.relative_alt;}
 
     public Command getLastCommandSend(){
         return lastCommandSend;

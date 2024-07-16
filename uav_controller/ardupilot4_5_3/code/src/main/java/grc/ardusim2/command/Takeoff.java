@@ -3,6 +3,7 @@ package grc.ardusim2.command;
 import grc.ardusim2.APIThread;
 import grc.ardusim2.Config;
 import grc.ardusim2.drone.Drone;
+import io.dronefleet.mavlink.annotations.MavlinkEntryInfo;
 import io.dronefleet.mavlink.common.CommandLong;
 import io.dronefleet.mavlink.common.MavCmd;
 import org.json.JSONObject;
@@ -19,7 +20,11 @@ public class Takeoff extends Command {
 
     public Takeoff(float altitude) {
         super();
-        super.commandID = MavCmd.MAV_CMD_NAV_TAKEOFF.ordinal();
+        try {
+            super.commandID = MavCmd.class.getField(MavCmd.MAV_CMD_NAV_TAKEOFF.name()).getAnnotation(MavlinkEntryInfo.class).value();
+        } catch (NoSuchFieldException e) {
+            super.commandID = MavCmd.MAV_CMD_NAV_TAKEOFF.ordinal();
+        }
         this.altitude = altitude;
         super.payload = CommandLong.builder()
                 .targetSystem(Drone.getInstance().getMavID())

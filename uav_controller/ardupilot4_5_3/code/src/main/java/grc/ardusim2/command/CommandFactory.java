@@ -16,6 +16,9 @@ public class CommandFactory {
             case "Takeoff" -> new Takeoff(message);
             case "Land" -> new Land();
             case "MoveToPosition" -> new MoveToPosition(message);
+            case "MoveByVector" -> new MoveByVector(message);
+            case "Rotate" -> new Rotate(message);
+            case "RecoverControl" -> new RecoverControl(message);
             default -> null;
         };
     }

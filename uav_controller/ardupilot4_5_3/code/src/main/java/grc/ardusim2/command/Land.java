@@ -5,6 +5,7 @@ import grc.ardusim2.Config;
 import grc.ardusim2.drone.Drone;
 import grc.ardusim2.drone.FlightMode;
 import grc.ardusim2.drone.FlightModes;
+import io.dronefleet.mavlink.annotations.MavlinkEntryInfo;
 import io.dronefleet.mavlink.common.CommandLong;
 import io.dronefleet.mavlink.common.MavCmd;
 import org.json.JSONObject;
@@ -18,19 +19,23 @@ public class Land extends Command {
 
     public Land() {
         super();
-        super.commandID = MavCmd.MAV_CMD_DO_SET_MODE.ordinal();
+        try {
+            super.commandID = MavCmd.class.getField(MavCmd.MAV_CMD_DO_SET_MODE.name()).getAnnotation(MavlinkEntryInfo.class).value();
+        } catch (NoSuchFieldException e) {
+            super.commandID = MavCmd.MAV_CMD_DO_SET_MODE.ordinal();
+        }
         super.payload = CommandLong.builder()
                 .targetSystem(Drone.getInstance().getMavID())
                 .targetComponent(0) // MavComponent.MAV_COMP_ID_ALL
                 .command(MavCmd.MAV_CMD_DO_SET_MODE)
                 .param1(1)
-                .param2((float)FlightModes.LAND.ordinal())
+                .param2((float)FlightModes.LAND.customMode)
                 .build();
     }
 
     @Override
     public void processACK() {
-        drone.setStatus(Drone.Status.OK);
+        drone.setStatus(Drone.Status.LANDING);
         Config.logger.info("Drone starting to land.");
         api.respond(this,"ACK");
     }

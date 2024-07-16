@@ -16,6 +16,7 @@ public class AutopilotVersionMessage extends Message{
     public AutopilotVersionMessage(MavlinkMessage<?> inMsg) {
         msg = (AutopilotVersion) inMsg.getPayload();
         drone = Drone.getInstance();
+
     }
     @Override
     public void process() {
