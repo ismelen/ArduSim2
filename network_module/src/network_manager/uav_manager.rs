@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::{Arc, RwLock}};
+use std::{collections::HashMap, net::SocketAddr, sync::{Arc, RwLock}};
 
 use crate::network_manager::models::{BusyState, Coords};
 
@@ -6,7 +6,7 @@ use crate::network_manager::models::{BusyState, Coords};
 pub struct UAVManager {
   coords: Arc<RwLock<HashMap<String, Coords>>>,
   busy_states: Arc<RwLock<HashMap<String, BusyState>>>,
-  addrs: Arc<RwLock<HashMap<String, String>>>,
+  addrs: Arc<RwLock<HashMap<String, SocketAddr>>>,
 }
 
 impl UAVManager {
@@ -18,13 +18,11 @@ impl UAVManager {
     }
   }
 
-  pub fn add_uav(&self, uav_id: &str, coords: Coords, addr: String) {
-    self.coords.write().unwrap().insert(uav_id.to_string(), coords);
-    self.busy_states.write().unwrap().insert(uav_id.to_string(), BusyState { from: 0, to: 0, overlapped: false });
+  pub fn update_addr(&self, uav_id: &str, addr: SocketAddr) {
     self.addrs.write().unwrap().insert(uav_id.to_string(), addr);
   }
 
-  pub fn get_addr(&self, uav_id: &str) -> Option<String> {
+  pub fn get_addr(&self, uav_id: &str) -> Option<SocketAddr> {
     self.addrs.read().unwrap().get(uav_id).cloned()
   }
 
