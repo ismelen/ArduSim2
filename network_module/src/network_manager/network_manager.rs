@@ -1,22 +1,22 @@
-use std::{net::UdpSocket, sync::mpsc, thread, time::{Duration, SystemTime}};
+use std::{net::UdpSocket, sync::{Arc}, time::{Duration, SystemTime}};
+use serde_json::Value;
+use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 use tokio_util::time::DelayQueue;
 use crate::network_manager::{models::{BusyState, Message}, uav_manager::UAVManager};
 
 
-pub struct NetworkManager {
-  uav_manager: UAVManager,
+pub struct NetworkManager{
+  uav_manager: Arc<UAVManager>,
   msg_processor_chan: Option<mpsc::Sender<Message>>,
   coords_chan: Option<mpsc::Sender<Message>>,
-  sender_chan: Option<tokio::sync::mpsc::Sender<(Message, Duration)>>,
+  sender_chan: Option<mpsc::Sender<(Message, Duration)>>,
 }
 
 impl NetworkManager {
-  pub fn new() -> Self {
-    let manager = UAVManager::new();
-
+  pub fn new(manager: &UAVManager) -> Self {
     let mut nm = NetworkManager{
-      uav_manager: manager,
+      uav_manager: Arc::new(manager.clone()),
       coords_chan: None,
       sender_chan: None,
       msg_processor_chan: None,
@@ -29,7 +29,7 @@ impl NetworkManager {
     nm
   }
 
-  pub fn push(&self, data: serde_json::Value) {
+  pub async fn push(&self, data: Value, src_addr: std::net::SocketAddr) {
     let msg: Message = match serde_json::from_value(data) {
       Ok(msg) => msg,
       Err(_) => {
@@ -38,10 +38,15 @@ impl NetworkManager {
       }
     };
 
+    if let None = self.uav_manager.get_addr(&msg.sender_id) {
+      println!("Adding UAV {} with address {}", msg.sender_id, src_addr);
+      self.uav_manager.update_addr(&msg.sender_id, src_addr);
+    }
+
     if msg.receiver_id.is_none() && msg.coords.is_some() {
       match self.coords_chan {
         Some(ref chan) => {
-          chan.send(msg).unwrap();
+          let _ = chan.send(msg).await;
         },
         None => {
           println!("No coords channel available");
@@ -52,7 +57,7 @@ impl NetworkManager {
 
     match self.msg_processor_chan {
       Some(ref chan) => {
-        chan.send(msg).unwrap();
+        let _ = chan.send(msg).await;
       },
       None => {
         println!("No message processor channel available");
@@ -61,23 +66,24 @@ impl NetworkManager {
   }
 
   fn start_message_processor_thread(&mut self){
-    let (sender, receiver) = mpsc::channel::<Message>();
-    self.msg_processor_chan = Some(sender.clone());
+    let (sender, mut receiver) = mpsc::channel::<Message>(100);
+    self.msg_processor_chan = Some(sender);
 
 
     let manager = self.uav_manager.clone();
     let sender = self.sender_chan.clone().unwrap();
-    thread::spawn(async move || {
-      while let Ok(msg) = receiver.recv() {
+
+    tokio::spawn(async move {
+      while let Some(msg) = receiver.recv().await {
         let mut message = msg.clone();
         println!("Processing message from UAV {}: {:?}", message.sender_id, message);
         
         // Get message duration based on content size and bandwidth (6Mbps)
-        let t_tx = (message.clone().content.unwrap().as_bytes().len() as u64 * 8)/ (6*1000000);
+        let t_tx = (message.clone().content.unwrap().as_bytes().len() as u128 * 8)/ (6*1000000);
 
         // Delay message if sender is busy
         if let Some(busy) = manager.get_busy_state(message.sender_id.as_str()) {
-          let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+          let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_micros();
           if busy.to > now {
             message.start = busy.to + t_tx;
             //TODO: add also CSMA/CA here
@@ -87,7 +93,7 @@ impl NetworkManager {
         message.end = Some(message.start + t_tx); 
 
         // Simulate packet loss based on distance
-        if Self::apply_length_filter(manager.clone(), &mut message) {
+        if Self::apply_length_filter(&manager, &mut message) {
           continue;
         }
 
@@ -122,13 +128,13 @@ impl NetworkManager {
           }
         }
 
-        sender.send((msg, Duration::from_micros(t_tx))).await.unwrap();
+        sender.send((msg, Duration::from_micros(t_tx as u64))).await.unwrap();
       }
     });
   }
 
   // Simulate packet loss based on distance between sender and receiver
-  fn apply_length_filter(manager: UAVManager, msg: &mut Message) -> bool {
+  fn apply_length_filter(manager: &UAVManager, msg: &mut Message) -> bool {
     let sender_coords = manager.get_coords(msg.sender_id.as_str()).unwrap();
     let receiver_coords = manager.get_coords(msg.receiver_id.clone().unwrap().as_str()).unwrap();
 
@@ -149,8 +155,8 @@ impl NetworkManager {
   }
 
   fn start_sender_thread(&mut self)  {
-    let (sender, mut receiver) = tokio::sync::mpsc::channel::<(Message, Duration)>(300);
-    self.sender_chan = Some(sender.clone());
+    let (sender, mut receiver) = mpsc::channel::<(Message, Duration)>(300);
+    self.sender_chan = Some(sender);
 
     let manager = self.uav_manager.clone();
     let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
@@ -194,12 +200,12 @@ impl NetworkManager {
   }
 
   fn start_coords_thread(&mut self) {
-    let (sender, receiver) = mpsc::channel::<Message>();
+    let (sender, mut receiver) = mpsc::channel::<Message>(100);
     self.coords_chan = Some(sender.clone());
 
     let manager = self.uav_manager.clone();
-    thread::spawn(move || {
-      while let Ok(msg) = receiver.recv() {
+    tokio::spawn(async move {
+      while let Some(msg) = receiver.recv().await {
         let sender_id = msg.sender_id.as_str();
         println!("Updating UAV {} coords to: {:?}", sender_id, msg.coords);
         manager.update_coords(sender_id, msg.coords.unwrap());
