@@ -5,7 +5,9 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.101"
+futures = "0.3.32"
 rand = "0.10.0"
+rstest = "0.26.1"
 rust-analyzer = "0.0.1"
 serde = {version="1.0.228", features=["derive"]}
 serde_json = "1.0.149"
