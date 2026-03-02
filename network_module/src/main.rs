@@ -1,42 +1,57 @@
-use std::net::UdpSocket;
-use anyhow::Result;
+use std::{net::{SocketAddr, UdpSocket}, time::{Duration, Instant}};
 
-use crate::network_manager::{network_manager::NetworkManager, uav_manager::UAVManager};
+use network_module::{NetworkSimulator, Position};
+use serde::Deserialize;
 
-mod network_manager;
 
-const MAX_BUFFER_OPERATING_SYS:usize = 65507;
+const MAX_BUFFER_OPERATIN_SYS: usize = 65507;
+const SWITCH_INTERVAL: Duration = Duration::from_millis(1);
+
+#[derive(Deserialize)]
+struct UdpMessage {
+	sender_id: String,
+	target_id: String,
+	position: Position,
+	payload: Vec<u8>,
+	addr: SocketAddr,
+}
 
 fn main() {
-    let socket = UdpSocket::bind("0.0.0.0:3000").expect("couldn't bind to address");
+	let socket = UdpSocket::bind("0.0.0.0:3000").expect("couldn't bidn to address");
+	let mut ns = NetworkSimulator::new("3001");
+	let mut last_switch = Instant::now();
 
-    let local_addr = socket.local_addr().expect("couldn't get local address");
-    println!("Listening on {}", local_addr);
+	loop {
+		if last_switch.elapsed() >= SWITCH_INTERVAL {
+			last_switch = Instant::now();
+			ns.send_messages();
+		}
+		
+		let msg = get_new_msg(&socket);
+		if msg.is_none() { continue; }
+		let msg = msg.unwrap();
 
-    let uav_manager = UAVManager::new();
-    let network_manager = NetworkManager::new(&uav_manager);
-    
-    loop {
-        let (msg, src_addr) = match get_msg(&socket) {
-            Ok(msg) => msg,
-            Err(_) => {
-                println!("Cannot receive json message");
-                continue;
-            }
-        };
+		let start = Instant::now();
+		if msg.target_id.is_empty() {
+			ns.update_uav_info(msg.sender_id, msg.position, msg.addr);
+		}else {
+			ns.enqueue_message(msg.sender_id, msg.target_id, msg.payload);
+		}
 
-        let _ = network_manager.push(msg, src_addr);
-    }
+		last_switch -= start.elapsed();
+	}
 }
 
-fn get_msg(socket: &UdpSocket) -> Result<(serde_json::Value, std::net::SocketAddr)>{
-    let mut buf  = [0; MAX_BUFFER_OPERATING_SYS];
+fn get_new_msg(socket: &UdpSocket) -> Option<UdpMessage>{ 
+	let mut buf = [0; MAX_BUFFER_OPERATIN_SYS];
 
-    let (number_of_bytes, src_addr) = socket.recv_from(&mut buf)?;
-    let filled_buff = &mut buf[..number_of_bytes];
+	if let Ok((len, addr)) = socket.recv_from(&mut buf) {
+		let buf = &mut buf[..len];
+		if let Ok(mut msg) = serde_json::from_slice::<UdpMessage>(buf) {
+			msg.addr = addr;
+			return Some(msg)
+		}
+	}
 
-    let parsed = serde_json::from_slice(filled_buff)?;
-
-    Ok((parsed, src_addr))
+	None
 }
-
