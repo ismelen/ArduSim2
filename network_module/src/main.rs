@@ -1,6 +1,6 @@
 use std::{net::{SocketAddr, UdpSocket}, time::{Duration, Instant}};
 
-use network_module::{NetworkSimulator, Position};
+use network_module::{NetworkSimulator, models::Position};
 use serde::Deserialize;
 
 
