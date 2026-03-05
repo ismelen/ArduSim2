@@ -14,4 +14,4 @@ COPY --from=build /app/target/release/network_module .
 EXPOSE 3000/udp
 EXPOSE 3001/udp
 
-CMD ["./network_module"]
+CMD ["./network_module", "3000", "3001"]
