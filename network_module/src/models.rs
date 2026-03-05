@@ -10,6 +10,14 @@ pub struct Position {
   pub z: f64,
 }
 
+impl PartialEq for Position {
+  fn eq(&self, other: &Self) -> bool {
+      self.x == other.x && 
+      self.y == other.y &&
+      self.z == other.z
+  }
+}
+
 #[derive(Clone, Debug)]
 pub struct UAV {
   pub position: Position,

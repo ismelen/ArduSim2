@@ -1,8 +1,10 @@
 use std::{cmp::{self}, collections::{HashMap, VecDeque}, mem, net::{SocketAddr, UdpSocket}, sync::Arc, thread, time::{Duration, Instant}};
 
 use crate::models::{Message, Position, UAV};
+use crate::logger::Logger;
 
 pub mod models;
+pub mod logger;
 
 const CHUNK_ORDER: [i64; 3] = [0, -1, 1];
 const CHUNK_SIZE: f64 = 1.1;
@@ -15,6 +17,7 @@ pub struct NetworkSimulator {
   sended_msgs: HashMap<String, Vec<Message>>,
   uavs_sending: HashMap<(i64, i64, i64), Vec<Instant>>,
   socket: Arc<UdpSocket>,
+  logger: Arc<Logger>,
 }
 
 impl NetworkSimulator {
@@ -24,27 +27,34 @@ impl NetworkSimulator {
       delayed_msgs: VecDeque::new(),
       sended_msgs: HashMap::new(),
       uavs_sending: HashMap::new(),
-      socket: Arc::new(UdpSocket::bind(format!("0.0.0.0:{}", port)).expect("couldn't bind to address"))
+      socket: Arc::new(UdpSocket::bind(format!("0.0.0.0:{}", port)).expect("couldn't bind to address")),
+      logger: Arc::new(Logger::new()),
     }
   }
 
+  pub fn get_uav(&self, uav_id: &str) -> Option<&UAV> {
+    self.uavs.get(uav_id)
+  }
+
   pub fn update_uav_info(&mut self, uav_id: String, position: Position, addr: SocketAddr) {
-    let uav = self.uavs.entry(uav_id).or_insert(UAV{
+    let uav = self.uavs.entry(uav_id.clone()).or_insert(UAV{
       position: Position::default(),
       busy_until: Instant::now(),
       addr: addr,
     });
     uav.position = position;
     uav.addr = addr;
+    self.logger.uav_registered(&uav_id);
   }
 
   pub fn send_messages(&mut self) {
     let socket = self.socket.clone();
+    let logger = self.logger.clone();
     if !self.sended_msgs.is_empty() {
       let sended_msgs = mem::take(&mut self.sended_msgs);
 
       thread::spawn(move || {
-        for (_, msgs) in &sended_msgs {
+        for (target_id, msgs) in &sended_msgs {
           let mut send_next = true;
           let mut msg = &msgs[0];
           let mut max_end = msg.to;
@@ -54,7 +64,9 @@ impl NetworkSimulator {
             let overlapped = next_msg.from <= max_end;
             
             if !overlapped && send_next {
-              Self::send_udp(&socket, msg);
+              Self::send_udp(&socket, msg, &logger);
+            } else if overlapped {
+              logger.msg_overlapped(target_id);
             }
 
             msg = next_msg;
@@ -63,7 +75,7 @@ impl NetworkSimulator {
           }
 
           if send_next {
-            Self::send_udp(&socket, msg);
+            Self::send_udp(&socket, msg, &logger);
           }
         }
       });
@@ -71,6 +83,8 @@ impl NetworkSimulator {
       self.sended_msgs = HashMap::new();
     }
 
+    let delayed_count = self.delayed_msgs.len();
+    self.logger.delayed_queue_retry(delayed_count);
 
     let mut delayed_msgs = self.delayed_msgs.clone();
     while let Some(msg) = delayed_msgs.pop_front() {
@@ -85,13 +99,22 @@ impl NetworkSimulator {
       if let Some(sender) = self.uavs.get(&sender_id) {
         (sender.position.clone(), sender.busy_until)
       } else {
+        self.logger.msg_discarded_unknown_sender(&sender_id, &target_id);
         return;
       }
     };
     
     let now = Instant::now();
 
-    if now < sender_busy_until || self.is_near_senders(&sender_pos, &now){
+    let sender_busy = now < sender_busy_until;
+    let near_senders = self.is_near_senders(&sender_pos, &now);
+
+    if sender_busy || near_senders {
+      if sender_busy {
+        self.logger.msg_delayed_sender_busy(&sender_id, &target_id);
+      } else {
+        self.logger.msg_delayed_near_senders(&sender_id, &target_id);
+      }
       self.delayed_msgs.push_back(Message {
         sender_id: sender_id.clone(),
         target_id: target_id.clone(),
@@ -99,13 +122,17 @@ impl NetworkSimulator {
         from: now,
         ..Default::default()
       });
-      return; // Sender is busy, delay the message
+      return;
     }
 
     if let Some(target) = self.uavs.get(&target_id) {
       if !self.pass_distance_check(&sender_pos, &target.position) {
-        return; // Message lost due to distance, ignore
+        self.logger.msg_discarded_distance(&sender_id, &target_id);
+        return;
       }
+    } else {
+      self.logger.msg_discarded_unknown_target(&sender_id, &target_id);
+      return;
     }
 
     let tx = (payload.len() as u64) * 8 / 6;
@@ -132,17 +159,18 @@ impl NetworkSimulator {
         tx,
         ..Default::default()
       });
+      self.logger.msg_enqueued(&sender_id, &target_id, payload.len(), tx);
     }
   }
 
-  fn send_udp(socket: &UdpSocket, msg: &Message) {
+  fn send_udp(socket: &UdpSocket, msg: &Message, logger: &Logger) {
     let request = socket.send_to(&msg.payload, msg.target_addr.unwrap());
     match request {
       Err(e) => {
-        println!("{}", e)
+        logger.msg_sent_err(&msg.target_id, &e.to_string());
       }
-      Ok(_) => {  
-        println!("Success!")
+      Ok(_) => {
+        logger.msg_sent_ok(&msg.target_id);
       }
     }
   }
@@ -198,5 +226,21 @@ impl NetworkSimulator {
     let rand_val: f64 = rand::random();
 
     rand_val > loss_prob
+  }
+
+  pub fn get_delayed_msgs(&self) -> &VecDeque<Message> {
+    &self.delayed_msgs
+  }
+
+  pub fn get_sended_msgs(&self) -> &HashMap<String, Vec<Message>> {
+    &self.sended_msgs
+  }
+
+  pub fn get_uavs_sending(&self) -> &HashMap<(i64, i64, i64), Vec<Instant>> {
+    &self.uavs_sending
+  }
+
+  pub fn get_uavs(&self) -> &HashMap<String, UAV> {
+    &self.uavs
   }
 }

@@ -10,14 +10,17 @@ const SWITCH_INTERVAL: Duration = Duration::from_millis(1);
 #[derive(Deserialize)]
 struct UdpMessage {
 	sender_id: String,
-	target_id: String,
-	position: Position,
-	payload: Vec<u8>,
-	addr: SocketAddr,
+	target_id: Option<String>,
+	position: Option<Position>,
+	payload: Option<Vec<u8>>,
+	addr: Option<SocketAddr>,
 }
 
 fn main() {
 	let socket = UdpSocket::bind("0.0.0.0:3000").expect("couldn't bidn to address");
+	socket.set_read_timeout(Some(Duration::from_micros(100))).expect("couldn't set read timeout");
+	// socket.set_nonblocking(true).expect("couldn't set non-blocking");
+
 	let mut ns = NetworkSimulator::new("3001");
 	let mut last_switch = Instant::now();
 
@@ -32,10 +35,10 @@ fn main() {
 		let msg = msg.unwrap();
 
 		let start = Instant::now();
-		if msg.target_id.is_empty() {
-			ns.update_uav_info(msg.sender_id, msg.position, msg.addr);
+		if msg.target_id.is_none() {
+			ns.update_uav_info(msg.sender_id, msg.position.unwrap(), msg.addr.unwrap());
 		}else {
-			ns.enqueue_message(msg.sender_id, msg.target_id, msg.payload);
+			ns.enqueue_message(msg.sender_id, msg.target_id.unwrap(), msg.payload.unwrap());
 		}
 
 		last_switch -= start.elapsed();
@@ -48,7 +51,7 @@ fn get_new_msg(socket: &UdpSocket) -> Option<UdpMessage>{
 	if let Ok((len, addr)) = socket.recv_from(&mut buf) {
 		let buf = &mut buf[..len];
 		if let Ok(mut msg) = serde_json::from_slice::<UdpMessage>(buf) {
-			msg.addr = addr;
+			msg.addr = Some(addr);
 			return Some(msg)
 		}
 	}
