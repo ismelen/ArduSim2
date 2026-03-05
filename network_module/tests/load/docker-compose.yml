@@ -1,0 +1,44 @@
+services:
+  broker:
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+    container_name: network_broker
+    networks:
+      drone_net:
+        ipv4_address: 172.30.0.2
+    ports:
+      - "3000:3000/udp"
+    healthcheck:
+      test: ["CMD-SHELL", "echo ok"]
+      interval: 2s
+      timeout: 1s
+      retries: 3
+      start_period: 5s
+
+  drones:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      broker:
+        condition: service_healthy
+    environment:
+      - BROKER_HOST=172.30.0.2
+      - BROKER_PORT=3000
+      - TOTAL_DRONES=${TOTAL_DRONES:-100}
+    networks:
+      - drone_net
+    deploy:
+      replicas: ${TOTAL_DRONES:-100}
+      resources:
+        limits:
+          memory: 32M
+          cpus: "0.05"
+
+networks:
+  drone_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/20
