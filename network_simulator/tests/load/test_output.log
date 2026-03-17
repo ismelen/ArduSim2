@@ -1,0 +1,648 @@
+Building Docker images...
+time="2026-03-07T18:01:10+01:00" level=warning msg="/home/isma/dev/ArduSim2/network_simulator/tests/load/docker-compose.yaml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Image uav_simulator:latest Building 
+ Image network_simulator:latest Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.03kB done
+#1 DONE 0.0s
+
+#2 [uav internal] load build definition from Dockerfile.uav
+#2 DONE 0.0s
+
+#3 [broker internal] load build definition from Dockerfile.broker
+#3 transferring dockerfile: 457B done
+#3 WARN: FromAsCasing: 'as' and 'FROM' keywords' casing do not match (line 1)
+#3 DONE 0.0s
+
+#2 [uav internal] load build definition from Dockerfile.uav
+#2 transferring dockerfile: 195B done
+#2 DONE 0.0s
+
+#4 [broker internal] load metadata for docker.io/library/debian:bookworm-slim
+#4 ...
+
+#5 [uav internal] load metadata for docker.io/library/python:3.11-slim
+#5 DONE 0.8s
+
+#6 [broker internal] load metadata for docker.io/library/rust:1.85-slim
+#6 DONE 0.8s
+
+#4 [broker internal] load metadata for docker.io/library/debian:bookworm-slim
+#4 DONE 0.8s
+
+#7 [uav internal] load .dockerignore
+#7 transferring context: 2B done
+#7 DONE 0.0s
+
+#8 [broker internal] load .dockerignore
+#8 transferring context: 2B done
+#8 DONE 0.0s
+
+#9 [uav 1/4] FROM docker.io/library/python:3.11-slim@sha256:d6e4d224f70f9e0172a06a3a2eba2f768eb146811a349278b38fff3a36463b47
+#9 resolve docker.io/library/python:3.11-slim@sha256:d6e4d224f70f9e0172a06a3a2eba2f768eb146811a349278b38fff3a36463b47 0.0s done
+#9 DONE 0.0s
+
+#10 [broker stage-1 1/3] FROM docker.io/library/debian:bookworm-slim@sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421
+#10 resolve docker.io/library/debian:bookworm-slim@sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421 0.0s done
+#10 DONE 0.1s
+
+#11 [uav internal] load build context
+#11 transferring context: 38B done
+#11 DONE 0.0s
+
+#12 [broker builder 1/4] FROM docker.io/library/rust:1.85-slim@sha256:9f841bbe9e7d8e37ceb96ed907265a3a0df7f44e3737d0b100e7907a679acb36
+#12 resolve docker.io/library/rust:1.85-slim@sha256:9f841bbe9e7d8e37ceb96ed907265a3a0df7f44e3737d0b100e7907a679acb36 0.0s done
+#12 DONE 0.1s
+
+#13 [uav 3/4] COPY uav_simulator.py .
+#13 CACHED
+
+#14 [uav 2/4] WORKDIR /app
+#14 CACHED
+
+#15 [uav 4/4] RUN useradd -m uav && chown -R uav /app
+#15 CACHED
+
+#16 [uav] exporting to image
+#16 exporting layers
+#16 ...
+
+#17 [broker internal] load build context
+#17 transferring context: 177.23kB 0.0s done
+#17 DONE 0.1s
+
+#18 [broker builder 2/4] WORKDIR /usr/src/app
+#18 CACHED
+
+#16 [uav] exporting to image
+#16 exporting layers done
+#16 exporting manifest sha256:6b6d9d6cc2b2cd87dc8e4d3b6eb266c8fdd8a0171d1152b58307ee222ff21709 done
+#16 exporting config sha256:209dc1f7c379d3d0d5a83cbf8980f10646e96fe9982d41433db5b54d3bf06065 done
+#16 exporting attestation manifest sha256:22b6b189a9f6c64127eebeb61a792430197b1e3902a5a6421ad05e8e9ae0a552 0.1s done
+#16 exporting manifest list sha256:8d0d8958c17be6cfc2591c849c186f94a70067bfd744296455aca653c8d175f7 0.0s done
+#16 naming to docker.io/library/uav_simulator:latest
+#16 naming to docker.io/library/uav_simulator:latest done
+#16 unpacking to docker.io/library/uav_simulator:latest done
+#16 DONE 0.2s
+
+#19 [uav] resolving provenance for metadata file
+#19 DONE 0.0s
+
+#20 [broker builder 3/4] COPY . .
+#20 DONE 0.7s
+
+#21 [broker builder 4/4] RUN cargo build --release
+#21 0.244     Updating crates.io index
+#21 0.849      Locking 10 packages to latest compatible versions
+#21 0.849       Adding bitflags v2.11.0
+#21 0.849       Adding block2 v0.6.2
+#21 0.849       Adding cfg_aliases v0.2.1
+#21 0.849       Adding ctrlc v3.5.2
+#21 0.849       Adding dispatch2 v0.3.1
+#21 0.850       Adding nix v0.31.2
+#21 0.850       Adding objc2 v0.6.4
+#21 0.850       Adding objc2-encode v4.1.0
+#21 0.850       Adding windows-link v0.2.1
+#21 0.850       Adding windows-sys v0.61.2
+#21 0.851  Downloading crates ...
+#21 1.053   Downloaded cfg-if v1.0.4
+#21 1.058   Downloaded rand_chacha v0.3.1
+#21 1.064   Downloaded quote v1.0.45
+#21 1.070   Downloaded bitflags v2.11.0
+#21 1.078   Downloaded ctrlc v3.5.2
+#21 1.084   Downloaded itoa v1.0.17
+#21 1.088   Downloaded cfg_aliases v0.2.1
+#21 1.091   Downloaded rand_core v0.6.4
+#21 1.094   Downloaded ppv-lite86 v0.2.21
+#21 1.099   Downloaded zmij v1.0.21
+#21 1.110   Downloaded memchr v2.8.0
+#21 1.124   Downloaded unicode-ident v1.0.24
+#21 1.131   Downloaded rand v0.8.5
+#21 1.138   Downloaded proc-macro2 v1.0.106
+#21 1.144   Downloaded serde v1.0.228
+#21 1.152   Downloaded getrandom v0.2.17
+#21 1.158   Downloaded serde_derive v1.0.228
+#21 1.164   Downloaded serde_json v1.0.149
+#21 1.178   Downloaded serde_core v1.0.228
+#21 1.185   Downloaded zerocopy v0.8.40
+#21 1.203   Downloaded syn v2.0.117
+#21 1.221   Downloaded nix v0.31.2
+#21 1.242   Downloaded libc v0.2.182
+#21 1.394    Compiling libc v0.2.182
+#21 1.394    Compiling proc-macro2 v1.0.106
+#21 1.394    Compiling cfg-if v1.0.4
+#21 1.394    Compiling zerocopy v0.8.40
+#21 1.394    Compiling quote v1.0.45
+#21 1.396    Compiling unicode-ident v1.0.24
+#21 1.397    Compiling cfg_aliases v0.2.1
+#21 1.398    Compiling serde_core v1.0.228
+#21 1.398    Compiling zmij v1.0.21
+#21 1.398    Compiling bitflags v2.11.0
+#21 1.398    Compiling serde v1.0.228
+#21 1.400    Compiling serde_json v1.0.149
+#21 1.401    Compiling memchr v2.8.0
+#21 1.404    Compiling itoa v1.0.17
+#21 1.451    Compiling nix v0.31.2
+#21 2.389    Compiling syn v2.0.117
+#21 3.271    Compiling getrandom v0.2.17
+#21 3.372    Compiling rand_core v0.6.4
+#21 3.820    Compiling ctrlc v3.5.2
+#21 4.115    Compiling serde_derive v1.0.228
+#21 5.728    Compiling ppv-lite86 v0.2.21
+#21 6.061    Compiling rand_chacha v0.3.1
+#21 6.203    Compiling rand v0.8.5
+#21 6.719    Compiling network_simulator v0.1.0 (/usr/src/app)
+#21 7.839     Finished `release` profile [optimized] target(s) in 7.63s
+#21 DONE 8.0s
+
+#22 [broker stage-1 2/3] RUN apt-get update && apt-get install -y libgcc-s1 && rm -rf /var/lib/apt/lists/*
+#22 CACHED
+
+#23 [broker stage-1 3/3] COPY --from=builder /usr/src/app/target/release/network_simulator /usr/local/bin/
+#23 DONE 0.0s
+
+#24 [broker] exporting to image
+#24 exporting layers 0.1s done
+#24 exporting manifest sha256:72480f03484fddcc9aa12ad626a6b660f40b5b61ac07a43775fe64f747126cb4
+#24 exporting manifest sha256:72480f03484fddcc9aa12ad626a6b660f40b5b61ac07a43775fe64f747126cb4 0.0s done
+#24 exporting config sha256:babdc313ee7fe1d8c44893dc26faf26f73362d0c23eef5ac1abf8a10c87ef96c 0.0s done
+#24 exporting attestation manifest sha256:8d3b74240b9c372717a7794bb1843c85170fc5cd3c5e2559f3bdf2ac002790bb 0.0s done
+#24 exporting manifest list sha256:930d8e24a62229d5c05f6c7a1af159b61e95ffffdb77370df1385a99ec479122 0.0s done
+#24 naming to docker.io/library/network_simulator:latest
+#24 naming to docker.io/library/network_simulator:latest done
+#24 unpacking to docker.io/library/network_simulator:latest 0.0s done
+#24 DONE 0.3s
+
+#25 [broker] resolving provenance for metadata file
+#25 DONE 0.0s
+ Image uav_simulator:latest Built 
+ Image network_simulator:latest Built 
+Starting broker...
+time="2026-03-07T18:01:21+01:00" level=warning msg="/home/isma/dev/ArduSim2/network_simulator/tests/load/docker-compose.yaml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Network load_sim_net Creating 
+ Network load_sim_net Created 
+ Container load-broker-1 Creating 
+ Container load-broker-1 Created 
+ Container load-broker-1 Starting 
+ Container load-broker-1 Started 
+Waiting for broker to initialize (3s)...
+Starting 50 UAV simulations (2 msg each = 100 broadcasts)...
+time="2026-03-07T18:01:24+01:00" level=warning msg="/home/isma/dev/ArduSim2/network_simulator/tests/load/docker-compose.yaml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container load-broker-1 Running 
+ Container load-uav-3 Creating 
+ Container load-uav-10 Creating 
+ Container load-uav-50 Creating 
+ Container load-uav-4 Creating 
+ Container load-uav-30 Creating 
+ Container load-uav-6 Creating 
+ Container load-uav-9 Creating 
+ Container load-uav-40 Creating 
+ Container load-uav-32 Creating 
+ Container load-uav-1 Creating 
+ Container load-uav-21 Creating 
+ Container load-uav-46 Creating 
+ Container load-uav-42 Creating 
+ Container load-uav-2 Creating 
+ Container load-uav-7 Creating 
+ Container load-uav-5 Creating 
+ Container load-uav-37 Creating 
+ Container load-uav-39 Creating 
+ Container load-uav-33 Creating 
+ Container load-uav-18 Creating 
+ Container load-uav-25 Creating 
+ Container load-uav-36 Creating 
+ Container load-uav-22 Creating 
+ Container load-uav-43 Creating 
+ Container load-uav-19 Creating 
+ Container load-uav-49 Creating 
+ Container load-uav-15 Creating 
+ Container load-uav-27 Creating 
+ Container load-uav-17 Creating 
+ Container load-uav-41 Creating 
+ Container load-uav-48 Creating 
+ Container load-uav-13 Creating 
+ Container load-uav-45 Creating 
+ Container load-uav-24 Creating 
+ Container load-uav-14 Creating 
+ Container load-uav-11 Creating 
+ Container load-uav-29 Creating 
+ Container load-uav-20 Creating 
+ Container load-uav-8 Creating 
+ Container load-uav-26 Creating 
+ Container load-uav-31 Creating 
+ Container load-uav-16 Creating 
+ Container load-uav-23 Creating 
+ Container load-uav-12 Creating 
+ Container load-uav-35 Creating 
+ Container load-uav-38 Creating 
+ Container load-uav-28 Creating 
+ Container load-uav-44 Creating 
+ Container load-uav-47 Creating 
+ Container load-uav-34 Creating 
+ Container load-uav-14 Created 
+ Container load-uav-20 Created 
+ Container load-uav-43 Created 
+ Container load-uav-27 Created 
+ Container load-uav-46 Created 
+ Container load-uav-17 Created 
+ Container load-uav-40 Created 
+ Container load-uav-25 Created 
+ Container load-uav-15 Created 
+ Container load-uav-47 Created 
+ Container load-uav-48 Created 
+ Container load-uav-39 Created 
+ Container load-uav-24 Created 
+ Container load-uav-33 Created 
+ Container load-uav-5 Created 
+ Container load-uav-3 Created 
+ Container load-uav-12 Created 
+ Container load-uav-42 Created 
+ Container load-uav-10 Created 
+ Container load-uav-37 Created 
+ Container load-uav-31 Created 
+ Container load-uav-23 Created 
+ Container load-uav-49 Created 
+ Container load-uav-35 Created 
+ Container load-uav-18 Created 
+ Container load-uav-29 Created 
+ Container load-uav-11 Created 
+ Container load-uav-19 Created 
+ Container load-uav-50 Created 
+ Container load-uav-6 Created 
+ Container load-uav-16 Created 
+ Container load-uav-32 Created 
+ Container load-uav-21 Created 
+ Container load-uav-41 Created 
+ Container load-uav-34 Created 
+ Container load-uav-8 Created 
+ Container load-uav-1 Created 
+ Container load-uav-38 Created 
+ Container load-uav-45 Created 
+ Container load-uav-2 Created 
+ Container load-uav-36 Created 
+ Container load-uav-9 Created 
+ Container load-uav-4 Created 
+ Container load-uav-44 Created 
+ Container load-uav-13 Created 
+ Container load-uav-28 Created 
+ Container load-uav-26 Created 
+ Container load-uav-30 Created 
+ Container load-uav-7 Created 
+ Container load-uav-22 Created 
+ Container load-uav-26 Starting 
+ Container load-uav-26 Started 
+ Container load-uav-41 Starting 
+ Container load-uav-41 Started 
+ Container load-uav-36 Starting 
+ Container load-uav-36 Started 
+ Container load-uav-7 Starting 
+ Container load-uav-7 Started 
+ Container load-uav-22 Starting 
+ Container load-uav-22 Started 
+ Container load-uav-32 Starting 
+ Container load-uav-32 Started 
+ Container load-uav-4 Starting 
+ Container load-uav-4 Started 
+ Container load-uav-44 Starting 
+ Container load-uav-44 Started 
+ Container load-uav-2 Starting 
+ Container load-uav-2 Started 
+ Container load-uav-1 Starting 
+ Container load-uav-1 Started 
+ Container load-uav-28 Starting 
+ Container load-uav-28 Started 
+ Container load-uav-13 Starting 
+ Container load-uav-13 Started 
+ Container load-uav-11 Starting 
+ Container load-uav-11 Started 
+ Container load-uav-21 Starting 
+ Container load-uav-21 Started 
+ Container load-uav-30 Starting 
+ Container load-uav-30 Started 
+ Container load-uav-18 Starting 
+ Container load-uav-18 Started 
+ Container load-uav-38 Starting 
+ Container load-uav-38 Started 
+ Container load-uav-42 Starting 
+ Container load-uav-42 Started 
+ Container load-uav-50 Starting 
+ Container load-uav-50 Started 
+ Container load-uav-27 Starting 
+ Container load-uav-27 Started 
+ Container load-uav-45 Starting 
+ Container load-uav-45 Started 
+ Container load-uav-34 Starting 
+ Container load-uav-34 Started 
+ Container load-uav-37 Starting 
+ Container load-uav-37 Started 
+ Container load-uav-49 Starting 
+ Container load-uav-49 Started 
+ Container load-uav-19 Starting 
+ Container load-uav-19 Started 
+ Container load-uav-24 Starting 
+ Container load-uav-24 Started 
+ Container load-uav-29 Starting 
+ Container load-uav-29 Started 
+ Container load-uav-12 Starting 
+ Container load-uav-12 Started 
+ Container load-uav-9 Starting 
+ Container load-uav-9 Started 
+ Container load-uav-16 Starting 
+ Container load-uav-16 Started 
+ Container load-uav-8 Starting 
+ Container load-uav-8 Started 
+ Container load-uav-6 Starting 
+ Container load-uav-6 Started 
+ Container load-uav-35 Starting 
+ Container load-uav-35 Started 
+ Container load-uav-48 Starting 
+ Container load-uav-48 Started 
+ Container load-uav-23 Starting 
+ Container load-uav-23 Started 
+ Container load-uav-47 Starting 
+ Container load-uav-47 Started 
+ Container load-uav-5 Starting 
+ Container load-uav-5 Started 
+ Container load-uav-15 Starting 
+ Container load-uav-15 Started 
+ Container load-uav-10 Starting 
+ Container load-uav-10 Started 
+ Container load-uav-3 Starting 
+ Container load-uav-3 Started 
+ Container load-uav-31 Starting 
+ Container load-uav-31 Started 
+ Container load-uav-43 Starting 
+ Container load-uav-43 Started 
+ Container load-uav-25 Starting 
+ Container load-uav-25 Started 
+ Container load-uav-39 Starting 
+ Container load-uav-39 Started 
+ Container load-uav-17 Starting 
+ Container load-uav-17 Started 
+ Container load-uav-40 Starting 
+ Container load-uav-40 Started 
+ Container load-uav-46 Starting 
+ Container load-uav-46 Started 
+ Container load-uav-33 Starting 
+ Container load-uav-33 Started 
+ Container load-uav-20 Starting 
+ Container load-uav-20 Started 
+ Container load-uav-14 Starting 
+ Container load-uav-14 Started 
+Waiting for UAVs to finish emitting (approx 7 seconds)...
+Stopping broker...
+time="2026-03-07T18:01:46+01:00" level=warning msg="/home/isma/dev/ArduSim2/network_simulator/tests/load/docker-compose.yaml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container load-broker-1 Killing 
+ Container load-broker-1 Killed 
+
+==== BROKER LOG SUMMARY ====
+time="2026-03-07T18:01:48+01:00" level=warning msg="/home/isma/dev/ArduSim2/network_simulator/tests/load/docker-compose.yaml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.12:45028'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.4:57060'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.9:38543'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.7:41387'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.5:49845'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.15:40927'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.14:45541'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.9:41191'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.5:45962'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.6:59192'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.14:55844'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.7:44728'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.13:47348'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.8:35190'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.13:56820'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.5:54206'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.8:33791'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.4:51085'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.3:48389'
+broker-1  | [17:01:41.456] [SUCCESS] Delivered to '172.19.0.11:54231'
+broker-1  | 
+broker-1  | === Network Simulator Statistics ===
+broker-1  | Total broadcasts received:    100
+broker-1  | Delivered to receivers:        2412
+broker-1  | Discarded (unknown sender):    0
+broker-1  | Discarded (distance loss):     557
+broker-1  | Discarded (receiver busy):     0
+broker-1  | Discarded (buffer full):       0
+broker-1  | Discarded (collision/overlap): 0
+broker-1  | Delayed (sender busy):         0
+broker-1  | Delayed (carrier sensing):     0
+broker-1  | Delayed retried:               0
+broker-1  | UDP send OK:                   2412
+broker-1  | UDP send errors:               0
+broker-1  | ====================================
+
+==== TEST VERIFICATION ====
+✅ Total received broadcasts OK: 100 >= 100
+✅ No UDP send errors.
+
+Cleaning up containers...
+time="2026-03-07T18:01:49+01:00" level=warning msg="/home/isma/dev/ArduSim2/network_simulator/tests/load/docker-compose.yaml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container load-uav-7 Stopping 
+ Container load-uav-41 Stopping 
+ Container load-uav-26 Stopping 
+ Container load-uav-45 Stopping 
+ Container load-uav-34 Stopping 
+ Container load-uav-36 Stopping 
+ Container load-uav-47 Stopping 
+ Container load-uav-14 Stopping 
+ Container load-uav-44 Stopping 
+ Container load-uav-2 Stopping 
+ Container load-uav-22 Stopping 
+ Container load-uav-28 Stopping 
+ Container load-uav-5 Stopping 
+ Container load-uav-40 Stopping 
+ Container load-uav-33 Stopping 
+ Container load-uav-32 Stopping 
+ Container load-uav-1 Stopping 
+ Container load-uav-9 Stopping 
+ Container load-uav-16 Stopping 
+ Container load-uav-15 Stopping 
+ Container load-uav-46 Stopping 
+ Container load-uav-37 Stopping 
+ Container load-uav-8 Stopping 
+ Container load-uav-39 Stopping 
+ Container load-uav-6 Stopping 
+ Container load-uav-24 Stopping 
+ Container load-uav-17 Stopping 
+ Container load-uav-20 Stopping 
+ Container load-uav-30 Stopping 
+ Container load-uav-31 Stopping 
+ Container load-uav-25 Stopping 
+ Container load-uav-50 Stopping 
+ Container load-uav-35 Stopping 
+ Container load-uav-21 Stopping 
+ Container load-uav-49 Stopping 
+ Container load-uav-10 Stopping 
+ Container load-uav-11 Stopping 
+ Container load-uav-4 Stopping 
+ Container load-uav-13 Stopping 
+ Container load-uav-3 Stopping 
+ Container load-uav-48 Stopping 
+ Container load-uav-23 Stopping 
+ Container load-uav-19 Stopping 
+ Container load-uav-27 Stopping 
+ Container load-uav-18 Stopping 
+ Container load-uav-29 Stopping 
+ Container load-uav-12 Stopping 
+ Container load-uav-43 Stopping 
+ Container load-uav-42 Stopping 
+ Container load-uav-38 Stopping 
+ Container load-uav-41 Stopped 
+ Container load-uav-41 Removing 
+ Container load-uav-15 Stopped 
+ Container load-uav-15 Removing 
+ Container load-uav-1 Stopped 
+ Container load-uav-1 Removing 
+ Container load-uav-14 Stopped 
+ Container load-uav-14 Removing 
+ Container load-uav-21 Stopped 
+ Container load-uav-21 Removing 
+ Container load-uav-9 Stopped 
+ Container load-uav-9 Removing 
+ Container load-uav-26 Stopped 
+ Container load-uav-26 Removing 
+ Container load-uav-5 Stopped 
+ Container load-uav-5 Removing 
+ Container load-uav-34 Stopped 
+ Container load-uav-20 Stopped 
+ Container load-uav-35 Stopped 
+ Container load-uav-35 Removing 
+ Container load-uav-20 Removing 
+ Container load-uav-40 Stopped 
+ Container load-uav-40 Removing 
+ Container load-uav-22 Stopped 
+ Container load-uav-22 Removing 
+ Container load-uav-34 Removing 
+ Container load-uav-2 Stopped 
+ Container load-uav-2 Removing 
+ Container load-uav-45 Stopped 
+ Container load-uav-45 Removing 
+ Container load-uav-6 Stopped 
+ Container load-uav-6 Removing 
+ Container load-uav-17 Stopped 
+ Container load-uav-17 Removing 
+ Container load-uav-31 Stopped 
+ Container load-uav-31 Removing 
+ Container load-uav-36 Stopped 
+ Container load-uav-36 Removing 
+ Container load-uav-8 Stopped 
+ Container load-uav-8 Removing 
+ Container load-uav-11 Stopped 
+ Container load-uav-11 Removing 
+ Container load-uav-30 Stopped 
+ Container load-uav-25 Stopped 
+ Container load-uav-25 Removing 
+ Container load-uav-30 Removing 
+ Container load-uav-44 Stopped 
+ Container load-uav-39 Stopped 
+ Container load-uav-39 Removing 
+ Container load-uav-42 Stopped 
+ Container load-uav-42 Removing 
+ Container load-uav-44 Removing 
+ Container load-uav-3 Stopped 
+ Container load-uav-3 Removing 
+ Container load-uav-32 Stopped 
+ Container load-uav-32 Removing 
+ Container load-uav-27 Stopped 
+ Container load-uav-27 Removing 
+ Container load-uav-18 Stopped 
+ Container load-uav-18 Removing 
+ Container load-uav-12 Stopped 
+ Container load-uav-12 Removing 
+ Container load-uav-47 Stopped 
+ Container load-uav-47 Removing 
+ Container load-uav-23 Stopped 
+ Container load-uav-23 Removing 
+ Container load-uav-43 Stopped 
+ Container load-uav-43 Removing 
+ Container load-uav-28 Stopped 
+ Container load-uav-28 Removing 
+ Container load-uav-19 Stopped 
+ Container load-uav-19 Removing 
+ Container load-uav-49 Stopped 
+ Container load-uav-49 Removing 
+ Container load-uav-7 Stopped 
+ Container load-uav-7 Removing 
+ Container load-uav-16 Stopped 
+ Container load-uav-16 Removing 
+ Container load-uav-33 Stopped 
+ Container load-uav-33 Removing 
+ Container load-uav-46 Stopped 
+ Container load-uav-46 Removing 
+ Container load-uav-50 Stopped 
+ Container load-uav-50 Removing 
+ Container load-uav-29 Stopped 
+ Container load-uav-29 Removing 
+ Container load-uav-48 Stopped 
+ Container load-uav-48 Removing 
+ Container load-uav-4 Stopped 
+ Container load-uav-4 Removing 
+ Container load-uav-37 Stopped 
+ Container load-uav-37 Removing 
+ Container load-uav-24 Stopped 
+ Container load-uav-24 Removing 
+ Container load-uav-13 Stopped 
+ Container load-uav-13 Removing 
+ Container load-uav-10 Stopped 
+ Container load-uav-10 Removing 
+ Container load-uav-38 Stopped 
+ Container load-uav-38 Removing 
+ Container load-uav-41 Removed 
+ Container load-uav-15 Removed 
+ Container load-uav-10 Removed 
+ Container load-uav-11 Removed 
+ Container load-uav-7 Removed 
+ Container load-uav-12 Removed 
+ Container load-uav-32 Removed 
+ Container load-uav-30 Removed 
+ Container load-uav-45 Removed 
+ Container load-uav-21 Removed 
+ Container load-uav-23 Removed 
+ Container load-uav-18 Removed 
+ Container load-uav-44 Removed 
+ Container load-uav-35 Removed 
+ Container load-uav-16 Removed 
+ Container load-uav-4 Removed 
+ Container load-uav-29 Removed 
+ Container load-uav-28 Removed 
+ Container load-uav-5 Removed 
+ Container load-uav-9 Removed 
+ Container load-uav-22 Removed 
+ Container load-uav-1 Removed 
+ Container load-uav-3 Removed 
+ Container load-uav-37 Removed 
+ Container load-uav-48 Removed 
+ Container load-uav-6 Removed 
+ Container load-uav-20 Removed 
+ Container load-uav-38 Removed 
+ Container load-uav-26 Removed 
+ Container load-uav-39 Removed 
+ Container load-uav-17 Removed 
+ Container load-uav-31 Removed 
+ Container load-uav-46 Removed 
+ Container load-uav-13 Removed 
+ Container load-uav-2 Removed 
+ Container load-uav-34 Removed 
+ Container load-uav-40 Removed 
+ Container load-uav-25 Removed 
+ Container load-uav-8 Removed 
+ Container load-uav-33 Removed 
+ Container load-uav-43 Removed 
+ Container load-uav-36 Removed 
+ Container load-uav-14 Removed 
+ Container load-uav-27 Removed 
+ Container load-uav-47 Removed 
+ Container load-uav-49 Removed 
+ Container load-uav-24 Removed 
+ Container load-uav-42 Removed 
+ Container load-uav-19 Removed 
+ Container load-uav-50 Removed 
+ Container load-broker-1 Stopping 
+ Container load-broker-1 Stopped 
+ Container load-broker-1 Removing 
+ Container load-broker-1 Removed 
+ Network load_sim_net Removing 
+ Network load_sim_net Removed 
+🎉 TEST STATUS: PASSED 🎉
