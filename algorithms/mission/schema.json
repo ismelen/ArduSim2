@@ -1,0 +1,34 @@
+{
+  "title": "Mission Algorithm Configuration",
+  "type": "object",
+  "required": [
+    "mission_file",
+    "distance_to_waypoint_reached",
+    "minimum_waypoint_relative_altitude",
+    "waypoints_relative_altitude"
+  ],
+  "properties": {
+    "mission_file": {
+      "type": "string",
+      "format": "kml",
+      "contentMediaType": "application/vnd.google-earth.kml+xml",
+      "title": "Mission Route (.kml)",
+      "description": "El archivo KML que contiene las rutas de vuelo para la misión. Se puede generar desde un editor de waypoints."
+    },
+    "distance_to_waypoint_reached": {
+      "type": "number",
+      "title": "Distance to Waypoint Reached (m)",
+      "default": 5.0
+    },
+    "minimum_waypoint_relative_altitude": {
+      "type": "number",
+      "title": "Minimum Waypoint Relative Altitude (m)",
+      "default": 10.0
+    },
+    "waypoints_relative_altitude": {
+      "type": "number",
+      "title": "Waypoints Relative Altitude (m)",
+      "default": 15.0
+    }
+  }
+}
