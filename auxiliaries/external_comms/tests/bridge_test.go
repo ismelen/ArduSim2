@@ -60,7 +60,7 @@ func TestGatewayBridge_InternalToExternal(t *testing.T) {
 	configLoader := infrastructure.NewFileLoader()
 	config, _ := configLoader.LoadAppConfig("data/test_config.json")
 
-	bridge := usecase.NewGatewayBridge(config, broker, netSim, "1")
+	bridge := usecase.NewGatewayBridge(config, broker, netSim)
 
 	go bridge.Run()
 
@@ -90,7 +90,7 @@ func TestGatewayBridge_ExternalToInternal(t *testing.T) {
 	configLoader := infrastructure.NewFileLoader()
 	config, _ := configLoader.LoadAppConfig("data/test_config.json")
 
-	bridge := usecase.NewGatewayBridge(config, broker, netSim, "1")
+	bridge := usecase.NewGatewayBridge(config, broker, netSim)
 
 	go bridge.Run()
 

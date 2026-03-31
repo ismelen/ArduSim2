@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"fmt"
 	"log"
 
 	"external_comms/domain"
@@ -11,15 +12,13 @@ type GatewayBridge struct {
 	config  *domain.AppConfig
 	broker  ports.Broker
 	netLink ports.NetSimLink
-	uavID   string
 }
 
-func NewGatewayBridge(c *domain.AppConfig, b ports.Broker, n ports.NetSimLink, uavID string) *GatewayBridge {
+func NewGatewayBridge(c *domain.AppConfig, b ports.Broker, n ports.NetSimLink) *GatewayBridge {
 	return &GatewayBridge{
 		config:  c,
 		broker:  b,
 		netLink: n,
-		uavID:   uavID,
 	}
 }
 
@@ -48,21 +47,22 @@ func (g *GatewayBridge) Run() {
 
 func (g *GatewayBridge) handleInternalBrokerMessage(msg ports.BrokerMessage) {
 	// Internal to External
-	if msg.Topic == g.config.SubTelemetryTopic {
+	switch msg.Topic {
+	case g.config.SubTelemetryTopic:
 		// Route internal telemetry to swarm
 		extMsg := domain.NetSimMessage{
 			Type:    "telemetry",
-			Source:  g.uavID,
+			Source:  fmt.Sprintf("%d", g.config.UAVId),
 			Payload: msg.Payload,
 		}
 		g.netLink.Send(extMsg)
 		log.Printf("[Internal->External] Forwarded Telemetry")
 
-	} else if msg.Topic == g.config.SubMessagesTopic {
+	case g.config.SubMessagesTopic:
 		// Route internal P2P message to swarm
 		extMsg := domain.NetSimMessage{
 			Type:    "message",
-			Source:  g.uavID,
+			Source:  fmt.Sprintf("%d", g.config.UAVId),
 			Payload: msg.Payload,
 		}
 		g.netLink.Send(extMsg)
@@ -73,7 +73,7 @@ func (g *GatewayBridge) handleInternalBrokerMessage(msg ports.BrokerMessage) {
 func (g *GatewayBridge) handleExternalNetMessage(msg domain.NetSimMessage) {
 	// External to Internal
 	// Ignore our own echo if NetSim broadcasts everything back
-	if msg.Source == g.uavID {
+	if msg.Source == fmt.Sprintf("%d", g.config.UAVId) {
 		return
 	}
 

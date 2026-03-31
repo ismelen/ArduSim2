@@ -9,11 +9,10 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 3 {
-		log.Fatalf("Usage: %s <config.json> <uav_id>\n", os.Args[0])
+	if len(os.Args) < 2 {
+		log.Fatalf("Usage: %s <config.json>\n", os.Args[0])
 	}
 	configFile := os.Args[1]
-	uavID := os.Args[2]
 
 	fileLoader := infrastructure.NewFileLoader()
 	config, err := fileLoader.LoadAppConfig(configFile)
@@ -37,6 +36,6 @@ func main() {
 	}
 	defer netLink.Close()
 
-	bridge := usecase.NewGatewayBridge(config, broker, netLink, uavID)
+	bridge := usecase.NewGatewayBridge(config, broker, netLink)
 	bridge.Run()
 }

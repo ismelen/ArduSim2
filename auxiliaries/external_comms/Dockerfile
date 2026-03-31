@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine AS builder
+FROM golang:1.26.1-alpine AS builder
 WORKDIR /app
 COPY go.mod ./
 RUN go mod download
@@ -10,4 +10,4 @@ WORKDIR /app
 COPY --from=builder /app/main .
 
 # Execution arguments (like config files) must be passed dynamically when running the container
-ENTRYPOINT ["./main"]
+ENTRYPOINT ["./main", "config.json"]
