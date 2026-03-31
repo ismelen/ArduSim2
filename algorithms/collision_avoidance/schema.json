@@ -1,0 +1,61 @@
+{
+  "title": "Collision Avoidance (MBCAP) Configuration",
+  "type": "object",
+  "properties": {
+    "collisionWarningDistance": {
+      "type": "number",
+      "title": "Collision Warning Distance (m)",
+      "default": 25.0
+    },
+    "collisionWarningAltitudeOffset": {
+      "type": "number",
+      "title": "Collision Warning Altitude Offset (m)",
+      "default": 60.0
+    },
+    "collisionWarningTimeOffset": {
+      "type": "number",
+      "title": "Collision Warning Time Offset (s)",
+      "default": 1.5
+    },
+    "riskCheckPeriod": {
+      "type": "number",
+      "title": "Risk Check Period (s)",
+      "default": 1.0
+    },
+    "beaconExpirationTime": {
+      "type": "number",
+      "title": "Beacon Expiration Time (s)",
+      "default": 10.0
+    },
+    "hoveringTimeout": {
+      "type": "number",
+      "title": "Hovering Timeout (s)",
+      "default": 6.0
+    },
+    "overtakeDelayTimeout": {
+      "type": "number",
+      "title": "Overtake Delay Timeout (s)",
+      "default": 5.5
+    },
+    "defaultFlightModeResumeDelay": {
+      "type": "number",
+      "title": "Default Flight Mode Resume Delay (s)",
+      "default": 4.0
+    },
+    "checkRiskSameUAVDelay": {
+      "type": "number",
+      "title": "Check Risk Same UAV Delay (s)",
+      "default": 5.0
+    },
+    "minAdvertismentSpeed": {
+      "type": "number",
+      "title": "Min Advertisement Speed (m/s)",
+      "default": 1.0
+    },
+    "deadlockBaseTimeout": {
+      "type": "integer",
+      "title": "Deadlock Base Timeout (s)",
+      "default": 120
+    }
+  }
+}

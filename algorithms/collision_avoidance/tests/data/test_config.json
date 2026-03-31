@@ -1,0 +1,8 @@
+{
+  "uav_id": 1,
+  "broker_ip": "127.0.0.1",
+  "broker_port": 3000,
+  "telemetry_topic": "uav/1/telemetry",
+  "external_telemetry": "external/telemetry",
+  "cmd_publish_topic": "uav/1/cmd"
+}
