@@ -18,6 +18,7 @@ type BrokerMessage struct {
 // UAVLink directly interfaces via UDP with ArduPilot uav_controller
 type UAVLink interface {
 	SendSuggestion(suggestion domain.Suggestion) error
+	ListenTelemetry() (<-chan map[string]interface{}, error)
 	Close() error
 }
 

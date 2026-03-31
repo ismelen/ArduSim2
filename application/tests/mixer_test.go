@@ -38,17 +38,28 @@ func (m *MockBroker) SendToChannel(s domain.Suggestion) {
 
 type MockUAVLink struct {
 	SentSuggestions []domain.Suggestion
+	telChan         chan map[string]interface{}
+}
+
+func NewMockUAVLink() *MockUAVLink {
+	return &MockUAVLink{
+		telChan: make(chan map[string]interface{}, 10),
+	}
 }
 
 func (m *MockUAVLink) SendSuggestion(s domain.Suggestion) error {
 	m.SentSuggestions = append(m.SentSuggestions, s)
 	return nil
 }
+func (m *MockUAVLink) ListenTelemetry() (<-chan map[string]interface{}, error) {
+	return m.telChan, nil
+}
+
 func (m *MockUAVLink) Close() error { return nil }
 
 func TestMovementMixerPriorityOverride(t *testing.T) {
 	broker := NewMockBroker()
-	uav := &MockUAVLink{}
+	uav := NewMockUAVLink()
 
 	configLoader := infrastructure.NewFileLoader()
 	config, err := configLoader.LoadAppConfig("data/test_config.json")
@@ -82,7 +93,7 @@ func TestMovementMixerPriorityOverride(t *testing.T) {
 
 func TestMovementMixerVectorMix(t *testing.T) {
 	broker := NewMockBroker()
-	uav := &MockUAVLink{}
+	uav := NewMockUAVLink()
 
 	configLoader := infrastructure.NewFileLoader()
 	config, err := configLoader.LoadAppConfig("data/test_config.json")

@@ -1,14 +1,13 @@
 {
-  "broker_ip": "127.0.0.1",
-  "broker_port": 3000,
-  "uav_controller_ip": "127.0.0.1",
-  "uav_controller_port": 5501,
-  
+  "broker_ip": "communication_module",
+  "broker_port": 3400,
+  "uav_controller_ip": "uav_controller",
+  "uav_controller_port": 9876,
+  "uav_telemetry_port": 3500,
   "telemetry_topic": "telemetry",
   "suggestions_topic": "uav/suggestions",
   "external_telemetry": "external/telemetry",
   "external_messages": "external/messages",
   "global_commands": "global/commands",
-  
   "mix_window_ms": 200
 }

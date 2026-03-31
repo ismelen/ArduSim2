@@ -38,8 +38,16 @@ func (m *MovementMixer) Run() {
 
 	log.Println("Movement Mixer Started...")
 
+	// Telemetry Bridge
+	telemetryChan, err := m.uav.ListenTelemetry()
+	if err != nil {
+		log.Printf("Failed to listen for telemetry: %v", err)
+	}
+
 	for {
 		select {
+		case tel := <-telemetryChan:
+			m.broker.Publish(m.config.TelemetryTopic, tel)
 		case msg := <-msgChan:
 			if msg.Topic == m.config.SuggestionsTopic {
 				m.handleSuggestionArrival(msg.Payload)

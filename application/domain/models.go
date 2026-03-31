@@ -26,6 +26,7 @@ type AppConfig struct {
 	BrokerPort        int    `json:"broker_port"`
 	UAVControllerIP   string `json:"uav_controller_ip"`
 	UAVControllerPort int    `json:"uav_controller_port"`
+	UAVTelemetryPort  int    `json:"uav_telemetry_port"`
 	
 	TelemetryTopic    string `json:"telemetry_topic"`
 	SuggestionsTopic  string `json:"suggestions_topic"`
