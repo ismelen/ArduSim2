@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Safe TakeOff Configuration",
+  "description": "Configuration schema for the ArduSim2 distributed Safe TakeOff service.",
+  "type": "object",
+  "properties": {
+    "self_uav_id": {
+      "type": "integer",
+      "description": "The current UAV's unique ID."
+    },
+    "master_id": {
+      "type": "integer",
+      "description": "The ID of the UAV acting as the Master Coordinator."
+    },
+    "num_uavs": {
+      "type": "integer",
+      "description": "Total number of UAVs in the swarm."
+    },
+    "broker_ip": {
+      "type": "string",
+      "default": "127.0.0.1"
+    },
+    "broker_port": {
+      "type": "integer",
+      "default": 3400
+    },
+    "telemetry_topic": {
+      "type": "string",
+      "default": "telemetry"
+    },
+    "external_messages_topic": {
+      "type": "string",
+      "default": "external/messages"
+    },
+    "suggestions_topic": {
+      "type": "string",
+      "default": "uav/suggestions"
+    },
+    "ground_formation": {
+      "type": "string",
+      "enum": ["Circle", "Linear", "Matrix", "Random"],
+      "default": "Circle"
+    },
+    "flying_formation": {
+      "type": "string",
+      "enum": ["Circle", "Linear", "Matrix", "Random"],
+      "default": "Linear"
+    },
+    "ground_min_distance": {
+      "type": "number",
+      "default": 10.0
+    },
+    "flying_min_distance": {
+      "type": "number",
+      "default": 50.0
+    },
+    "takeoff_strategy": {
+      "type": "string",
+      "enum": ["Hungarian", "Simplified"],
+      "default": "Hungarian"
+    },
+    "takeoff_is_sequential": {
+      "type": "boolean",
+      "default": false
+    },
+    "altitude": {
+      "type": "number",
+      "default": 10.0
+    }
+  },
+  "required": [
+    "self_uav_id",
+    "master_id",
+    "num_uavs",
+    "broker_ip",
+    "broker_port",
+    "telemetry_topic",
+    "external_messages_topic",
+    "suggestions_topic",
+    "ground_formation",
+    "flying_formation",
+    "altitude"
+  ]
+}
