@@ -1,25 +1,39 @@
 services:
-  tool: 
-    image: access_tool
-    build:
-      context: ./tools/uavControllerAPI
-      dockerfile: Dockerfile
-    container_name: access_tool
-    depends_on:
-      - communication_module
-    ports:
-      - "5000:5000/tcp"
-    networks:
-      - drone_net
-
   communication_module:
-    image: base_node
+    image: communication_module
     build: 
       context: ./communication_module
       dockerfile: Dockerfile
     container_name: communication_module
     networks:
-      - drone_net
+      - uav_net
+
+  external_comms:
+    image: external_comms
+    build: 
+      context: ./auxiliaries/external_comms
+      dockerfile: Dockerfile
+    container_name: external_comms
+    depends_on:
+      - communication_module
+    volumes:
+      - ./resources/external_comms_config.json:/app/config.json
+    networks:
+      - uav_net
+
+  application:
+    image: application
+    build: 
+      context: ./application
+      dockerfile: Dockerfile
+    container_name: application
+    depends_on:
+      - communication_module
+      - uav_controller
+    volumes:
+      - ./resources/application_config.json:/app/config.json
+    networks:
+      - uav_net
 
   uav_controller:
     image: copter453
@@ -33,10 +47,10 @@ services:
     depends_on:
       - communication_module
     volumes: 
-      - ./uav_controller/ardupilot4_5_3/config.sitl.json:/app/config.json
+      - ./resources/uav_controller_config.json:/app/config.json
     networks:
-      - drone_net
+      - uav_net
 
 networks:
-  drone_net:
+  uav_net:
     driver: bridge

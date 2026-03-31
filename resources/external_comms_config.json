@@ -1,0 +1,13 @@
+{
+  "broker_ip": "communication_module",
+  "broker_port": 3400,
+  "simulator_ip": "127.0.0.1",
+  "simulator_port": 6000,
+
+  "sub_telemetry_topic": "telemetry",
+  "sub_messages_topic": "external/messages",
+
+  "pub_ext_telemetry_topic": "external/telemetry",
+  "pub_ext_messages_topic": "global",
+  "uav_id": 0
+}
