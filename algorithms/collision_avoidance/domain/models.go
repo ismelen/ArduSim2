@@ -54,6 +54,22 @@ type AppConfig struct {
 	TelemetryTopic    string `json:"telemetry_topic"`
 	ExternalTelemetry string `json:"external_telemetry"`
 	CmdPublishTopic   string `json:"cmd_publish_topic"`
+
+	// Algorithmic parameters previously from mbcap.properties
+	CollisionWarningDistance       float64 `json:"collisionWarningDistance"`
+	CollisionWarningAltitudeOffset float64 `json:"collisionWarningAltitudeOffset"`
+	CollisionWarningTimeOffset     float64 `json:"collisionWarningTimeOffset"`
+	RiskCheckPeriod                float64 `json:"riskCheckPeriod"`
+	BeaconExpirationTime           float64 `json:"beaconExpirationTime"`
+	HoveringTimeout                float64 `json:"hoveringTimeout"`
+	DefaultFlightModeResumeDelay   float64 `json:"defaultFlightModeResumeDelay"`
+	CheckRiskSameUAVDelay          float64 `json:"checkRiskSameUAVDelay"`
+	OvertakeDelayTimeout           float64 `json:"overtakeDelayTimeout"`
+	DeadlockBaseTimeout            int64   `json:"deadlockBaseTimeout"`
+	SafePlaceDistance              float64 `json:"safePlaceDistance"`
+	SafetyDistanceRange            float64 `json:"safetyDistanceRange"`
+	HopTimeNS                      int64   `json:"hopTimeNS"`
+	MinAdvertismentSpeed           float64 `json:"minAdvertismentSpeed"`
 }
 
 // MBCAPParam stores constants for MBCAP algorithm

@@ -47,14 +47,9 @@ func TestCollisionRiskDetection(t *testing.T) {
 	mockBroker := NewMockBroker()
 
 	configLoader := infrastructure.NewFileLoader()
-	config, err := configLoader.LoadAppConfig("data/test_config.json")
+	config, params, err := configLoader.LoadAppConfig("data/test_config.json")
 	if err != nil {
 		t.Fatalf("Failed to load test config: %v", err)
-	}
-
-	params, err := configLoader.LoadMBCAPParams("data/test_mbcap.properties")
-	if err != nil {
-		t.Fatalf("Failed to load test properties: %v", err)
 	}
 
 	store := infrastructure.NewMemoryTelemetryStore(5000000000)

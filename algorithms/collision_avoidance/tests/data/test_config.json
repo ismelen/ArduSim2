@@ -4,5 +4,16 @@
   "broker_port": 3000,
   "telemetry_topic": "uav/1/telemetry",
   "external_telemetry": "external/telemetry",
-  "cmd_publish_topic": "uav/1/cmd"
+  "cmd_publish_topic": "uav/1/cmd",
+  "collisionWarningDistance": 25.0,
+  "collisionWarningAltitudeOffset": 60.0,
+  "collisionWarningTimeOffset": 1.5,
+  "riskCheckPeriod": 1.0,
+  "beaconExpirationTime": 10.0,
+  "hoveringTimeout": 6.0,
+  "overtakeDelayTimeout": 5.5,
+  "defaultFlightModeResumeDelay": 4.0,
+  "checkRiskSameUAVDelay": 5.0,
+  "minAdvertismentSpeed": 1.0,
+  "deadlockBaseTimeout": 120
 }

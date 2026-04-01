@@ -11,23 +11,17 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 3 {
-		log.Fatalf("Usage: %s <config.json> <mbcap.properties>\n", os.Args[0])
+	if len(os.Args) < 2 {
+		log.Fatalf("Usage: %s <config.json>\n", os.Args[0])
 	}
 
 	configFile := os.Args[1]
-	propertiesFile := os.Args[2]
 
 	// Dependency Injection
 	fileLoader := infrastructure.NewFileLoader()
-	config, err := fileLoader.LoadAppConfig(configFile)
+	config, params, err := fileLoader.LoadAppConfig(configFile)
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
-	}
-
-	params, err := fileLoader.LoadMBCAPParams(propertiesFile)
-	if err != nil {
-		log.Fatalf("Failed to load MBCAP properties: %v", err)
 	}
 
 	udpBroker := infrastructure.NewUDPBroker()

@@ -1,7 +1,45 @@
 {
   "title": "Collision Avoidance (MBCAP) Configuration",
   "type": "object",
+  "required": [
+    "uav_id",
+    "broker_ip",
+    "broker_port",
+    "telemetry_topic",
+    "external_telemetry",
+    "cmd_publish_topic"
+  ],
   "properties": {
+    "uav_id": {
+      "type": "integer",
+      "title": "UAV ID",
+      "default": 1
+    },
+    "broker_ip": {
+      "type": "string",
+      "title": "Broker IP Address",
+      "default": "communication_module"
+    },
+    "broker_port": {
+      "type": "integer",
+      "title": "Broker Port",
+      "default": 3400
+    },
+    "telemetry_topic": {
+      "type": "string",
+      "title": "Telemetry Topic",
+      "default": "telemetry"
+    },
+    "external_telemetry": {
+      "type": "string",
+      "title": "External Telemetry Topic",
+      "default": "external/telemetry"
+    },
+    "cmd_publish_topic": {
+      "type": "string",
+      "title": "Command Publish Topic",
+      "default": "global/commands"
+    },
     "collisionWarningDistance": {
       "type": "number",
       "title": "Collision Warning Distance (m)",
