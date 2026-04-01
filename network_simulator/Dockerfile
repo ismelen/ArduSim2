@@ -13,6 +13,5 @@ COPY --from=builder /usr/src/app/target/release/network_simulator /usr/local/bin
 
 # Port configurations
 EXPOSE 3000/udp
-EXPOSE 3001/udp
 
-CMD ["network_simulator", "3000", "3001"]
+CMD ["network_simulator"]

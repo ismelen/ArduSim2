@@ -148,7 +148,6 @@ pub struct TelemetrySpeed {
 /// A combined telemetry update received via UDP.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TelemetryData {
-    pub sender_id: String,
     pub nr_gps_online: i32,
     pub position: TelemetryPosition,
     #[serde(rename = "type")]

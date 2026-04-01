@@ -39,11 +39,7 @@ pub struct NetworkSimulator {
 
 impl NetworkSimulator {
     /// Creates a new network simulator instance initialized using specific buffers.
-    pub fn new(send_port: &str, receiving_buffer_size: usize, logger: Arc<Logger>) -> Self {
-        let socket = Arc::new(
-            UdpSocket::bind(format!("0.0.0.0:{}", send_port)).expect("couldn't bind send socket"),
-        );
-
+    pub fn new(socket: Arc<UdpSocket>, receiving_buffer_size: usize, logger: Arc<Logger>) -> Self {
         let dispatcher = UdpDispatcher::new(socket.clone(), logger.clone());
         let telemetry = TelemetryManager::new(socket, logger.clone());
         let spatial = SpatialGrid::new();
@@ -66,8 +62,7 @@ impl NetworkSimulator {
     }
 
     /// Informs the simulator of a system active via specific addresses. Registers its updated chunk.
-    pub fn update_uav_info(&mut self, telemetry_data: TelemetryData, addr: SocketAddr) {
-        let uav_id = telemetry_data.sender_id.clone();
+    pub fn update_uav_info(&mut self, telemetry_data: TelemetryData, uav_id: String, addr: SocketAddr) {
         let position = telemetry_data.position.to_sim_position();
         let new_chunk = SpatialGrid::get_chunk_key(&position);
         
@@ -94,7 +89,7 @@ impl NetworkSimulator {
         };
 
         self.spatial.update_uav_chunk(&uav_id, old_chunk, new_chunk);
-        self.telemetry.relay_telemetry(&telemetry_data);
+        self.telemetry.relay_telemetry(&telemetry_data, &uav_id);
 
         self.logger.uav_registered(&uav_id);
     }

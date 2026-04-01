@@ -32,13 +32,18 @@ impl TelemetryManager {
     }
 
     /// Pushes structured JSON streams automatically across registered client target sockets.
-    pub fn relay_telemetry(&self, telemetry: &TelemetryData) {
+    pub fn relay_telemetry(&self, telemetry: &TelemetryData, uav_id: &str) {
         if self.subscribers.is_empty() {
+            println!("No subscribers");
             return;
         }
 
-        if let Ok(json_payload) = serde_json::to_vec(telemetry) {
+        if let Ok(json_payload) = serde_json::to_vec(&serde_json::json!({
+            "uav_id": uav_id,
+            "payload": telemetry
+        })) {
             for sub_addr in &self.subscribers {
+                println!("Sending telemetry to {}", sub_addr);
                 let _ = self.socket.send_to(&json_payload, sub_addr);
             }
             self.logger.telemetry_relayed();

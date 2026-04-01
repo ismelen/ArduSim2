@@ -1,4 +1,4 @@
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, UdpSocket};
 use std::time::Duration;
 
 use std::sync::Arc;
@@ -11,9 +11,8 @@ fn addr(port: u16) -> SocketAddr {
     SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port))
 }
 
-fn mock_telemetry(id: &str, lon: f64, lat: f64, alt: f64) -> TelemetryData {
+fn mock_telemetry(lon: f64, lat: f64, alt: f64) -> TelemetryData {
     TelemetryData {
-        sender_id: id.to_string(),
         nr_gps_online: 2,
         position: TelemetryPosition {
             heading: 0.0,
@@ -36,11 +35,16 @@ fn mock_telemetry(id: &str, lon: f64, lat: f64, alt: f64) -> TelemetryData {
     }
 }
 
+fn create_sim(buffer_size: usize) -> NetworkSimulator {
+    let socket = Arc::new(UdpSocket::bind("127.0.0.1:0").unwrap());
+    NetworkSimulator::new(socket, buffer_size, Arc::new(Logger::new()))
+}
+
 // ── Constructor ─────────────────────────────────────────────
 
 #[test]
 fn test_new_simulator_is_empty() {
-    let sim = NetworkSimulator::new("0", 163_840, Arc::new(Logger::new()));
+    let sim = create_sim(163_840);
     assert!(sim.get_uavs().is_empty());
     assert!(sim.get_delayed_msgs().is_empty());
     assert!(sim.get_pending_msgs().is_empty());
@@ -52,13 +56,13 @@ fn test_new_simulator_is_empty() {
 
 #[test]
 fn test_register_uav() {
-    let mut sim = NetworkSimulator::new("0", 163_840, Arc::new(Logger::new()));
+    let mut sim = create_sim(163_840);
     // (x=1.0, y=2.0) -> requires dividing by 111120.0 to back-calculate the deg if we want to check coords closely,
     // but the test primarily just checks if ID and addresses are populated.
-    let tel = mock_telemetry("drone_0", 1.0, 2.0, 3.0);
+    let tel = mock_telemetry(1.0, 2.0, 3.0);
     let a = addr(5000);
 
-    sim.update_uav_info(tel, a);
+    sim.update_uav_info(tel, "drone_0".to_string(), a);
 
     let uav = sim.get_uav("drone_0").unwrap();
     // Validate position was mapped correctly (X = lon * 111120.0, etc.)
@@ -72,8 +76,8 @@ fn test_register_uav() {
 
 #[test]
 fn test_register_uav_creates_chunk() {
-    let mut sim = NetworkSimulator::new("0", 163_840, Arc::new(Logger::new()));
-    sim.update_uav_info(mock_telemetry("d1", 0.0, 0.0, 0.0), addr(5000));
+    let mut sim = create_sim(163_840);
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d1".to_string(), addr(5000));
 
     // Should have exactly one chunk with one UAV
     assert_eq!(sim.get_chunks().len(), 1);
@@ -84,12 +88,12 @@ fn test_register_uav_creates_chunk() {
 
 #[test]
 fn test_update_uav_re_indexes_chunk() {
-    let mut sim = NetworkSimulator::new("0", 163_840, Arc::new(Logger::new()));
-    sim.update_uav_info(mock_telemetry("d1", 0.0, 0.0, 0.0), addr(5000));
+    let mut sim = create_sim(163_840);
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d1".to_string(), addr(5000));
     let old_chunk = sim.get_uav("d1").unwrap().chunk_key;
 
     // Move far away so chunk key changes (e.g. 1.0 deg is 111,120 m away)
-    sim.update_uav_info(mock_telemetry("d1", 1.0, 1.0, 0.0), addr(5000));
+    sim.update_uav_info(mock_telemetry(1.0, 1.0, 0.0), "d1".to_string(), addr(5000));
     let new_chunk = sim.get_uav("d1").unwrap().chunk_key;
 
     assert_ne!(old_chunk, new_chunk);
@@ -107,7 +111,7 @@ fn test_update_uav_re_indexes_chunk() {
 
 #[test]
 fn test_broadcast_unknown_sender_is_discarded() {
-    let mut sim = NetworkSimulator::new("0", 163_840, Arc::new(Logger::new()));
+    let mut sim = create_sim(163_840);
     sim.enqueue_broadcast("ghost".into(), vec![1, 2, 3], 0);
 
     assert!(sim.get_delayed_msgs().is_empty());
@@ -118,16 +122,16 @@ fn test_broadcast_unknown_sender_is_discarded() {
 
 #[test]
 fn test_broadcast_enqueues_for_nearby_receivers() {
-    let mut sim = NetworkSimulator::new("0", 163_840, Arc::new(Logger::new()));
+    let mut sim = create_sim(163_840);
 
     // Three very close UAVs (same chunk, distance ≈ 0)
     // METERS_PER_DEGREE = 111120.0
     // chunk size = 0.350 meters
     // to belong to the same chunk they have to be extremely close in lat/lon
     // Let's use 0.0, 0.000000001 (which is 0.00011 m), etc.
-    sim.update_uav_info(mock_telemetry("d0", 0.0, 0.0, 0.0), addr(5000));
-    sim.update_uav_info(mock_telemetry("d1", 0.000000001, 0.0, 0.0), addr(5001));
-    sim.update_uav_info(mock_telemetry("d2", 0.000000002, 0.0, 0.0), addr(5002));
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d0".to_string(), addr(5000));
+    sim.update_uav_info(mock_telemetry(0.000000001, 0.0, 0.0), "d1".to_string(), addr(5001));
+    sim.update_uav_info(mock_telemetry(0.000000002, 0.0, 0.0), "d2".to_string(), addr(5002));
 
     sim.enqueue_broadcast("d0".into(), vec![10, 20, 30], 0);
 
@@ -149,12 +153,12 @@ fn test_broadcast_enqueues_for_nearby_receivers() {
 
 #[test]
 fn test_broadcast_far_uav_not_reached() {
-    let mut sim = NetworkSimulator::new("0", 163_840, Arc::new(Logger::new()));
+    let mut sim = create_sim(163_840);
 
-    sim.update_uav_info(mock_telemetry("d0", 0.0, 0.0, 0.0), addr(5000));
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d0".to_string(), addr(5000));
     // Very far away (many chunks away, outside 5x5x5 neighborhood)
     // 50 degrees is a lot of km away.
-    sim.update_uav_info(mock_telemetry("d_far", 50.0, 50.0, 0.0), addr(5001));
+    sim.update_uav_info(mock_telemetry(50.0, 50.0, 0.0), "d_far".to_string(), addr(5001));
 
     sim.enqueue_broadcast("d0".into(), vec![1, 2, 3], 0);
 
@@ -166,10 +170,10 @@ fn test_broadcast_far_uav_not_reached() {
 
 #[test]
 fn test_broadcast_sender_busy_delays_message() {
-    let mut sim = NetworkSimulator::new("0", 163_840, Arc::new(Logger::new()));
+    let mut sim = create_sim(163_840);
 
-    sim.update_uav_info(mock_telemetry("d0", 0.0, 0.0, 0.0), addr(5000));
-    sim.update_uav_info(mock_telemetry("d1", 0.0, 0.0, 0.0), addr(5001));
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d0".to_string(), addr(5000));
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d1".to_string(), addr(5001));
 
     // First large message makes d0 busy
     sim.enqueue_broadcast("d0".into(), vec![0; 1000], 0);
@@ -185,12 +189,12 @@ fn test_broadcast_sender_busy_delays_message() {
 
 #[test]
 fn test_broadcast_near_senders_delays_message() {
-    let mut sim = NetworkSimulator::new("0", 163_840, Arc::new(Logger::new()));
+    let mut sim = create_sim(163_840);
 
     // d0 and d2 are in the same spatial chunk
-    sim.update_uav_info(mock_telemetry("d0", 0.0, 0.0, 0.0), addr(5000));
-    sim.update_uav_info(mock_telemetry("d1", 0.0, 0.0, 0.0), addr(5001));
-    sim.update_uav_info(mock_telemetry("d2", 0.000000001, 0.0, 0.0), addr(5002));
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d0".to_string(), addr(5000));
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d1".to_string(), addr(5001));
+    sim.update_uav_info(mock_telemetry(0.000000001, 0.0, 0.0), "d2".to_string(), addr(5002));
 
     // d0 sends a big message
     sim.enqueue_broadcast("d0".into(), vec![0; 1000], 0);
@@ -206,10 +210,10 @@ fn test_broadcast_near_senders_delays_message() {
 
 #[test]
 fn test_broadcast_buffer_overflow_discards() {
-    let mut sim = NetworkSimulator::new("0", 50, Arc::new(Logger::new())); // tiny buffer
+    let mut sim = create_sim(50); // tiny buffer
 
-    sim.update_uav_info(mock_telemetry("d0", 0.0, 0.0, 0.0), addr(5000));
-    sim.update_uav_info(mock_telemetry("d1", 0.0, 0.0, 0.0), addr(5001));
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d0".to_string(), addr(5000));
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d1".to_string(), addr(5001));
 
     // 40 bytes → fits
     sim.enqueue_broadcast("d0".into(), vec![0; 40], 0);
@@ -229,10 +233,10 @@ fn test_broadcast_buffer_overflow_discards() {
 
 #[test]
 fn test_send_messages_retries_delayed() {
-    let mut sim = NetworkSimulator::new("0", 163_840, Arc::new(Logger::new()));
+    let mut sim = create_sim(163_840);
 
-    sim.update_uav_info(mock_telemetry("d0", 0.0, 0.0, 0.0), addr(5000));
-    sim.update_uav_info(mock_telemetry("d1", 0.0, 0.0, 0.0), addr(5001));
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d0".to_string(), addr(5000));
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d1".to_string(), addr(5001));
 
     sim.enqueue_broadcast("d0".into(), vec![0; 1000], 0);
     sim.enqueue_broadcast("d0".into(), vec![1; 10], 0); // delayed
@@ -250,10 +254,10 @@ fn test_send_messages_retries_delayed() {
 
 #[test]
 fn test_send_messages_clears_pending() {
-    let mut sim = NetworkSimulator::new("0", 163_840, Arc::new(Logger::new()));
+    let mut sim = create_sim(163_840);
 
-    sim.update_uav_info(mock_telemetry("d0", 0.0, 0.0, 0.0), addr(5000));
-    sim.update_uav_info(mock_telemetry("d1", 0.0, 0.0, 0.0), addr(5001));
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d0".to_string(), addr(5000));
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d1".to_string(), addr(5001));
 
     sim.enqueue_broadcast("d0".into(), vec![1, 2, 3], 0);
     assert!(!sim.get_pending_msgs().is_empty());
@@ -269,10 +273,10 @@ fn test_send_messages_clears_pending() {
 
 #[test]
 fn test_transmission_time_matches_java() {
-    let mut sim = NetworkSimulator::new("0", 163_840, Arc::new(Logger::new()));
+    let mut sim = create_sim(163_840);
 
-    sim.update_uav_info(mock_telemetry("d0", 0.0, 0.0, 0.0), addr(5000));
-    sim.update_uav_info(mock_telemetry("d1", 0.0, 0.0, 0.0), addr(5001));
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d0".to_string(), addr(5000));
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d1".to_string(), addr(5001));
 
     let payload = vec![0u8; 100];
     sim.enqueue_broadcast("d0".into(), payload, 0);
@@ -289,10 +293,10 @@ fn test_transmission_time_matches_java() {
 
 #[test]
 fn test_statistics_accumulate() {
-    let mut sim = NetworkSimulator::new("0", 163_840, Arc::new(Logger::new()));
+    let mut sim = create_sim(163_840);
 
-    sim.update_uav_info(mock_telemetry("d0", 0.0, 0.0, 0.0), addr(5000));
-    sim.update_uav_info(mock_telemetry("d1", 0.0, 0.0, 0.0), addr(5001));
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d0".to_string(), addr(5000));
+    sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d1".to_string(), addr(5001));
 
     // Unknown sender
     sim.enqueue_broadcast("ghost".into(), vec![1], 0);
@@ -308,15 +312,15 @@ fn test_statistics_accumulate() {
 
 #[test]
 fn test_telemetry_subscription_broadcasts_on_update() {
-    let mut sim = NetworkSimulator::new("0", 163_840, Arc::new(Logger::new())); // Bind an arbitary unused OS port for send_port
+    let mut sim = create_sim(163_840);
     
     // Subscribe an arbitrary telemetry address
     let sub_addr = addr(9999);
     sim.subscribe_telemetry(sub_addr);
 
     // Verify it is broadcasting via logging stat triggers by executing the update
-    let tel = mock_telemetry("d0", 1.0, 2.0, 3.0);
-    sim.update_uav_info(tel, addr(5000));
+    let tel = mock_telemetry(1.0, 2.0, 3.0);
+    sim.update_uav_info(tel, "d0".to_string(), addr(5000));
 
     // Validating output stats will show that a telemetry relay log was incremented
     assert_eq!(

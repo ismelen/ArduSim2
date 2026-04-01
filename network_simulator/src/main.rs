@@ -23,8 +23,7 @@
 //! ```
 
 use std::{
-    net::UdpSocket,
-    time::{Duration, Instant},
+    net::UdpSocket, sync::Arc, time::{Duration, Instant}
 };
 
 use network_simulator::config::{MAX_DATAGRAM_SIZE, SWITCH_INTERVAL};
@@ -40,11 +39,7 @@ use network_simulator::logger::{LoggerFactory, LogMode};
 struct Args {
     /// Port to listen for incoming datagrams from UAVs
     #[arg(long, default_value_t = 3000)]
-    listen_port: u16,
-
-    /// Port used by the simulator to send datagrams to UAVs
-    #[arg(long, default_value_t = 3001)]
-    send_port: u16,
+    port: u16,
 
     /// Buffer size for receiving datagrams
     #[arg(long, default_value_t = network_simulator::config::DEFAULT_BUFFER_SIZE)]
@@ -64,18 +59,21 @@ struct Args {
 }
 
 /// Incoming UDP datagram structure from a client or UAV.
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(tag = "topic", content = "payload", rename_all = "lowercase")]
 pub enum UdpMessage {
     /// Request to subscribe to telemetry updates.
     Subscribe,
     /// Request to broadcast a generic payload.
     Broadcast {
-        sender_id: String,
+        uav_id: String,
         payload: Vec<u8>,
     },
     /// A telemetry update from a UAV.
-    Telemetry(network_simulator::models::TelemetryData),
+    Telemetry{
+        payload: network_simulator::models::TelemetryData,
+        uav_id: String,
+    },
 }
 
 /// Wrapper to attach the socket address to the parsed message.
@@ -101,8 +99,8 @@ fn main() {
 
     let logger = std::sync::Arc::new(LoggerFactory::create(mode));
 
-    let bind_addr = format!("0.0.0.0:{}", args.listen_port);
-    let socket = UdpSocket::bind(&bind_addr).expect(&format!("couldn't bind to {}", bind_addr));
+    let bind_addr = format!("0.0.0.0:{}", args.port);
+    let socket = Arc::new(UdpSocket::bind(&bind_addr).expect(&format!("couldn't bind to {}", bind_addr)));
     socket
         .set_read_timeout(Some(Duration::from_micros(100)))
         .expect("couldn't set read timeout");
@@ -110,10 +108,10 @@ fn main() {
     println!("Network simulator listening on {}", bind_addr);
     println!(
         "Sending on port {}, buffer size: {} bytes",
-        args.send_port, args.buffer_size
+        args.port, args.buffer_size
     );
 
-    let mut sim = NetworkSimulator::new(&args.send_port.to_string(), args.buffer_size, logger);
+    let mut sim = NetworkSimulator::new(socket.clone(), args.buffer_size, logger);
     let mut last_flush = Instant::now();
 
     let running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
@@ -137,11 +135,11 @@ fn main() {
                 UdpMessage::Subscribe => {
                     sim.subscribe_telemetry(received.addr);
                 }
-                UdpMessage::Broadcast { sender_id, payload } => {
+                UdpMessage::Broadcast { uav_id: sender_id, payload } => {
                     sim.enqueue_broadcast(sender_id, payload, 0);
                 }
-                UdpMessage::Telemetry(telemetry_data) => {
-                    sim.update_uav_info(telemetry_data, received.addr);
+                UdpMessage::Telemetry{ uav_id: sender_id, payload: telemetry_data } => {
+                    sim.update_uav_info(telemetry_data, sender_id, received.addr);
                 }
             }
 
