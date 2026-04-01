@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { GetAvailableServices } from '../wailsjs/go/main/App';
+import { GetAvailableServices, StartSimulation } from '../wailsjs/go/main/App';
 import { DynamicForm } from './components/DynamicForm';
 import { ServiceCard } from './components/ServiceCard';
 import { UavSidebar } from './components/UavSidebar';
@@ -35,6 +35,7 @@ const FleetConfig: React.FC = () => {
   const syncAll        = useAppStore(s => s.syncAll);
   const clearAll       = useAppStore(s => s.clearAll);
   const startSim       = useAppStore(s => s.startSimulation);
+  const activeMode     = useAppStore(s => s.activeMode);
 
   const [availableServices, setAvailableServices] = useState<any[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState<string>('');
@@ -80,6 +81,16 @@ const FleetConfig: React.FC = () => {
     resetDeployForm();
   };
 
+  const handleStartSimulation = async () => {
+    try {
+      await StartSimulation(uavs as any, activeMode === 'LOCAL');
+      startSim(); // Trigger UI tab/state change
+    } catch (err) {
+      console.error("Failed to start simulation:", err);
+      alert("Error starting simulation: " + err);
+    }
+  };
+
   if (!currentUav && uavs.length > 0) return null;
 
   return (
@@ -102,7 +113,7 @@ const FleetConfig: React.FC = () => {
                   <h2 className="display-font">{uavDisplayName(activeUavId)} Deployment Stack</h2>
                 </div>
                 <div className="stack-header-actions">
-                  <button className="primary-btn" style={{ width: 'auto', marginTop: 0, padding: '0.5rem 1.5rem' }} onClick={startSim}>
+                  <button className="primary-btn" style={{ width: 'auto', marginTop: 0, padding: '0.5rem 1.5rem' }} onClick={handleStartSimulation}>
                     <span className="material-symbols-outlined">play_arrow</span> START SIMULATION
                   </button>
                   <button className="outline-btn" onClick={syncAll}>
