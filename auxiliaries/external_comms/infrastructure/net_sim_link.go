@@ -36,7 +36,14 @@ func NewUDPNetSimLink(ip string, port int) (*UDPNetSimLink, error) {
 }
 
 func (n *UDPNetSimLink) Send(msg domain.NetSimMessage) error {
-	data, err := json.Marshal(msg)
+	valid_msg := map[string]interface{}{
+		"topic": msg.Topic,
+		"payload": map[string]interface{}{
+			"payload":   msg.Payload,
+			"uav_id": msg.Source,
+		},
+	}
+	data, err := json.Marshal(valid_msg)
 	if err != nil {
 		return err
 	}

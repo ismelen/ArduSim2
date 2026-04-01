@@ -20,7 +20,7 @@ type AppConfig struct {
 
 // NetSimMessage envelope for sending/receiving data to the global network simulator
 type NetSimMessage struct {
-	Type    string                 `json:"type"` // "telemetry" or "message"
-	Source  string                 `json:"source"`
+	Topic    string                 `json:"topic"` // "telemetry" or "message"
+	Source  string                 `json:"uav_id"`
 	Payload map[string]interface{} `json:"payload"`
 }

@@ -51,7 +51,7 @@ func (g *GatewayBridge) handleInternalBrokerMessage(msg ports.BrokerMessage) {
 	case g.config.SubTelemetryTopic:
 		// Route internal telemetry to swarm
 		extMsg := domain.NetSimMessage{
-			Type:    "telemetry",
+			Topic:    "telemetry",
 			Source:  fmt.Sprintf("%d", g.config.UAVId),
 			Payload: msg.Payload,
 		}
@@ -61,7 +61,7 @@ func (g *GatewayBridge) handleInternalBrokerMessage(msg ports.BrokerMessage) {
 	case g.config.SubMessagesTopic:
 		// Route internal P2P message to swarm
 		extMsg := domain.NetSimMessage{
-			Type:    "message",
+			Topic:    "message",
 			Source:  fmt.Sprintf("%d", g.config.UAVId),
 			Payload: msg.Payload,
 		}
@@ -77,10 +77,11 @@ func (g *GatewayBridge) handleExternalNetMessage(msg domain.NetSimMessage) {
 		return
 	}
 
-	if msg.Type == "telemetry" {
+	switch msg.Topic {
+case "telemetry":
 		g.broker.Publish(g.config.PubExternalTelemetryTopic, msg.Payload)
 		log.Printf("[External->Internal] Received Swarm Telemetry from %s", msg.Source)
-	} else if msg.Type == "message" {
+	case "message":
 		g.broker.Publish(g.config.PubExternalMessagesTopic, msg.Payload)
 		log.Printf("[External->Internal] Received Swarm Message from %s", msg.Source)
 	}

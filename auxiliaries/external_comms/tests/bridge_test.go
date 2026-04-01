@@ -75,8 +75,8 @@ func TestGatewayBridge_InternalToExternal(t *testing.T) {
 	}
 
 	res := netSim.SentMessages[0]
-	if res.Type != "telemetry" || res.Source != "1" {
-		t.Errorf("Expected external telemetry msg from source 1, got type=%s source=%s", res.Type, res.Source)
+	if res.Topic != "telemetry" || res.Source != "1" {
+		t.Errorf("Expected external telemetry msg from source 1, got type=%s source=%s", res.Topic, res.Source)
 	}
 	if res.Payload["lat"] != 10.0 {
 		t.Errorf("Payload mismatch")
@@ -96,7 +96,7 @@ func TestGatewayBridge_ExternalToInternal(t *testing.T) {
 
 	// Simulate receiving external message from drone 2
 	netMsg := domain.NetSimMessage{
-		Type:    "message",
+		Topic:    "message",
 		Source:  "2",
 		Payload: map[string]interface{}{"text": "hello"},
 	}
