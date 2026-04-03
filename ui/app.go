@@ -2,21 +2,26 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"ui/internal/config"
 	"ui/internal/netsim"
 	"ui/internal/service"
 	"ui/internal/simulation"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App is the Wails binding layer. It holds no business logic — it delegates
 // every operation to the appropriate internal package.
 type App struct {
 	ctx               context.Context
-	cancelCtx         context.CancelFunc
+	simCtx            context.Context
+	simCancel         context.CancelFunc
 	paths             config.Paths
 	discoverer        *service.Discoverer
 	subscriber        *netsim.Subscriber
@@ -44,7 +49,7 @@ func NewApp() *App {
 
 // startup is called by Wails when the application window is ready.
 func (a *App) startup(ctx context.Context) {
-	a.ctx, a.cancelCtx = context.WithCancel(ctx)
+	a.ctx = ctx
 }
 
 // GetAvailableServices returns all algorithm services that expose a schema.json.
@@ -54,10 +59,10 @@ func (a *App) GetAvailableServices() []simulation.ServiceType {
 
 // StartSimulation generates the Docker Compose environment for the given fleet
 // and, when isLocal is true, launches it and subscribes to network telemetry.
-func (a *App) StartSimulation(uavs []simulation.UAV, isLocal bool) error {
+func (a *App) StartSimulation(uavs []simulation.UAV, generalConfig simulation.GeneralConfig, activeMode string, isLocal bool) error {
 	orchestrator := simulation.NewOrchestrator(a.paths)
 
-	composePath, err := orchestrator.Run(uavs, isLocal)
+	composePath, err := orchestrator.Run(uavs, generalConfig, activeMode, isLocal)
 	if err != nil {
 		return fmt.Errorf("prepare simulation: %w", err)
 	}
@@ -68,28 +73,65 @@ func (a *App) StartSimulation(uavs []simulation.UAV, isLocal bool) error {
 		if err := launchDockerCompose(composePath); err != nil {
 			return err
 		}
-		go a.subscriber.Start(a.ctx)
+		
+		// Create a session-specific context that can be cancelled without killing the app.
+		if a.simCancel != nil {
+			a.simCancel()
+		}
+		a.simCtx, a.simCancel = context.WithCancel(a.ctx)
+		go a.subscriber.Start(a.simCtx)
 	}
 
 	return nil
 }
 
+// LoadSimulationConfig opens a directory picker and attempts to read a
+// simulation.json state file from the selected directory.
+func (a *App) LoadSimulationConfig() (*simulation.SimulationState, error) {
+	selectedDir, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		DefaultDirectory: a.paths.SimulationsDir,
+		Title:            "Select Simulation Directory",
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("open dialog: %w", err)
+	}
+
+	if selectedDir == "" {
+		return nil, nil // Cancelled by user
+	}
+
+	stateFile := filepath.Join(selectedDir, "simulation.json")
+	data, err := os.ReadFile(stateFile)
+	if err != nil {
+		return nil, fmt.Errorf("read simulation.json: %w", err)
+	}
+
+	var state simulation.SimulationState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return nil, fmt.Errorf("parse simulation state: %w", err)
+	}
+
+	return &state, nil
+}
+
 // StopSimulation performs a clean shutdown of the simulated environment.
 // This is intended to be called when the user exits the simulation view.
 func (a *App) StopSimulation() {
-	a.shutdown()
-}
-
-// shutdown is called by Wails before the window closes. It stops the UDP
-// subscriber and tears down any running Docker containers.
-func (a *App) shutdown() {
-	if a.cancelCtx != nil {
-		a.cancelCtx()
+	if a.simCancel != nil {
+		a.simCancel()
+		a.simCancel = nil
 	}
-
+ 
 	if a.activeComposePath != "" {
 		stopDockerCompose(a.activeComposePath)
+		a.activeComposePath = ""
 	}
+}
+
+// shutdown is called by Wails before the window closes.
+func (a *App) shutdown() {
+	a.StopSimulation()
 }
 
 // stopDockerCompose runs `docker compose down --remove-orphans` to cleanly

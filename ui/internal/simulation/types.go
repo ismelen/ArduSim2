@@ -16,8 +16,29 @@ type DeployedService struct {
 	Config       map[string]interface{} `json:"config"`
 }
 
+// GeneralConfig contains simulation-wide parameters like wind and battery.
+type GeneralConfig struct {
+	SpeedProfilePath  string  `json:"speedProfilePath"`
+	LoggingEnabled    bool    `json:"loggingEnabled"`
+	BatteryRestricted bool    `json:"batteryRestricted"`
+	BatteryCapacity   int     `json:"batteryCapacity"`
+	VerboseLogging    bool    `json:"verboseLogging"`
+	StoreLocalData    bool    `json:"storeLocalData"`
+	WindEnabled       bool    `json:"windEnabled"`
+	WindDirection     float64 `json:"windDirection"`
+	WindSpeed         float64 `json:"windSpeed"`
+}
+
 // UAV groups a UAV identifier with its set of deployed services.
 type UAV struct {
 	ID       string            `json:"id"`
 	Services []DeployedService `json:"services"`
+}
+
+// SimulationState captures the full UI state at the time a simulation starts.
+// This is used to "Load" a previous simulation exactly as it was configured.
+type SimulationState struct {
+	UAVs          []UAV         `json:"uavs"`
+	GeneralConfig GeneralConfig `json:"generalConfig"`
+	ActiveMode    string        `json:"activeMode"`
 }

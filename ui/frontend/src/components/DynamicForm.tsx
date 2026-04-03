@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from './common/Button';
 
 interface DynamicFormProps {
   schemaRaw: string;
@@ -19,8 +20,8 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({ schemaRaw, values, onC
         if (prop.type === 'string' && prop.format === 'kml') {
           return (
             <div key={key} className="config-group">
-              <label>{prop.title || key}</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <label className="label-font">{prop.title || key}</label>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', width: '100%' }}>
                 <input
                   type="file"
                   accept=".kml"
@@ -30,14 +31,23 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({ schemaRaw, values, onC
                     if (e.target.files?.length) onChange(key, e.target.files[0].name);
                   }}
                 />
-                <input type="text" className="service-input" value={value} readOnly
-                  style={{ flex: 1 }} placeholder="Select route file..." />
-                <button className="outline-btn" style={{ padding: '0 0.875rem', fontSize: '0.65rem' }}
-                  onClick={() => document.getElementById(`file-upload-${key}`)?.click()}>
-                  Browse
-                </button>
+                <input 
+                  type="text" 
+                  className="service-input" 
+                  value={value} 
+                  readOnly
+                  style={{ flex: 1, minWidth: 0 }} 
+                  placeholder="Select route file..." 
+                />
+                <Button 
+                  variant="outline" 
+                  icon="folder_open" 
+                  style={{ flexShrink: 0, padding: '0 0.75rem' }}
+                  onClick={() => document.getElementById(`file-upload-${key}`)?.click()}
+                />
               </div>
             </div>
+
           );
         }
 

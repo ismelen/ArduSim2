@@ -4,6 +4,8 @@ import {simulation} from '../models';
 
 export function GetAvailableServices():Promise<Array<simulation.ServiceType>>;
 
-export function StartSimulation(arg1:Array<simulation.UAV>,arg2:boolean):Promise<void>;
+export function LoadSimulationConfig():Promise<simulation.SimulationState>;
+
+export function StartSimulation(arg1:Array<simulation.UAV>,arg2:simulation.GeneralConfig,arg3:string,arg4:boolean):Promise<void>;
 
 export function StopSimulation():Promise<void>;

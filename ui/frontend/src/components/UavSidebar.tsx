@@ -1,5 +1,5 @@
 import React from 'react';
-import { uavDisplayName, useAppStore } from '../store';
+import { uavDisplayName, useFleet } from '../hooks/useFleet';
 
 interface UavSidebarProps {
   showAddForm: boolean;
@@ -16,49 +16,31 @@ export const UavSidebar: React.FC<UavSidebarProps> = ({
   setAddCount,
   onAddSubmit,
 }) => {
-  const uavs = useAppStore(s => s.uavs);
-  const activeUavId = useAppStore(s => s.activeUavId);
-  const setActiveUavId = useAppStore(s => s.setActiveUavId);
-  const deleteUav = useAppStore(s => s.deleteUav);
+  const { uavs, activeUavId, setActiveUavId, deleteUav } = useFleet();
 
   return (
-    <aside className="fleet-sidebar">
-      <div className="sidebar-heading">
-        <span className="sidebar-heading-title">Unit_Inventory</span>
-        <span className="sidebar-total-badge">Total: {uavs.length.toString().padStart(2, '0')}</span>
+    <aside className="uav-sidebar">
+      <div className="sidebar-header">
+        <h3 className="display-font label-font">FLEET</h3>
+        <button className="add-uav-btn material-symbols-outlined" onClick={() => setShowAddForm(true)}>add_circle</button>
       </div>
 
-      {showAddForm ? (
-        <div className="add-uav-form">
-          <div className="add-uav-label">UAVs to add</div>
-          <input
-            type="number"
-            min={1}
-            value={addCount}
-            onChange={e => setAddCount(parseInt(e.target.value) || 1)}
-            className="service-input add-uav-input"
-          />
-          <div className="add-uav-actions">
-            <button className="add-uav-action-btn add-uav-action-btn--primary" onClick={onAddSubmit}>
-              Add
-            </button>
-            <button className="add-uav-action-btn add-uav-action-btn--danger" onClick={() => setShowAddForm(false)}>
-              Cancel
-            </button>
+      {showAddForm && (
+        <div className="add-uav-popover">
+          <label className="label-font">Units to add</label>
+          <input type="number" value={addCount} onChange={e => setAddCount(parseInt(e.target.value) || 1)} min="1" max="10" />
+          <div className="popover-actions">
+            <button onClick={() => setShowAddForm(false)}>Cancel</button>
+            <button className="confirm-btn" onClick={onAddSubmit}>Add</button>
           </div>
         </div>
-      ) : (
-        <button className="add-uav-btn" onClick={() => setShowAddForm(true)}>
-          <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>add</span>
-          Add UAV
-        </button>
       )}
 
       <div className="uav-list">
-        {uavs.map(uav => (
+        {uavs.map((uav) => (
           <div
             key={uav.id}
-            className={`uav-card ${activeUavId === uav.id ? 'active-uav' : ''}`}
+            className={`uav-item ${activeUavId === uav.id ? 'active' : ''}`}
             onClick={() => setActiveUavId(uav.id)}
           >
             <div className="uav-designation-label">Designation</div>
@@ -73,7 +55,7 @@ export const UavSidebar: React.FC<UavSidebarProps> = ({
               <div className="uav-services-hint">
                 {uav.services.map(s => (
                   <span key={s.instanceId} className="material-symbols-outlined"
-                    style={{ fontSize: '0.9rem', color: 'var(--primary)', opacity: 0.7 }}>
+                    style={{ fontSize: '0.85rem', color: 'var(--primary)', opacity: 0.6 }}>
                     memory
                   </span>
                 ))}
@@ -83,5 +65,6 @@ export const UavSidebar: React.FC<UavSidebarProps> = ({
         ))}
       </div>
     </aside>
+
   );
 };

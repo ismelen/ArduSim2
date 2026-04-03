@@ -8,7 +8,40 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+type TelemetryPosition struct {
+	Heading     float64 `json:"heading"`
+	Alt         float64 `json:"alt"`
+	RelativeAlt float64 `json:"relative_alt"`
+	Lon         float64 `json:"lon"`
+	Lat         float64 `json:"lat"`
+}
+
+type TelemetrySpeed struct {
+	VX float64 `json:"vx"`
+	VY float64 `json:"vy"`
+	VZ float64 `json:"vz"`
+}
+
+type TelemetryData struct {
+	NrGpsOnline int               `json:"nr_gps_online"`
+	Position    TelemetryPosition `json:"position"`
+	Type        string            `json:"type"`
+	Battery     int               `json:"battery"`
+	Version     string            `json:"version"`
+	TimeBootMs  uint64            `json:"time_boot_ms"`
+	Speed       TelemetrySpeed    `json:"speed"`
+	Status      string            `json:"status"`
+	FlightMode  string            `json:"flight_mode"`
+}
+
+type TelemetryMessage struct {
+	UavID   string        `json:"uav_id"`
+	Payload TelemetryData `json:"payload"`
+}
 
 const (
 	networkSimulatorContainer  = "network_simulator"
@@ -57,7 +90,7 @@ func (s *Subscriber) Start(ctx context.Context) {
 		return
 	}
 
-	s.readLoop(conn)
+	s.readLoop(ctx, conn)
 }
 
 // waitForContainer polls Docker until the network_simulator container reports
@@ -130,21 +163,29 @@ func (s *Subscriber) sendSubscribeRequest(conn *net.UDPConn) error {
 	return nil
 }
 
-// readLoop continuously reads UDP datagrams and logs them until the connection
-// is closed (which happens when the context is cancelled).
-func (s *Subscriber) readLoop(conn *net.UDPConn) {
+// readLoop continuously reads UDP datagrams, parses them as TelemetryMessage,
+// and emits them as Wails events until the connection is closed.
+func (s *Subscriber) readLoop(ctx context.Context, conn *net.UDPConn) {
 	buffer := make([]byte, udpBufferSize)
-	fmt.Printf("Reading from %s\n", conn.LocalAddr().String())
+	fmt.Printf("[netsim] Reading from %s\n", conn.LocalAddr().String())
 	for {
 		bytesRead, _, err := conn.ReadFromUDP(buffer)
 		if err != nil {
-			// A closed connection is the expected shutdown path — not an error.
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				return
 			}
-			fmt.Printf("[netsim] read error (continuing): %v\n", err)
+			fmt.Printf("[netsim] read error: %v\n", err)
 			continue
 		}
-		fmt.Printf("[netsim] packet received: %s\n", string(buffer[:bytesRead]))
+
+		var msg TelemetryMessage
+		if err := json.Unmarshal(buffer[:bytesRead], &msg); err != nil {
+			// Log error but continue listening for next packet.
+			fmt.Printf("[netsim] failed to parse telemetry: %v\n", err)
+			continue
+		}
+
+		// Emit the telemetry event to the frontend.
+		runtime.EventsEmit(ctx, "telemetry", msg)
 	}
 }

@@ -1,21 +1,34 @@
 import { EnvironmentView } from './EnvironmentView';
 import FleetConfig from './FleetConfig';
+import { GeneralConfigView } from './GeneralConfigView';
 import { SimulationView } from './SimulationView';
 import './index.css';
-import { useAppStore } from './store';
+import { useNavigation } from './hooks/useNavigation';
+import { useConfig } from './hooks/useConfig';
+import { Button } from './components/common/Button';
 
-const TABS = ['ENVIRONMENT', 'FLEET_CONFIG'] as const;
+const TABS = ['ENVIRONMENT', 'FLEET_CONFIG', 'GENERAL_CONFIG'] as const;
 
 function App() {
-  const currentTab    = useAppStore(s => s.currentTab);
-  const setCurrentTab = useAppStore(s => s.setCurrentTab);
-  const isSimulating  = useAppStore(s => s.isSimulating);
+  const { currentTab, setCurrentTab, isSimulating } = useNavigation();
+  const { handleStartSimulation, handleLoadSimulation } = useConfig();
+
 
   return (
     <div className="app-container">
       {!isSimulating && (
         <header className="top-nav">
-          <div className="logo display-font">ArduSim</div>
+          <div className="nav-group-left">
+            <Button
+              icon="folder_open"
+              onClick={handleLoadSimulation}
+              className="load-btn"
+              style={{ height: '36px', fontSize: '0.7rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)' }}
+            >
+              LOAD
+            </Button>
+            <div className="logo display-font">ArduSim</div>
+          </div>
 
           <nav className="nav-links">
             {TABS.map((tab) => (
@@ -23,28 +36,39 @@ function App() {
                 key={tab}
                 href="#"
                 className={currentTab === tab ? 'active' : ''}
-                onClick={(e) => { e.preventDefault(); setCurrentTab(tab); }}
+                onClick={(e) => { e.preventDefault(); setCurrentTab(tab as any); }}
               >
-                {tab}
+                {tab.replace('_', ' ')}
               </a>
             ))}
           </nav>
 
-          {/* Spacer to keep nav centered */}
-          <div style={{ width: '80px' }} />
+          <div className="nav-actions">
+            <Button 
+              icon="play_circle" 
+              onClick={handleStartSimulation}
+              style={{ height: '36px', fontSize: '0.7rem' }}
+            >
+              START SIMULATION
+            </Button>
+          </div>
         </header>
       )}
+
 
       {isSimulating ? (
         <SimulationView />
       ) : (
-        <>
+        <main className="view-wrapper">
           {currentTab === 'ENVIRONMENT' && <EnvironmentView />}
           {currentTab === 'FLEET_CONFIG' && <FleetConfig />}
-        </>
+          {currentTab === 'GENERAL_CONFIG' && <GeneralConfigView />}
+        </main>
       )}
     </div>
   );
 }
 
 export default App;
+
+

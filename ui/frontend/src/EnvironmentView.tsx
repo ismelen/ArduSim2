@@ -1,28 +1,20 @@
 import React, { useState } from 'react';
 import { ClipboardSetText } from '../wailsjs/runtime/runtime';
 import { CheckIcon, CopyIcon, NetworkIcon, TerminalIcon } from './components/Icons';
-import { useAppStore } from './store';
+import { useEnvironment } from './hooks/useEnvironment';
+import { useNavigation } from './hooks/useNavigation';
+import { Card } from './components/common/Card';
+import { Button } from './components/common/Button';
+import { FormField } from './components/common/FormField';
 
 export const EnvironmentView: React.FC = () => {
-  const activeMode    = useAppStore(s => s.activeMode);
-  const masterIP      = useAppStore(s => s.masterIP);
-  const setActiveMode = useAppStore(s => s.setActiveMode);
-  const setMasterIP   = useAppStore(s => s.setMasterIP);
-  const setCurrentTab = useAppStore(s => s.setCurrentTab);
+  const { activeMode, setActiveMode, masterIP, setMasterIP, showCommand, setShowCommand } = useEnvironment();
+  const { setCurrentTab } = useNavigation();
 
-  const [showCommand, setShowCommand] = useState(false);
-  const [copied, setCopied]           = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const swarmCommand = `docker swarm join --token SWMTKN-1-49nj... ${masterIP}:2377`;
 
-  const handleEstablish = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    ClipboardSetText(swarmCommand);
-    setShowCommand(true);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    setCurrentTab('FLEET_CONFIG');
-  };
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -30,6 +22,25 @@ export const EnvironmentView: React.FC = () => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const handleEstablish = (e: React.MouseEvent) => {
+
+    e.stopPropagation();
+    ClipboardSetText(swarmCommand);
+    setShowCommand(true);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    // Wait 1s then navigate to FLEET_CONFIG
+    setTimeout(() => {
+      setCurrentTab('FLEET_CONFIG');
+    }, 1000);
+  };
+
+  const handleLocalSelect = () => {
+    setActiveMode('LOCAL');
+    setCurrentTab('FLEET_CONFIG');
+  };
+
 
   return (
     <main className="main-content">
@@ -42,53 +53,41 @@ export const EnvironmentView: React.FC = () => {
       </div>
 
       <div className="options-grid">
-        <div
-          className={`option-card ${activeMode === 'LOCAL' ? 'active-card' : ''}`}
-          onClick={() => setActiveMode('LOCAL')}
+        <Card
+          title="LOCAL_NODE"
+          subtitle="SINGLE_SIM_ARCHITECTURE"
+          headerIcon={<TerminalIcon />}
+          active={activeMode === 'LOCAL'}
+          onClick={handleLocalSelect}
         >
-          <div className="card-header">
-            <span className="arch-label">Architecture 01</span>
-            <div className="card-icon-badge"><TerminalIcon /></div>
-          </div>
-          <h3 className="card-title display-font">Local Docker</h3>
           <p className="card-desc">
             Rapid deployment for single-unit testing. Orchestrate simulated
             flight cycles within a sandboxed local container environment.
           </p>
-          {activeMode === 'LOCAL' ? (
-            <button className="primary-btn display-font"
-              onClick={(e) => { e.stopPropagation(); setCurrentTab('FLEET_CONFIG'); }}>
-              Establish
-            </button>
-          ) : (
-            <button className="select-btn"
-              onClick={(e) => { e.stopPropagation(); setActiveMode('LOCAL'); }}>
+          {activeMode !== 'LOCAL' && (
+            <Button variant="select" onClick={(e) => { e.stopPropagation(); handleLocalSelect(); }}>
               Select Mode →
-            </button>
+            </Button>
           )}
-        </div>
+        </Card>
 
-        <div
-          className={`option-card ${activeMode === 'SWARM' ? 'active-card' : ''}`}
+        <Card
+          title="SWARM_MESH"
+          subtitle="DISTRIBUTED_ORCHESTRATOR"
+          headerIcon={<NetworkIcon />}
+          active={activeMode === 'SWARM'}
           onClick={() => setActiveMode('SWARM')}
         >
-          <div className="card-header">
-            <span className="arch-label">Architecture 02</span>
-            <div className="card-icon-badge"><NetworkIcon /></div>
-          </div>
-          <h3 className="card-title display-font">Docker Swarm</h3>
-
           {activeMode === 'SWARM' ? (
             <>
-              <div className="form-group">
-                <label className="label-font">Master Node IP</label>
+              <FormField label="Master Node IP">
                 <input
                   type="text"
                   value={masterIP}
                   onClick={(e) => e.stopPropagation()}
                   onChange={(e) => setMasterIP(e.target.value)}
                 />
-              </div>
+              </FormField>
 
               {showCommand ? (
                 <div className="command-box">
@@ -101,9 +100,7 @@ export const EnvironmentView: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <button className="primary-btn display-font" onClick={handleEstablish}>
-                  Establish
-                </button>
+                <Button onClick={handleEstablish}>Establish</Button>
               )}
             </>
           ) : (
@@ -112,14 +109,15 @@ export const EnvironmentView: React.FC = () => {
                 Distributed cluster orchestration for high-scale swarm deployment
                 across multiple physical or virtual nodes.
               </p>
-              <button className="select-btn"
-                onClick={(e) => { e.stopPropagation(); setActiveMode('SWARM'); }}>
+              <Button variant="select" onClick={(e) => { e.stopPropagation(); setActiveMode('SWARM'); }}>
                 Select Mode →
-              </button>
+              </Button>
             </>
           )}
-        </div>
+        </Card>
       </div>
     </main>
+
   );
 };
+

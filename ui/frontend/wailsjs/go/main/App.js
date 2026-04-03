@@ -6,8 +6,12 @@ export function GetAvailableServices() {
   return window['go']['main']['App']['GetAvailableServices']();
 }
 
-export function StartSimulation(arg1, arg2) {
-  return window['go']['main']['App']['StartSimulation'](arg1, arg2);
+export function LoadSimulationConfig() {
+  return window['go']['main']['App']['LoadSimulationConfig']();
+}
+
+export function StartSimulation(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['StartSimulation'](arg1, arg2, arg3, arg4);
 }
 
 export function StopSimulation() {

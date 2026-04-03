@@ -1,5 +1,4 @@
-import React from 'react';
-import type { DeployedService } from '../store';
+import { type DeployedService } from '../hooks/useFleet';
 
 interface ServiceCardProps {
   service: DeployedService;

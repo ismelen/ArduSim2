@@ -84,7 +84,7 @@ func (b *composeBuilder) AddApplication(uavID, configFileName string) {
 }
 
 // AddUAVController appends the uav_controller (SITL) service for a UAV.
-func (b *composeBuilder) AddUAVController(uavID, configFileName string) {
+func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName string) {
 	uavNet := uavNetworkName(uavID)
 	fmt.Fprintf(&b.services, `  uav_controller_%s:
     image: copter453
@@ -96,12 +96,13 @@ func (b *composeBuilder) AddUAVController(uavID, configFileName string) {
       - communication_module_%s
     volumes:
       - ./resources/%s:/app/config.json
+      - ./resources/%s:/app/copter.parm
     networks:
       %s:
         aliases:
           - uav_controller
 
-`, uavID, uavID, uavID, configFileName, uavNet)
+`, uavID, uavID, uavID, configFileName, paramFileName, uavNet)
 }
 
 // AddExternalComms appends the external_comms service for a UAV.
