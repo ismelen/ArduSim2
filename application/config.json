@@ -4,7 +4,7 @@
   "uav_controller_ip": "uav_controller",
   "uav_controller_port": 9876,
   "uav_telemetry_port": 3500,
-  "telemetry_topic": "telemetry",
+  "telemetry_topic": "uav/telemetry",
   "suggestions_topic": "uav/suggestions",
   "external_telemetry": "external/telemetry",
   "external_messages": "external/messages",
