@@ -36,6 +36,8 @@
     linear-gradient(rgba(78, 222, 163, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(78, 222, 163, 0.05) 1px, transparent 1px);
   background-size: 60px 60px;
+  pointer-events: none; /* Crucial: Allow clicks through to the map below */
+  z-index: 5;
 }
 
 .uav-ping {
@@ -265,16 +267,31 @@
 /* ─── LOG PANEL ─── */
 .sim-log-panel {
   position: absolute;
-  bottom: 2rem;
-  left: 2rem;
-  width: 500px;
+  bottom: 1rem;
+  left: 1.5rem;
+  right: 335px; /* Sidebar (320px) + margin */
   background: rgba(19, 19, 19, 0.85);
   backdrop-filter: blur(12px);
   border: 1px solid var(--outline-variant);
   border-top: 2px solid var(--primary);
   border-radius: var(--radius-sm);
-  padding: 1.25rem;
+  padding: 1rem 1.5rem;
   z-index: 10000;
+  max-height: 280px; /* Doubled height as requested */
+  display: flex;
+  flex-direction: column;
+}
+
+.log-header-icon {
+  font-size: 1.5rem !important;
+  color: var(--primary);
+}
+
+.log-header-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  letter-spacing: 0.1em;
+  font-weight: 700;
 }
 
 .panel-header {
@@ -286,33 +303,17 @@
   align-items: center;
   gap: 0.5rem;
 }
-.panel-status {
-  margin-left: auto;
-  display: flex;
-  gap: 1rem;
-}
-.status-indicator {
-  font-size: 0.55rem;
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  color: var(--on-surface-variant);
-}
-.status-indicator::before {
-  content: '';
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--on-surface-variant);
-}
-.status-indicator.stable::before { background: var(--primary); }
+.log-level.info { color: #3b82f6; }
 
 .log-content {
   font-family: 'Courier New', monospace;
-  font-size: 0.7rem;
+
+  font-size: 0.75rem; /* Slightly larger log text */
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.5rem;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .log-entry { display: flex; gap: 0.75rem; white-space: nowrap; }

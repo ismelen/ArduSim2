@@ -49,6 +49,7 @@ body {
   min-height: 100vh;
 }
 
+
 h1, h2, h3, h4, h5, h6, .display-font {
   font-family: var(--font-display);
   font-weight: 700;
@@ -111,6 +112,7 @@ h1, h2, h3, h4, h5, h6, .display-font {
 .nav-links {
   display: flex;
   gap: 3rem;
+  white-space: nowrap; /* Ensure titles stay on one line */
 }
 
 .nav-links a {
@@ -713,12 +715,7 @@ input:checked + .slider:before {
   padding: 1.5rem;
 }
 
-@media (max-width: 1400px) {
-  .centering {
-    flex-direction: column !important;
-    gap: 1.5rem !important;
-  }
-}
+
 
 .wind-compass-container {
   width: 130px;
@@ -793,7 +790,7 @@ input:checked + .slider:before {
 
 .centering {
   display: flex;
-  flex-direction: row;
+  flex-direction: row !important; /* Force horizontal layout as requested */
   align-items: center;
   gap: 2rem;
   width: 100%;

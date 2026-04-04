@@ -20,13 +20,13 @@ function App() {
         <header className="top-nav">
           <div className="nav-group-left">
             <Button
+              variant="ghost"
               icon="folder_open"
               onClick={handleLoadSimulation}
-              className="load-btn"
-              style={{ height: '36px', fontSize: '0.7rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)' }}
-            >
-              LOAD
-            </Button>
+              title="LOAD SIMULATION"
+              style={{ padding: '8px', border: 'none' }}
+            />
+
             <div className="logo display-font">ArduSim</div>
           </div>
 

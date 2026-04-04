@@ -130,8 +130,15 @@ func (b *composeBuilder) AddExternalComms(uavID, configFileName string) {
 }
 
 // AddAlgorithmService appends a user-deployed algorithm service for a UAV.
-func (b *composeBuilder) AddAlgorithmService(uavID string, svc DeployedService, configFileName string) {
+func (b *composeBuilder) AddAlgorithmService(uavID string, svc DeployedService, configFileName string, extraVolumes []VolumeMount) {
 	uavNet := uavNetworkName(uavID)
+
+	var vols strings.Builder
+	fmt.Fprintf(&vols, "      - ./resources/%s:/app/config.json\n", configFileName)
+	for _, v := range extraVolumes {
+		fmt.Fprintf(&vols, "      - ./resources/%s:%s\n", v.HostPath, v.ContainerPath)
+	}
+
 	fmt.Fprintf(&b.services, `  %s_%s:
     image: %s
     build:
@@ -141,8 +148,7 @@ func (b *composeBuilder) AddAlgorithmService(uavID string, svc DeployedService, 
     depends_on:
       - communication_module_%s
     volumes:
-      - ./resources/%s:/app/config.json
-    networks:
+%s    networks:
       %s:
         aliases:
           - %s
@@ -152,7 +158,7 @@ func (b *composeBuilder) AddAlgorithmService(uavID string, svc DeployedService, 
 		svc.ServiceId,
 		svc.ServiceId, uavID,
 		uavID,
-		configFileName,
+		vols.String(),
 		uavNet,
 		svc.ServiceId)
 }

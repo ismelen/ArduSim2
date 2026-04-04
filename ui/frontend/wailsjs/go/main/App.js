@@ -10,6 +10,10 @@ export function LoadSimulationConfig() {
   return window['go']['main']['App']['LoadSimulationConfig']();
 }
 
+export function SelectFile() {
+  return window['go']['main']['App']['SelectFile']();
+}
+
 export function StartSimulation(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['StartSimulation'](arg1, arg2, arg3, arg4);
 }

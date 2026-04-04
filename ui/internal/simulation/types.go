@@ -16,6 +16,13 @@ type DeployedService struct {
 	Config       map[string]interface{} `json:"config"`
 }
 
+// VolumeMount represents a directory or file mapping from the simulation's
+// host 'resources' directory to a target path inside a container.
+type VolumeMount struct {
+	HostPath      string
+	ContainerPath string
+}
+
 // GeneralConfig contains simulation-wide parameters like wind and battery.
 type GeneralConfig struct {
 	SpeedProfilePath  string  `json:"speedProfilePath"`

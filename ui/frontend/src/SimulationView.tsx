@@ -1,61 +1,204 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import './MapLibre.css';
 import './SimulationView.css';
 import { useConfig } from './hooks/useConfig';
+import type { UAVState } from './hooks/useTelemetry';
 import { useTelemetry } from './hooks/useTelemetry';
 
-// Leaflet imports
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+// MapLibre imports
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { EventsOff, EventsOn } from '../wailsjs/runtime/runtime';
 
-// Custom UAV Icon (SVG-based for better aesthetics)
-const createUAVIcon = (heading: number, color: string = '#4edea3') => {
-  return L.divIcon({
-    className: 'uav-marker-container',
-    html: `
-      <div class="uav-marker-wrapper" style="transform: rotate(${heading}deg);">
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M16 4L28 26L16 22L4 26L16 4Z" fill="${color}" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
-          <circle cx="16" cy="16" r="3" fill="white" opacity="0.5"/>
-        </svg>
-      </div>
-    `,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16]
-  });
-};
 
-// Component to auto-center map when first UAV appears
-const AutoCenter: React.FC<{ pos: [number, number] | null }> = ({ pos }) => {
-  const map = useMap();
-  const centered = useRef(false);
-  
-  useEffect(() => {
-    if (pos && !centered.current) {
-      map.setView(pos, 16);
-      centered.current = true;
-    }
-  }, [pos, map]);
-  
-  return null;
+// Custom UAV Marker HTML generator
+const createUAVMarkerElement = (heading: number, altitude: number) => {
+  const el = document.createElement('div');
+  el.className = 'uav-marker';
+  el.innerHTML = `
+    <div class="uav-sphere-container">
+      <div class="uav-sphere" style="transform: rotate(${heading}deg);"></div>
+    </div>
+    <div class="uav-altitude-tag">${altitude.toFixed(1)}m</div>
+  `;
+  return el;
 };
 
 const SimulationView: React.FC = () => {
   const { handleExitSimulation: exitSim } = useConfig();
   const uavs = useTelemetry();
   const [time, setTime] = useState(0);
-  const mapRef = useRef<L.Map | null>(null);
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
+  const [logs, setLogs] = useState<{ time: string, level: string, msg: string }[]>([]);
 
-  // Get the first UAV as "Master" for the sidebar display
-  const uavList = Object.values(uavs);
+  
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const markersRef = useRef<Record<string, maplibregl.Marker>>({});
+  const centeredRef = useRef(false);
+
+  // Get current UAVs as a list
+  const uavList: UAVState[] = Object.values(uavs);
   const mainUav = uavList.length > 0 ? uavList[0] : null;
-  const initialPos: [number, number] | null = mainUav ? [mainUav.lat, mainUav.lon] : null;
 
-  // Simple timer for SIM_TIME
+  // Initialize MapLibre
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+      center: [0, 0],
+      zoom: 13,
+      pitch: viewMode === '3d' ? 60 : 0,
+      dragRotate: true,
+      scrollZoom: true,
+      dragPan: true,
+      touchZoomRotate: true
+    });
+
+
+    // ── NATIVE INTERACTION Logic for Middle-click (button 1) ──
+    const container = mapContainerRef.current;
+    let isRotating = false;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      // ONLY Right-click (2) to rotate/pitch. Middle-click (1) removed as requested.
+      if (e.button === 2) {
+        e.preventDefault();
+        isRotating = true;
+        if (container) container.style.cursor = 'grabbing';
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isRotating && mapRef.current) {
+        const deltaX = e.movementX;
+        const deltaY = e.movementY;
+        
+        // Much lower sensitivity for ultra-precise rotation (0.08)
+        const bearing = mapRef.current.getBearing() + deltaX * 0.005;
+        const pitch = Math.max(0, Math.min(85, mapRef.current.getPitch() - deltaY * 0.005));
+        
+        mapRef.current.setBearing(bearing);
+        mapRef.current.setPitch(pitch);
+      }
+    };
+
+    const handleMouseUp = () => {
+      isRotating = false;
+      if (container) container.style.cursor = '';
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
+    container.addEventListener('mousedown', handleMouseDown);
+    container.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    map.on('load', () => {
+      // Add 3D Building Layer (fill-extrusion)
+      const layers = map.getStyle().layers;
+      const labelLayerId = layers?.find(l => l.type === 'symbol' && l.layout && l.layout['text-field'])?.id;
+
+      map.addLayer({
+        'id': '3d-buildings',
+        'source': 'carto',
+        'source-layer': 'building',
+        'type': 'fill-extrusion',
+        'minzoom': 15,
+        'paint': {
+          'fill-extrusion-color': '#4edea3',
+          'fill-extrusion-height': ['get', 'render_height'],
+          'fill-extrusion-base': ['get', 'render_min_height'],
+          'fill-extrusion-opacity': 0.6
+        }
+      }, labelLayerId);
+    });
+
+    map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+    mapRef.current = map;
+
+    return () => {
+      container.removeEventListener('mousedown', handleMouseDown);
+      container.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  // Handle View Mode changes
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.easeTo({
+        pitch: viewMode === '3d' ? 60 : 0,
+        duration: 1000
+      });
+    }
+  }, [viewMode]);
+
+  // Update Markers and Auto-Center
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    uavList.forEach((uav) => {
+      // 1. Auto-center on first valid coordinate (NOT 0,0)
+      if (!centeredRef.current && (uav.lat !== 0 || uav.lon !== 0)) {
+        mapRef.current?.flyTo({
+          center: [uav.lon, uav.lat],
+          zoom: 16,
+          speed: 1.2
+        });
+        centeredRef.current = true;
+      }
+
+      // 2. Manage Markers
+      if (markersRef.current[uav.id]) {
+        // Update existing marker
+        const marker = markersRef.current[uav.id];
+        marker.setLngLat([uav.lon, uav.lat]);
+        
+        // Update marker rotation and altitude label
+        const el = marker.getElement();
+        const sphereEl = el.querySelector('.uav-sphere') as HTMLElement;
+        const tagEl = el.querySelector('.uav-altitude-tag') as HTMLElement;
+        if (sphereEl) sphereEl.style.transform = `rotate(${uav.heading}deg)`;
+        if (tagEl) tagEl.textContent = `${uav.alt.toFixed(1)}m`;
+      } else {
+        // Create new marker
+        const el = createUAVMarkerElement(uav.heading, uav.alt);
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat([uav.lon, uav.lat])
+          .addTo(mapRef.current!);
+        markersRef.current[uav.id] = marker;
+      }
+    });
+
+    // Cleanup markers for offline UAVs (optional, depending on requirements)
+  }, [uavs]);
+
+  // Simulation timer and Log listener
   useEffect(() => {
     const interval = setInterval(() => setTime(t => t + 1), 1000);
-    return () => clearInterval(interval);
+    
+    // Listen to real-time logs from backend
+    EventsOn('simulation:log', (message: string) => {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour12: false });
+      setLogs(prev => [...prev.slice(-49), { time: timeStr, level: '[INF]', msg: message }]);
+    });
+
+    return () => {
+      clearInterval(interval);
+      EventsOff('simulation:log');
+    };
   }, []);
+
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
@@ -65,9 +208,11 @@ const SimulationView: React.FC = () => {
   };
 
   const handleRecenter = () => {
-    if (mapRef.current && initialPos) {
-      mapRef.current.flyTo(initialPos, 18, {
-        duration: 1.5
+    if (mapRef.current && mainUav) {
+      mapRef.current.flyTo({
+        center: [mainUav.lon, mainUav.lat],
+        zoom: 17,
+        speed: 1.5
       });
     }
   };
@@ -93,75 +238,49 @@ const SimulationView: React.FC = () => {
           </button>
         </div>
         <div className="view-toggle">
-          <button className="toggle-btn active">2D</button>
-          <button className="toggle-btn">3D</button>
+          <button 
+            className={`toggle-btn ${viewMode === '2d' ? 'active' : ''}`}
+            onClick={() => setViewMode('2d')}
+          >
+            2D
+          </button>
+          <button 
+            className={`toggle-btn ${viewMode === '3d' ? 'active' : ''}`}
+            onClick={() => setViewMode('3d')}
+          >
+            3D
+          </button>
         </div>
       </div>
 
       {/* ── MAP AREA (CENTER) ── */}
       <div className="sim-map-area">
-        <MapContainer 
-          ref={mapRef}
-          center={[36.1699, -115.1398]} 
-          zoom={13} 
-          scrollWheelZoom={true}
-          style={{ height: '100%', width: '100%' }}
-          zoomControl={false}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          />
-          
-          <AutoCenter pos={initialPos} />
-
-          {uavList.map((uav) => (
-            <Marker 
-              key={uav.id} 
-              position={[uav.lat, uav.lon]} 
-              icon={createUAVIcon(uav.heading)}
-            >
-              <Popup>
-                <div className="uav-popup">
-                  <strong>{uav.id}</strong><br/>
-                  Alt: {uav.alt.toFixed(1)}m<br/>
-                  Mode: {uav.flight_mode}
-                </div>
-              </Popup>
-            </Marker>
-          ))}
-          
-          <div className="map-grid-overlay"></div>
-        </MapContainer>
+        <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
+        <div className="map-grid-overlay"></div>
       </div>
 
       {/* ── MISSION LOG (BOTTOM LEFT) ── */}
       <div className="sim-log-panel">
         <div className="panel-header">
-          <span className="material-symbols-outlined">terminal</span> MISSION_LOG_ALPHA
-          <div className="panel-status">
-            <span className="status-indicator stable">UPLINK_STABLE</span>
-            <span className="status-indicator sync">SWARM_SYNC</span>
-          </div>
+          <span className="material-symbols-outlined log-header-icon">terminal</span> 
+          <span className="log-header-title">LOG</span>
         </div>
         <div className="log-content">
-          <div className="log-entry">
-            <span className="log-time">12:04:12</span>
-            <span className="log-level ok">[OK]</span> DRONE_SWARM_01: TARGET_VECTOR_LOCKED // COORDINATES: 36.1699° N, 115.1398° W
-          </div>
-          <div className="log-entry">
-            <span className="log-time">12:04:08</span>
-            <span className="log-level info">[INFO]</span> ATMOSPHERIC_COMPENSATION: ACTIVE // WIND_SPEED: 4.2 KTS SE
-          </div>
-          <div className="log-entry">
-            <span className="log-time">12:04:01</span>
-            <span className="log-level ok">[OK]</span> FLEET_COMM_ESTABLISHED: 12 NODES REPORTING
-          </div>
-          <div className="log-entry">
-            <span className="log-time">12:03:55</span>
-            <span className="log-level warn">[WARN]</span> BATTERY_TEMP_THRESHOLD: NODE_04_P_WARM_02 (38°C)
-          </div>
+          {logs.length === 0 ? (
+            <div className="log-entry">
+              <span className="log-time">--:--:--</span>
+              <span className="log-level info">[WAIT]</span> AWAITING_SIMULATION_UPLINK...
+            </div>
+          ) : (
+            logs.map((log, i) => (
+              <div key={i} className="log-entry">
+                <span className="log-time">{log.time}</span>
+                <span className="log-level info">{log.level}</span> {log.msg}
+              </div>
+            ))
+          )}
         </div>
+
       </div>
 
       {/* ── TELEMETRY SIDEBAR (RIGHT) ── */}
@@ -175,7 +294,7 @@ const SimulationView: React.FC = () => {
             <span className="unit">M</span>
           </div>
           <div className="progress-bar">
-            <div className="fill" style={{ width: `${Math.min((mainUav?.alt || 0) / 20, 100)}%` }}></div>
+            <div className="fill" style={{ width: `${Math.min((mainUav?.alt ?? 0) / 20, 100)}%` }}></div>
           </div>
         </div>
 
@@ -186,7 +305,7 @@ const SimulationView: React.FC = () => {
             <span className="unit">M/S</span>
           </div>
           <div className="progress-bar">
-            <div className="fill" style={{ width: `${Math.min(Math.sqrt((mainUav?.vx || 0)**2 + (mainUav?.vy || 0)**2) * 5, 100)}%` }}></div>
+            <div className="fill" style={{ width: `${Math.min(Math.sqrt((mainUav?.vx ?? 0)**2 + (mainUav?.vy ?? 0)**2) * 5, 100)}%` }}></div>
           </div>
         </div>
 

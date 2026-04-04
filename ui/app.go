@@ -70,10 +70,27 @@ func (a *App) StartSimulation(uavs []simulation.UAV, generalConfig simulation.Ge
 	a.activeComposePath = composePath
 
 	if isLocal {
-		if err := launchDockerCompose(composePath); err != nil {
+		if err := a.launchDockerCompose(composePath); err != nil {
 			return err
 		}
-		
+
+		// Prepare the subscriber to wait for the fleet before starting the mission
+		var uavIDs []string
+		for _, uav := range uavs {
+			uavIDs = append(uavIDs, uav.ID)
+		}
+		a.subscriber.SetExpectedFleet(uavIDs, func() {
+			// Broadcast the mission start command to all UAVs
+			payload := map[string]interface{}{
+				"topic":   "algo/mission",
+				"command": "start",
+			}
+			err := a.subscriber.SendGlobalBroadcast(payload)
+			if err != nil {
+				fmt.Printf("[app] failed to auto-start mission: %v\n", err)
+			}
+		})
+
 		// Create a session-specific context that can be cancelled without killing the app.
 		if a.simCancel != nil {
 			a.simCancel()
@@ -129,6 +146,19 @@ func (a *App) StopSimulation() {
 	}
 }
 
+// SelectFile opens a native file picker and returns the absolute path
+// to the selected file. This is required because browser-based file inputs
+// only provide the filename for security reasons.
+func (a *App) SelectFile() (string, error) {
+	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Select Auxiliary File",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "KML files (*.kml)", Pattern: "*.kml"},
+			{DisplayName: "All files", Pattern: "*.*"},
+		},
+	})
+}
+
 // shutdown is called by Wails before the window closes.
 func (a *App) shutdown() {
 	a.StopSimulation()
@@ -148,18 +178,39 @@ func stopDockerCompose(composePath string) {
 }
 
 // launchDockerCompose runs `docker compose up -d` in the directory containing
-// the given compose file.
-func launchDockerCompose(composePath string) error {
+// the given compose file and streams logs to the frontend.
+func (a *App) launchDockerCompose(composePath string) error {
+	// 1. Quick check if Docker is running
+	checkCmd := exec.Command("docker", "info")
+	if err := checkCmd.Run(); err != nil {
+		return fmt.Errorf("DOCKER_NOT_RUNNING: please start Docker Desktop or the Docker daemon")
+	}
+
 	cmd := exec.Command("docker", "compose", "up", "--build", "-d")
 	cmd.Dir = dirOf(composePath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("docker compose up: %w", err)
+	// Capture stdout and stderr to stream to UI
+	stdout, _ := cmd.StdoutPipe()
+	stderr, _ := cmd.StderrPipe()
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("docker compose start failed: %w", err)
+	}
+
+	// Stream logs in background
+	go func() {
+		scanner := simulation.NewLogScanner(stdout, stderr)
+		for scanner.Scan() {
+			runtime.EventsEmit(a.ctx, "simulation:log", scanner.Text())
+		}
+	}()
+
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("docker compose up failed: %w", err)
 	}
 	return nil
 }
+
 
 // dirOf returns the directory component of a file path.
 func dirOf(filePath string) string {

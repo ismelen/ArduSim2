@@ -7,6 +7,7 @@ import (
 	"net"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -55,12 +56,82 @@ const (
 )
 
 // Subscriber manages a UDP connection to the network simulator and listens
-// for telemetry messages. It supports graceful shutdown via context cancellation.
-type Subscriber struct{}
+// for telemetry messages. It supports tracking fleet readiness to trigger
+// simulation events automatically.
+type Subscriber struct {
+	mu           sync.Mutex
+	expectedUAVs map[string]bool
+	receivedUAVs map[string]bool
+	onAllReady   func()
+	ready        bool
+}
 
-// NewSubscriber creates a Subscriber.
+// NewSubscriber creates a Subscriber with empty tracking maps.
 func NewSubscriber() *Subscriber {
-	return &Subscriber{}
+	return &Subscriber{
+		expectedUAVs: make(map[string]bool),
+		receivedUAVs: make(map[string]bool),
+	}
+}
+
+// SetExpectedFleet resets the simulation readiness tracking state for a new
+// simulation run. The callback is executed once all defined UAVs report telemetry.
+func (s *Subscriber) SetExpectedFleet(uavIDs []string, callback func()) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.expectedUAVs = make(map[string]bool)
+	s.receivedUAVs = make(map[string]bool)
+	s.onAllReady = callback
+	s.ready = false
+
+	for _, id := range uavIDs {
+		s.expectedUAVs[id] = true
+	}
+}
+
+// SendGlobalBroadcast dispatches a JSON message to port 3000 of the simulator,
+// intended for delivery to all registered UAVs.
+func (s *Subscriber) SendGlobalBroadcast(payload interface{}) error {
+	remoteAddr, err := net.ResolveUDPAddr("udp", networkSimulatorAddr)
+	if err != nil {
+		return fmt.Errorf("resolve remote addr: %w", err)
+	}
+
+	rawPayload, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal payload: %w", err)
+	}
+
+	// Rust Vec<u8> deserializes from a JSON list of numbers [0..255].
+	var byteList []int
+	for _, b := range rawPayload {
+		byteList = append(byteList, int(b))
+	}
+
+	packet := map[string]interface{}{
+		"topic": "broadcast",
+		"payload": map[string]interface{}{
+			"uav_id":  "",
+			"payload": byteList,
+		},
+	}
+
+	marshaled, err := json.Marshal(packet)
+	if err != nil {
+		return fmt.Errorf("marshal broadcast packet: %w", err)
+	}
+
+	conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
+	if err != nil {
+		return fmt.Errorf("open broadcast UDP: %w", err)
+	}
+	defer conn.Close()
+
+	if _, err := conn.WriteToUDP(marshaled, remoteAddr); err != nil {
+		return fmt.Errorf("write broadcast packet: %w", err)
+	}
+	return nil
 }
 
 // Start blocks until ctx is cancelled, continuously listening for UDP telemetry.
@@ -187,5 +258,19 @@ func (s *Subscriber) readLoop(ctx context.Context, conn *net.UDPConn) {
 
 		// Emit the telemetry event to the frontend.
 		runtime.EventsEmit(ctx, "telemetry", msg)
+
+		// Check-in logic to trigger automatic mission start.
+		s.mu.Lock()
+		if !s.ready && s.expectedUAVs[msg.UavID] {
+			s.receivedUAVs[msg.UavID] = true
+			if len(s.receivedUAVs) == len(s.expectedUAVs) {
+				s.ready = true
+				fmt.Printf("[netsim] all expected UAVs registered, triggering startup...\n")
+				if s.onAllReady != nil {
+					go s.onAllReady()
+				}
+			}
+		}
+		s.mu.Unlock()
 	}
 }

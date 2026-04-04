@@ -105,11 +105,57 @@ func (o *Orchestrator) appendUAV(uav UAV, paramFileName string, builder *compose
 	builder.AddExternalComms(uav.ID, ecFileName)
 
 	for _, svc := range uav.Services {
-		svcFileName, err := writer.Write(svc.ServiceId+"_config", svc.Config)
+		var extraVolumes []VolumeMount
+		// Clone config to avoid modifying common map across drones
+		cfg := make(map[string]interface{})
+		for k, v := range svc.Config {
+			cfg[k] = v
+		}
+
+		if schema, err := o.getServiceSchema(svc.ServiceId); err == nil {
+			if props, ok := schema["properties"].(map[string]interface{}); ok {
+				for key, val := range props {
+					prop, ok := val.(map[string]interface{})
+					if !ok {
+						continue
+					}
+
+					// We treat fields with format "kml" as auxiliary files that need mounting.
+					if format, ok := prop["format"].(string); ok && format == "kml" {
+						if srcPath, ok := cfg[key].(string); ok && srcPath != "" {
+							ext := filepath.Ext(srcPath)
+							// To avoid collisions in the flat resources dir, prefix with service ID
+							hostName := fmt.Sprintf("%s_%s%s", svc.ServiceId, key, ext)
+
+							// Copy the source file to the simulation resources directory
+							if data, err := os.ReadFile(srcPath); err == nil {
+								if err := os.WriteFile(filepath.Join(writer.outputDir, hostName), data, os.ModePerm); err == nil {
+									// Update the config to point to the path inside the container.
+									// We use the property key as the filename for stability.
+									containerPath := fmt.Sprintf("/app/%s%s", key, ext)
+									cfg[key] = containerPath
+
+									extraVolumes = append(extraVolumes, VolumeMount{
+										HostPath:      hostName,
+										ContainerPath: containerPath,
+									})
+								} else {
+									fmt.Printf("[orchestrator] failed to write auxiliary file: %v\n", err)
+								}
+							} else {
+								fmt.Printf("[orchestrator] auxiliary file not found at %q: %v\n", srcPath, err)
+							}
+						}
+					}
+				}
+			}
+		}
+
+		svcFileName, err := writer.Write(svc.ServiceId+"_config", cfg)
 		if err != nil {
 			return fmt.Errorf("service %q config: %w", svc.ServiceId, err)
 		}
-		builder.AddAlgorithmService(uav.ID, svc, svcFileName)
+		builder.AddAlgorithmService(uav.ID, svc, svcFileName, extraVolumes)
 	}
 
 	return nil
@@ -193,4 +239,18 @@ func (o *Orchestrator) saveSimulationState(uavs []UAV, config GeneralConfig, mod
 	if err := os.WriteFile(statePath, data, 0644); err != nil {
 		fmt.Printf("[orchestrator] failed to save state: %v\n", err)
 	}
+}
+
+func (o *Orchestrator) getServiceSchema(serviceID string) (map[string]interface{}, error) {
+	schemaPath := filepath.Join(o.paths.AlgorithmsDir, serviceID, "schema.json")
+	rawData, err := os.ReadFile(schemaPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var schema map[string]interface{}
+	if err := json.Unmarshal(rawData, &schema); err != nil {
+		return nil, err
+	}
+	return schema, nil
 }

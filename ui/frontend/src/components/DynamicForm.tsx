@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button } from './common/Button';
+import { SelectFile } from '../../wailsjs/go/main/App';
 
 interface DynamicFormProps {
   schemaRaw: string;
@@ -22,32 +23,29 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({ schemaRaw, values, onC
             <div key={key} className="config-group">
               <label className="label-font">{prop.title || key}</label>
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', width: '100%' }}>
-                <input
-                  type="file"
-                  accept=".kml"
-                  id={`file-upload-${key}`}
-                  style={{ display: 'none' }}
-                  onChange={e => {
-                    if (e.target.files?.length) onChange(key, e.target.files[0].name);
-                  }}
-                />
                 <input 
                   type="text" 
                   className="service-input" 
                   value={value} 
-                  readOnly
+                  onChange={e => onChange(key, e.target.value)}
                   style={{ flex: 1, minWidth: 0 }} 
-                  placeholder="Select route file..." 
+                  placeholder="Paste or select route file path..." 
                 />
                 <Button 
                   variant="outline" 
                   icon="folder_open" 
                   style={{ flexShrink: 0, padding: '0 0.75rem' }}
-                  onClick={() => document.getElementById(`file-upload-${key}`)?.click()}
+                  onClick={async () => {
+                    try {
+                      const path = await SelectFile();
+                      if (path) onChange(key, path);
+                    } catch (err) {
+                      console.error("Failed to select file:", err);
+                    }
+                  }}
                 />
               </div>
             </div>
-
           );
         }
 

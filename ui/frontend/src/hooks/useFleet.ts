@@ -46,9 +46,8 @@ const makeId = () => Math.random().toString(36).substring(7);
 export const useFleet = create<FleetState>((set, get) => ({
   uavs: [
     { id: '1', services: [] },
-    { id: '2', services: [] },
-    { id: '3', services: [] },
   ],
+
   activeUavId: '1',
 
   selectedServiceId: '',

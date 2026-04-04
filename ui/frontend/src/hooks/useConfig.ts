@@ -55,17 +55,24 @@ export const useConfig = create<ConfigState>((set, get) => ({
   handleStartSimulation: async () => {
     const { uavs } = useFleet.getState();
     const { activeMode } = useEnvironment.getState();
-    const { startSimulation } = useNavigation.getState();
+    const { startSimulation, exitSimulation } = useNavigation.getState();
     const { handleStartSimulation, ...config } = get();
+
+    // Navigate immediately to the simulation view
+    startSimulation();
 
     try {
       await StartSimulation(uavs as any, config, activeMode, activeMode === "LOCAL");
-      startSimulation();
     } catch (err) {
       console.error("Failed to start simulation:", err);
+      // Show error message
+      alert(`SIMULATION_ERROR: ${err instanceof Error ? err.message : String(err)}`);
+      // Navigate back to configuration
+      exitSimulation();
       throw err;
     }
   },
+
 
   handleExitSimulation: async () => {
     const { exitSimulation } = useNavigation.getState();
@@ -74,6 +81,7 @@ export const useConfig = create<ConfigState>((set, get) => ({
       exitSimulation();
     } catch (err) {
       console.error("Failed to stop simulation:", err);
+      alert(`STOP_ERROR: ${err instanceof Error ? err.message : String(err)}`);
       throw err;
     }
   },
@@ -110,7 +118,9 @@ export const useConfig = create<ConfigState>((set, get) => ({
 
     } catch (err) {
       console.error("Failed to load simulation:", err);
+      alert(`LOAD_ERROR: ${err instanceof Error ? err.message : String(err)}`);
       throw err;
     }
+
   },
 }));
