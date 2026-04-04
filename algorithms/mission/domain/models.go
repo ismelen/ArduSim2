@@ -20,6 +20,7 @@ const (
 
 // AppConfig represents the JSON execution configuration.
 type AppConfig struct {
+	MissionFile                     string  `json:"mission_file"`
 	BrokerIP                        string  `json:"broker_ip"`
 	BrokerPort                      int     `json:"broker_port"`
 	SubscriptionTopic               string  `json:"subscription_topic"`

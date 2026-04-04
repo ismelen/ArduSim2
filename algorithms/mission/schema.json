@@ -3,6 +3,11 @@
   "type": "object",
   "required": [
     "mission_file",
+    "broker_ip",
+    "broker_port",
+    "subscription_topic",
+    "publish_topic",
+    "telemetry_topic",
     "distance_to_waypoint_reached",
     "minimum_waypoint_relative_altitude",
     "waypoints_relative_altitude"
@@ -13,7 +18,32 @@
       "format": "kml",
       "contentMediaType": "application/vnd.google-earth.kml+xml",
       "title": "Mission Route (.kml)",
-      "description": "El archivo KML que contiene las rutas de vuelo para la misión. Se puede generar desde un editor de waypoints."
+      "description": "El archivo KML que contiene las rutas de vuelo para la misión."
+    },
+    "broker_ip": {
+      "type": "string",
+      "description": "La IP del Communication Module (broker de mensajes).",
+      "default": "communication_module"
+    },
+    "broker_port": {
+      "type": "integer",
+      "description": "El puerto UDP del Communication Module (por defecto 3400).",
+      "default": 3400
+    },
+    "subscription_topic": {
+      "type": "string",
+      "description": "El canal donde el algoritmo escucha comandos (ej. algo/mission).",
+      "default": "algo/mission"
+    },
+    "publish_topic": {
+      "type": "string",
+      "description": "El canal donde el algoritmo publica órdenes al dron (ej. uav/1/cmd).",
+      "default": "uav/suggestions"
+    },
+    "telemetry_topic": {
+      "type": "string",
+      "description": "El canal donde el algoritmo recibe telemetría del dron (ej. uav/1/telemetry).",
+      "default": "uav/telemetry"
     },
     "distance_to_waypoint_reached": {
       "type": "number",

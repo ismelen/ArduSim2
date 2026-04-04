@@ -29,20 +29,20 @@ func NewMissionManager(b ports.Broker, c ports.ConfigLoader, p ports.MissionPars
 	}
 }
 
-func (m *MissionManager) Initialize(configFile, kmlFile string) error {
+func (m *MissionManager) Initialize(configFile string) error {
 	var err error
 	m.config, err = m.configLoader.LoadAppConfig(configFile)
 	if err != nil {
 		return err
 	}
 
-	m.waypoints, err = m.missionParser.ParseMission(kmlFile)
+	m.waypoints, err = m.missionParser.ParseMission(m.config.MissionFile)
 	if err != nil {
 		return err
 	}
 
-	if len(m.waypoints) > 1 {
-		m.currentWpIndex = 1
+	if len(m.waypoints) > 0 {
+		m.currentWpIndex = 0
 	}
 
 	return m.broker.Connect(m.config.BrokerIP, m.config.BrokerPort, m.config.SubscriptionTopic, m.config.TelemetryTopic)
@@ -62,34 +62,22 @@ func (m *MissionManager) Run() {
 }
 
 func (m *MissionManager) handleMessage(msg domain.BrokerMessage) {
-	if msg.Topic == m.config.SubscriptionTopic {
+	switch msg.Topic {
+	case m.config.SubscriptionTopic:
 		m.handleCommand(msg.Payload)
-	} else if msg.Topic == m.config.TelemetryTopic {
+	case m.config.TelemetryTopic:
 		m.handleTelemetry(msg.Payload)
 	}
 }
 
-const (
-	// Commands from ArduSim PC Companion
-	CommandChangeState = 1
-	CommandEmergency   = 2
-
-	// Emergency Actions
-	ActionNone           = 1
-	ActionRecoverControl = 2
-	ActionRTL            = 3
-	ActionLand           = 4
-)
-
 func (m *MissionManager) handleCommand(payload map[string]interface{}) {
-	cmdFloat, ok := payload["command"].(float64)
+	cmd, ok := payload["command"].(string)
 	if !ok {
 		return
 	}
-	cmd := int(cmdFloat)
 
 	switch cmd {
-	case CommandChangeState: // Equivalent to "start"
+	case "start":
 		if m.state == domain.IDLE || m.state == domain.PAUSED {
 			if m.state == domain.IDLE {
 				m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "Arm"})
@@ -112,29 +100,20 @@ func (m *MissionManager) handleCommand(payload map[string]interface{}) {
 				m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "SetFlightmode", "flightmode": "GUIDED"})
 			}
 		}
-	case CommandEmergency:
-		actionFloat, ok := payload["action"].(float64)
-		if !ok {
-			return
+	case "pause":
+		if m.state == domain.FLYING {
+			m.state = domain.PAUSED
+			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "SetFlightmode", "flightmode": "BRAKE"})
+			log.Println("Mission paused.")
 		}
-		action := int(actionFloat)
-
-		switch action {
-		case ActionRecoverControl: // Equivalent to "pause"
-			if m.state == domain.FLYING {
-				m.state = domain.PAUSED
-				m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "SetFlightmode", "flightmode": "BRAKE"})
-				log.Println("Mission paused (Recover Control).")
-			}
-		case ActionRTL: // Equivalent to "returnToHome"
-			m.state = domain.LANDING
-			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "SetFlightmode", "flightmode": "RTL"})
-			log.Println("Returning to Home (RTL)...")
-		case ActionLand: // Equivalent to "stop"
-			m.state = domain.LANDING
-			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "Land"})
-			log.Println("Emergency Land...")
-		}
+	case "rtl":
+		m.state = domain.LANDING
+		m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "SetFlightmode", "flightmode": "RTL"})
+		log.Println("Returning to Home (RTL)...")
+	case "emergency_land":
+		m.state = domain.LANDING
+		m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "Land"})
+		log.Println("Emergency Land...")
 	}
 }
 

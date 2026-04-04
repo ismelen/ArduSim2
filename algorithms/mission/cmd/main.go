@@ -11,12 +11,11 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 3 {
-		log.Fatalf("Usage: %s <config.json> <mission.kml>\n", os.Args[0])
+	if len(os.Args) < 2 {
+		log.Fatalf("Usage: %s <config.json>\n", os.Args[0])
 	}
 
 	configFile := os.Args[1]
-	kmlFile := os.Args[2]
 
 	// Dependency Injection
 	udpBroker := broker.NewUDPBroker()
@@ -27,7 +26,7 @@ func main() {
 
 	manager := usecase.NewMissionManager(udpBroker, fileLoader, kmlParser)
 
-	if err := manager.Initialize(configFile, kmlFile); err != nil {
+	if err := manager.Initialize(configFile); err != nil {
 		log.Fatalf("Failed to initialize mission manager: %v", err)
 	}
 

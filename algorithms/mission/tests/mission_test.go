@@ -41,12 +41,9 @@ func (m *MockBroker) Close() error {
 	return nil
 }
 
-func (m *MockBroker) SimulateMessage(topic string, cmd int, action ...int) {
+func (m *MockBroker) SimulateMessage(topic string, cmd string) {
 	payload := map[string]interface{}{
-		"command": float64(cmd),
-	}
-	if len(action) > 0 {
-		payload["action"] = float64(action[0])
+		"command": cmd,
 	}
 	m.msgChan <- domain.BrokerMessage{
 		Topic:   topic,
@@ -99,7 +96,7 @@ func TestMissionManager(t *testing.T) {
 
 	manager := usecase.NewMissionManager(mockBroker, mockConfig, mockParser)
 
-	err := manager.Initialize("dummy.json", "dummy.kml")
+	err := manager.Initialize("dummy.json")
 	if err != nil {
 		t.Fatalf("Failed to initialize: %v", err)
 	}
@@ -109,7 +106,7 @@ func TestMissionManager(t *testing.T) {
 	time.Sleep(100 * time.Millisecond) // Give it time to start
 
 	// Phase 1: Send "start" (Change State)
-	mockBroker.SimulateMessage("algo/mission", usecase.CommandChangeState)
+	mockBroker.SimulateMessage("algo/mission", "start")
 	time.Sleep(100 * time.Millisecond)
 
 	// Check if Arm, GUIDED, and Takeoff were published
