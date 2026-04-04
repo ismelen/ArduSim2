@@ -12,14 +12,36 @@
 //!
 //! ## Message Formats (JSON)
 //!
-//! Position update:
+//! Telemetry update:
 //! ```json
-//! {"sender_id": "drone_0", "position": {"x": 40.41, "y": -3.70, "z": 10.0}}
+//! {
+//!   "topic": "telemetry",
+//!   "payload": {
+//!     "uav_id": "drone_0",
+//!     "payload": {
+//!       "nr_gps_online": 10,
+//!       "position": {"heading": 0.0, "alt": 10.0, "relative_alt": 10.0, "lon": 0.0, "lat": 0.0},
+//!       "type": "MAV_TYPE_QUADROTOR",
+//!       "battery": 100,
+//!       "version": "1.0",
+//!       "time_boot_ms": 1000,
+//!       "speed": {"vx": 0.0, "vy": 0.0, "vz": 0.0},
+//!       "status": "OK",
+//!       "flight_mode": "GUIDED"
+//!     }
+//!   }
+//! }
 //! ```
 //!
 //! Broadcast message:
 //! ```json
-//! {"sender_id": "drone_0", "payload": [72, 101, 108, 108, 111]}
+//! {
+//!   "topic": "broadcast",
+//!   "payload": {
+//!     "uav_id": "drone_0",
+//!     "payload": "Hello"
+//!   }
+//! }
 //! ```
 
 use std::{
@@ -67,7 +89,7 @@ pub enum UdpMessage {
     /// Request to broadcast a generic payload.
     Broadcast {
         uav_id: String,
-        payload: Vec<u8>,
+        payload: serde_json::Value,
     },
     /// A telemetry update from a UAV.
     Telemetry{
@@ -136,7 +158,7 @@ fn main() {
                     sim.subscribe_telemetry(received.addr);
                 }
                 UdpMessage::Broadcast { uav_id: sender_id, payload } => {
-                    sim.enqueue_broadcast(sender_id, payload, 0);
+                    sim.enqueue_broadcast(sender_id, serde_json::to_string(&payload).unwrap(), 0);
                 }
                 UdpMessage::Telemetry{ uav_id: sender_id, payload: telemetry_data } => {
                     sim.update_uav_info(telemetry_data, sender_id, received.addr);

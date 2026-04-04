@@ -23,11 +23,26 @@ def main():
 
     # Register UAV
     pos_msg = {
-        "sender_id": UAV_ID,
-        "position": {
-            "x": x,
-            "y": y,
-            "z": z
+        "topic": "telemetry",
+        "payload": {
+            "uav_id": UAV_ID,
+            "payload": {
+                "nr_gps_online": 10,
+                "position": {
+                    "heading": 0.0,
+                    "alt": z,
+                    "relative_alt": z,
+                    "lon": x / 111120.0,
+                    "lat": y / 111120.0
+                },
+                "type": "MAV_TYPE_QUADROTOR",
+                "battery": 100,
+                "version": "1.0",
+                "time_boot_ms": int(time.time() * 1000),
+                "speed": {"vx": 0.0, "vy": 0.0, "vz": 0.0},
+                "status": "OK",
+                "flight_mode": "GUIDED"
+            }
         }
     }
     
@@ -37,11 +52,13 @@ def main():
     time.sleep(1.0)
     
     messages_sent = 0
-    for _ in range(2):
-        payload = [random.randint(0, 255) for _ in range(32)]
+    for i in range(2):
         msg = {
-            "sender_id": UAV_ID,
-            "payload": payload
+            "topic": "broadcast",
+            "payload": {
+                "uav_id": UAV_ID,
+                "payload": f"Test message {i} from {UAV_ID}"
+            }
         }
         sock.sendto(json.dumps(msg).encode('utf-8'), (BROKER_IP, BROKER_PORT))
         messages_sent += 1

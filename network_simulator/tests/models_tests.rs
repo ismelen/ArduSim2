@@ -54,7 +54,7 @@ fn test_message_ordering() {
 
 #[test]
 fn test_message_arc_payload_shared() {
-    let data = Arc::new(vec![1u8, 2, 3, 4, 5]);
+    let data = Arc::new("Hello, World!".to_string());
     let m1 = Message {
         payload: Arc::clone(&data),
         ..Default::default()

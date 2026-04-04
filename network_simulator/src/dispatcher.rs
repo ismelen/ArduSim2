@@ -4,6 +4,7 @@ use std::net::UdpSocket;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread;
+use serde_json::json;
 
 use crate::logger::Logger;
 use crate::models::Message;
@@ -71,7 +72,14 @@ impl UdpDispatcher {
     /// Securely isolates outbound requests parsing basic delivery outcomes tracking elements securely.
     fn send_udp(socket: &UdpSocket, msg: &Message, logger: &Logger) {
         if let Some(addr) = msg.target_addr {
-            match socket.send_to(&msg.payload, addr) {
+            let mut json = serde_json::to_value(&msg.payload.to_string()).unwrap();
+            
+            if let Some(value) = json.as_object_mut() {
+                value.insert("uav_id".to_string(), json!(msg.sender_id));
+            }
+
+            let json = serde_json::to_string(&json).unwrap();
+            match socket.send_to(json.as_bytes(), addr) {
                 Ok(_) => logger.msg_sent_ok(&format!("{}", addr)),
                 Err(e) => logger.msg_sent_err(&format!("{}", addr), &e.to_string()),
             }

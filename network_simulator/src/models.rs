@@ -57,7 +57,7 @@ pub struct Message {
     pub sender_id: String,
 
     /// Shared payload bytes (avoids cloning per receiver).
-    pub payload: Arc<Vec<u8>>,
+    pub payload: Arc<String>,
 
     /// Transmission start instant.
     pub from: Instant,
@@ -102,7 +102,7 @@ impl Default for Message {
     fn default() -> Self {
         Self {
             sender_id: String::new(),
-            payload: Arc::new(Vec::new()),
+            payload: Arc::new(String::new()),
             from: Instant::now(),
             to: Instant::now(),
             tx_ns: 0,

@@ -95,46 +95,59 @@ impl NetworkSimulator {
     }
 
     /// Enqueues a message logically routing it through the simulated airwaves.
-    pub fn enqueue_broadcast(&mut self, sender_id: String, payload: Vec<u8>, retries: u32) {
-        let (sender_pos, sender_busy_until, sender_chunk) = match self.uavs.get(&sender_id) {
-            Some(sender) => (sender.position.clone(), sender.busy_until, sender.chunk_key),
-            None => {
-                println!("DEBUG: UNKNOWN SENDER: {}", sender_id);
-                self.logger.msg_discarded_unknown_sender(&sender_id);
-                return;
+    pub fn enqueue_broadcast(&mut self, sender_id: String, payload: String, retries: u32) {
+        let is_global = sender_id.is_empty();
+        
+        let (sender_pos, sender_busy_until, sender_chunk) = if is_global {
+            (None, Instant::now(), (0, 0, 0))
+        } else {
+            match self.uavs.get(&sender_id) {
+                Some(sender) => (Some(sender.position.clone()), sender.busy_until, sender.chunk_key),
+                None => {
+                    println!("DEBUG: UNKNOWN SENDER: {}", sender_id);
+                    self.logger.msg_discarded_unknown_sender(&sender_id);
+                    return;
+                }
             }
         };
 
         self.logger.broadcast_received(&sender_id);
         let now = Instant::now();
 
-        // 1. Check if sender itself is busy transmitting
-        if self.handle_sender_busy(&sender_id, &payload, retries, now, sender_busy_until) { return; }
-
-        // 2. CSMA / Carrier sensing
-        if self.handle_carrier_sensing(&sender_id, &payload, retries, now, &sender_chunk) { return; }
-
-        let tx_ns = 20_000u64 + 4_000u64 * ((payload.len() as u64 + 61) / 3);
+        let tx_ns = 20_000u64 + 4_000u64 * ((payload.to_string().len() as u64 + 61) / 3);
         let busy_until = now + Duration::from_nanos(tx_ns);
 
-        self.spatial.record_transmission(&sender_chunk, busy_until);
+        if !is_global {
+            // 1. Check if sender itself is busy transmitting
+            if self.handle_sender_busy(&sender_id, &payload, retries, now, sender_busy_until) { return; }
 
-        if let Some(sender) = self.uavs.get_mut(&sender_id) {
-            sender.busy_until = busy_until;
+            // 2. CSMA / Carrier sensing
+            if self.handle_carrier_sensing(&sender_id, &payload, retries, now, &sender_chunk) { return; }
+
+            self.spatial.record_transmission(&sender_chunk, busy_until);
+
+            if let Some(sender) = self.uavs.get_mut(&sender_id) {
+                sender.busy_until = busy_until;
+            }
         }
 
-        let payload_arc = Arc::new(payload);
+        let payload_arc = Arc::new(payload.to_string());
         let payload_len = payload_arc.len();
 
-        let receiver_ids = self.spatial.get_nearby_uav_ids(&sender_chunk, &sender_id);
-        println!("DEBUG: Enqueue from {} chunk {:?}. Found {} receivers", sender_id, sender_chunk, receiver_ids.len());
+        let receiver_ids = if is_global {
+            self.uavs.keys().cloned().collect::<Vec<String>>()
+        } else {
+            self.spatial.get_nearby_uav_ids(&sender_chunk, &sender_id)
+        };
+
+        println!("DEBUG: Enqueue from '{}' (global: {}). Found {} receivers", sender_id, is_global, receiver_ids.len());
 
         let mut delivered_count = 0;
         for receiver_id in receiver_ids {
             let delivered = self.process_receiver(
                 &sender_id,
                 &receiver_id,
-                &sender_pos,
+                sender_pos.as_ref(),
                 &payload_arc,
                 payload_len,
                 now,
@@ -150,7 +163,7 @@ impl NetworkSimulator {
     }
 
     /// Extracted check for sender busy rules. Returns true if processing was interrupted (delayed/dropped).
-    fn handle_sender_busy(&mut self, sender_id: &String, payload: &[u8], retries: u32, now: Instant, busy_until: Instant) -> bool {
+    fn handle_sender_busy(&mut self, sender_id: &String, payload: &String, retries: u32, now: Instant, busy_until: Instant) -> bool {
         if now < busy_until {
             if retries >= MAX_CSMA_RETRIES {
                 self.logger.msg_discarded_max_retries(sender_id);
@@ -158,7 +171,7 @@ impl NetworkSimulator {
                 self.logger.msg_delayed_sender_busy(sender_id);
                 self.delayed_msgs.push_back(Message {
                     sender_id: sender_id.clone(),
-                    payload: Arc::new(payload.to_vec()),
+                    payload: Arc::new(payload.clone()),
                     from: now,
                     retries,
                     ..Default::default()
@@ -170,7 +183,7 @@ impl NetworkSimulator {
     }
     
     /// Extracted carrier sense. Returns true if CSMA aborted transmit to queue/drop.
-    fn handle_carrier_sensing(&mut self, sender_id: &String, payload: &[u8], retries: u32, now: Instant, sender_chunk: &(i64, i64, i64)) -> bool {
+    fn handle_carrier_sensing(&mut self, sender_id: &String, payload: &String, retries: u32, now: Instant, sender_chunk: &(i64, i64, i64)) -> bool {
         if self.spatial.has_near_senders(sender_chunk, &now) {
             if retries >= MAX_CSMA_RETRIES {
                 self.logger.msg_discarded_max_retries(sender_id);
@@ -178,7 +191,7 @@ impl NetworkSimulator {
                 self.logger.msg_delayed_near_senders(sender_id);
                 self.delayed_msgs.push_back(Message {
                     sender_id: sender_id.clone(),
-                    payload: Arc::new(payload.to_vec()),
+                    payload: Arc::new(payload.clone()),
                     from: now,
                     retries,
                     ..Default::default()
@@ -194,8 +207,8 @@ impl NetworkSimulator {
         &mut self,
         sender_id: &str,
         receiver_id: &str,
-        sender_pos: &crate::models::Position,
-        payload_arc: &Arc<Vec<u8>>,
+        sender_pos: Option<&crate::models::Position>,
+        payload_arc: &Arc<String>,
         payload_len: usize,
         now: Instant,
         busy_until: Instant,
@@ -204,9 +217,11 @@ impl NetworkSimulator {
         // Safe unwrap because the id comes directly out of the matched node pool.
         let receiver = self.uavs.get(receiver_id).unwrap();
 
-        if !SpatialGrid::pass_distance_check(sender_pos, &receiver.position) {
-            self.logger.msg_discarded_distance(sender_id, receiver_id);
-            return false;
+        if let Some(pos) = sender_pos {
+            if !SpatialGrid::pass_distance_check(pos, &receiver.position) {
+                self.logger.msg_discarded_distance(sender_id, receiver_id);
+                return false;
+            }
         }
 
         if now < receiver.busy_until {

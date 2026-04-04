@@ -112,7 +112,7 @@ fn test_update_uav_re_indexes_chunk() {
 #[test]
 fn test_broadcast_unknown_sender_is_discarded() {
     let mut sim = create_sim(163_840);
-    sim.enqueue_broadcast("ghost".into(), vec![1, 2, 3], 0);
+    sim.enqueue_broadcast("ghost".into(), "123".to_string(), 0);
 
     assert!(sim.get_delayed_msgs().is_empty());
     assert!(sim.get_pending_msgs().is_empty());
@@ -133,7 +133,7 @@ fn test_broadcast_enqueues_for_nearby_receivers() {
     sim.update_uav_info(mock_telemetry(0.000000001, 0.0, 0.0), "d1".to_string(), addr(5001));
     sim.update_uav_info(mock_telemetry(0.000000002, 0.0, 0.0), "d2".to_string(), addr(5002));
 
-    sim.enqueue_broadcast("d0".into(), vec![10, 20, 30], 0);
+    sim.enqueue_broadcast("d0".into(), "123".into(), 0);
 
     let pending = sim.get_pending_msgs();
     assert!(pending.contains_key("d1"), "d1 should receive");
@@ -143,7 +143,7 @@ fn test_broadcast_enqueues_for_nearby_receivers() {
     // Check message content
     let msg = &pending.get("d1").unwrap()[0];
     assert_eq!(msg.sender_id, "d0");
-    assert_eq!(*msg.payload, vec![10, 20, 30]);
+    assert_eq!(*msg.payload, "123");
 
     // Verify Java-matching transmission time: 20000 + 4000 * ((3 + 61) / 3) = 20000 + 4000*21 = 104000 ns
     assert_eq!(msg.tx_ns, 20000 + 4000 * ((3 + 61) / 3));
@@ -160,7 +160,7 @@ fn test_broadcast_far_uav_not_reached() {
     // 50 degrees is a lot of km away.
     sim.update_uav_info(mock_telemetry(50.0, 50.0, 0.0), "d_far".to_string(), addr(5001));
 
-    sim.enqueue_broadcast("d0".into(), vec![1, 2, 3], 0);
+    sim.enqueue_broadcast("d0".into(), "123".into(), 0);
 
     // d_far should NOT receive (outside chunk neighborhood)
     assert!(sim.get_pending_msgs().get("d_far").is_none());
@@ -176,11 +176,11 @@ fn test_broadcast_sender_busy_delays_message() {
     sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d1".to_string(), addr(5001));
 
     // First large message makes d0 busy
-    sim.enqueue_broadcast("d0".into(), vec![0; 1000], 0);
+    sim.enqueue_broadcast("d0".into(), "0".repeat(1000), 0);
     assert!(sim.get_delayed_msgs().is_empty());
 
     // Immediate second message should be delayed
-    sim.enqueue_broadcast("d0".into(), vec![0; 10], 0);
+    sim.enqueue_broadcast("d0".into(), "0".repeat(10), 0);
     assert_eq!(sim.get_delayed_msgs().len(), 1);
     assert_eq!(sim.get_delayed_msgs()[0].sender_id, "d0");
 }
@@ -197,10 +197,10 @@ fn test_broadcast_near_senders_delays_message() {
     sim.update_uav_info(mock_telemetry(0.000000001, 0.0, 0.0), "d2".to_string(), addr(5002));
 
     // d0 sends a big message
-    sim.enqueue_broadcast("d0".into(), vec![0; 1000], 0);
+    sim.enqueue_broadcast("d0".into(), "0".repeat(1000), 0);
 
     // d2 tries to send → carrier sensing detects d0 nearby → delayed
-    sim.enqueue_broadcast("d2".into(), vec![0; 10], 0);
+    sim.enqueue_broadcast("d2".into(), "0".repeat(10), 0);
 
     assert_eq!(sim.get_delayed_msgs().len(), 1);
     assert_eq!(sim.get_delayed_msgs()[0].sender_id, "d2");
@@ -216,13 +216,13 @@ fn test_broadcast_buffer_overflow_discards() {
     sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d1".to_string(), addr(5001));
 
     // 40 bytes → fits
-    sim.enqueue_broadcast("d0".into(), vec![0; 40], 0);
+    sim.enqueue_broadcast("d0".into(), "0".repeat(40), 0);
 
     // Wait for d0 busy to expire
     std::thread::sleep(Duration::from_millis(1));
 
     // 20 bytes → 40 + 20 = 60 > 50 → discarded for d1
-    sim.enqueue_broadcast("d0".into(), vec![1; 20], 0);
+    sim.enqueue_broadcast("d0".into(), "1".repeat(20), 0);
 
     let pending = sim.get_pending_msgs();
     assert_eq!(pending.get("d1").unwrap().len(), 1);
@@ -238,8 +238,8 @@ fn test_send_messages_retries_delayed() {
     sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d0".to_string(), addr(5000));
     sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d1".to_string(), addr(5001));
 
-    sim.enqueue_broadcast("d0".into(), vec![0; 1000], 0);
-    sim.enqueue_broadcast("d0".into(), vec![1; 10], 0); // delayed
+    sim.enqueue_broadcast("d0".into(), "0".repeat(1000), 0);
+    sim.enqueue_broadcast("d0".into(), "1".repeat(10), 0); // delayed
     assert_eq!(sim.get_delayed_msgs().len(), 1);
 
     std::thread::sleep(Duration::from_millis(2));
@@ -259,7 +259,7 @@ fn test_send_messages_clears_pending() {
     sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d0".to_string(), addr(5000));
     sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d1".to_string(), addr(5001));
 
-    sim.enqueue_broadcast("d0".into(), vec![1, 2, 3], 0);
+    sim.enqueue_broadcast("d0".into(), "123".into(), 0);
     assert!(!sim.get_pending_msgs().is_empty());
 
     sim.send_messages();
@@ -278,7 +278,7 @@ fn test_transmission_time_matches_java() {
     sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d0".to_string(), addr(5000));
     sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d1".to_string(), addr(5001));
 
-    let payload = vec![0u8; 100];
+    let payload = "0".repeat(100);
     sim.enqueue_broadcast("d0".into(), payload, 0);
 
     let msg = &sim.get_pending_msgs().get("d1").unwrap()[0];
@@ -299,10 +299,10 @@ fn test_statistics_accumulate() {
     sim.update_uav_info(mock_telemetry(0.0, 0.0, 0.0), "d1".to_string(), addr(5001));
 
     // Unknown sender
-    sim.enqueue_broadcast("ghost".into(), vec![1], 0);
+    sim.enqueue_broadcast("ghost".into(), "1".into(), 0);
 
     // Successful broadcast
-    sim.enqueue_broadcast("d0".into(), vec![1, 2, 3], 0);
+    sim.enqueue_broadcast("d0".into(), "123".into(), 0);
 
     // We can't easily test all stats without more setup, but verify the ones we can
     // (stats are on the logger which is behind Arc, but accessible via print_stats)
