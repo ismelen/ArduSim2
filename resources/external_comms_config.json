@@ -4,7 +4,7 @@
   "simulator_ip": "127.0.0.1",
   "simulator_port": 6000,
 
-  "sub_telemetry_topic": "telemetry",
+  "sub_telemetry_topic": "uav/telemetry",
   "sub_messages_topic": "external/messages",
 
   "pub_ext_telemetry_topic": "external/telemetry",
