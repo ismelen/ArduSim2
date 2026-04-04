@@ -77,12 +77,5 @@ func (g *GatewayBridge) handleExternalNetMessage(msg domain.NetSimMessage) {
 		return
 	}
 
-	switch msg.Topic {
-case "telemetry":
-		g.broker.Publish(g.config.PubExternalTelemetryTopic, msg.Payload)
-		log.Printf("[External->Internal] Received Swarm Telemetry from %s", msg.Source)
-	case "message":
-		g.broker.Publish(g.config.PubExternalMessagesTopic, msg.Payload)
-		log.Printf("[External->Internal] Received Swarm Message from %s", msg.Source)
-	}
+	g.broker.Publish(msg.Topic, msg.Payload)
 }
