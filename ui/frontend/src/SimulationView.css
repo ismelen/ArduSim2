@@ -380,7 +380,70 @@
   align-items: center;
   gap: 0.5rem;
 }
+/* ─── BUTTON VARIANTS ─── */
+.control-btn.outline-btn {
+  border: 1px solid var(--outline-variant);
+  border-radius: 4px;
+  color: var(--on-surface-variant);
+}
+.control-btn.outline-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.control-btn.outline-btn.ready {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.control-btn.outline-btn.not-ready {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.control-btn.danger-outline {
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 4px;
+  color: rgba(239, 68, 68, 0.8);
+}
+.control-btn.danger-outline:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ─── SIMULATION FINISHED BANNER ─── */
+.sim-finished-banner {
+  position: absolute;
+  top: 5.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20000;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 1.5rem;
+  background: rgba(19, 19, 19, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  color: var(--primary);
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  box-shadow: 0 0 24px rgba(78, 222, 163, 0.25);
+  animation: bannerFadeIn 0.4s ease;
+}
+.sim-finished-banner .material-symbols-outlined {
+  font-size: 1.4rem;
+}
+@keyframes bannerFadeIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 .log-level.info { color: #3b82f6; }
+.log-level.msg  { color: #f59e0b; }
+
+
 
 .log-content {
   font-family: 'Courier New', monospace;

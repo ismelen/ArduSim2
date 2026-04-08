@@ -27,7 +27,11 @@ type App struct {
 	subscriber        *netsim.Subscriber
 	// activeComposePath holds the path of the last generated docker-compose.yaml
 	// so that shutdown() can bring down the containers cleanly.
-	activeComposePath string
+	activeComposePath  string
+	// activeAlgorithmIDs is the set of algorithm service IDs running in the current session.
+	activeAlgorithmIDs map[string]bool
+	// stoppedAlgorithmIDs tracks which algorithms the user has manually stopped.
+	stoppedAlgorithmIDs map[string]bool
 }
 
 // NewApp creates the App, resolving all project paths relative to the
@@ -50,6 +54,7 @@ func NewApp() *App {
 // startup is called by Wails when the application window is ready.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.subscriber.SetContext(ctx)
 }
 
 // GetAvailableServices returns all algorithm services that expose a schema.json.
@@ -81,6 +86,23 @@ func (a *App) StartSimulation(uavs []simulation.UAV, generalConfig simulation.Ge
 		}
 		a.subscriber.SetExpectedFleet(uavIDs, nil)
 
+		// Track the active algorithm IDs for manual stop detection.
+		algorithmIDs := collectAlgorithmIDs(uavs)
+		a.activeAlgorithmIDs = make(map[string]bool, len(algorithmIDs))
+		a.stoppedAlgorithmIDs = make(map[string]bool)
+		for _, id := range algorithmIDs {
+			a.activeAlgorithmIDs[id] = true
+		}
+
+		// When all UAVs emit "finish", also broadcast stop to all algorithms.
+		a.subscriber.SetOnFinish(func() {
+			for _, algo := range algorithmIDs {
+				if err := a.SendAlgorithmCommand(algo, "stop"); err != nil {
+					fmt.Printf("[app] failed to stop algorithm %s: %v\n", algo, err)
+				}
+			}
+		})
+
 		// Create a session-specific context that can be cancelled without killing the app.
 		if a.simCancel != nil {
 			a.simCancel()
@@ -92,13 +114,48 @@ func (a *App) StartSimulation(uavs []simulation.UAV, generalConfig simulation.Ge
 	return nil
 }
 
+// collectAlgorithmIDs returns the unique algorithm service IDs across all UAVs.
+func collectAlgorithmIDs(uavs []simulation.UAV) []string {
+	seen := make(map[string]bool)
+	var ids []string
+	for _, uav := range uavs {
+		for _, svc := range uav.Services {
+			if !seen[svc.ServiceId] {
+				seen[svc.ServiceId] = true
+				ids = append(ids, svc.ServiceId)
+			}
+		}
+	}
+	return ids
+}
+
 // SendAlgorithmCommand broadcasts a command message to the specified algorithm of all UAVs.
+// When the user manually stops all active algorithms, it notifies the subscriber
+// to trigger the simulation-finished flow.
 func (a *App) SendAlgorithmCommand(serviceId string, command string) error {
 	payload := map[string]interface{}{
 		"topic":   "algo/" + serviceId,
 		"command": command,
 	}
-	return a.subscriber.SendGlobalBroadcast(payload)
+	if err := a.subscriber.SendGlobalBroadcast(payload); err != nil {
+		return err
+	}
+
+	// Track manual stops to detect when the user has stopped all algorithms.
+	if command == "stop" && len(a.activeAlgorithmIDs) > 0 {
+		a.stoppedAlgorithmIDs[serviceId] = true
+		allStopped := true
+		for id := range a.activeAlgorithmIDs {
+			if !a.stoppedAlgorithmIDs[id] {
+				allStopped = false
+				break
+			}
+		}
+		if allStopped {
+			a.subscriber.NotifyUserStoppedAll(a.ctx)
+		}
+	}
+	return nil
 }
 
 // LoadSimulationConfig opens a directory picker and attempts to read a

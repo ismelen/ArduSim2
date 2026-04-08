@@ -11,6 +11,13 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { EventsOff, EventsOn } from '../wailsjs/runtime/runtime';
 
+interface NetSimMessageEvent {
+  source: string;
+  service: string;
+  command: string;
+  label: string;
+}
+
 
 // Custom UAV Marker HTML generator
 const createUAVMarkerElement = (heading: number, altitude: number) => {
@@ -33,6 +40,9 @@ const SimulationView: React.FC = () => {
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
   const [logs, setLogs] = useState<{ time: string, level: string, msg: string }[]>([]);
   const [showTrails, setShowTrails] = useState(true);
+  const [simulationFinished, setSimulationFinished] = useState(false);
+  // Tracks which algorithms are currently paused (true = paused, false = running).
+  const [pausedAlgorithms, setPausedAlgorithms] = useState<Record<string, boolean>>({});
 
   
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -206,20 +216,36 @@ const SimulationView: React.FC = () => {
 
   }, [uavs]);
 
-  // Simulation timer and Log listener
+  // Simulation timer, log listener, and netsim message listener
   useEffect(() => {
     const interval = setInterval(() => setTime(t => t + 1), 1000);
     
-    // Listen to real-time logs from backend
+    // Docker-compose build / run logs from backend
     EventsOn('simulation:log', (message: string) => {
       const now = new Date();
       const timeStr = now.toLocaleTimeString([], { hour12: false });
       setLogs(prev => [...prev.slice(-49), { time: timeStr, level: '[INF]', msg: message }]);
     });
 
+    // Messages from netsim (e.g. algorithm commands broadcast over the network)
+    EventsOn('netsim:message', (data: NetSimMessageEvent) => {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour12: false });
+      console.log(`[netsim/messages] ${data.label}`);
+      setLogs(prev => [...prev.slice(-49), { time: timeStr, level: '[MSG]', msg: data.label }]);
+    });
+
+    // Simulation finished signal: show banner, do NOT close the window.
+    EventsOn('simulation:finished', () => {
+      console.log('[netsim] simulation:finished received');
+      setSimulationFinished(true);
+    });
+
     return () => {
       clearInterval(interval);
       EventsOff('simulation:log');
+      EventsOff('netsim:message');
+      EventsOff('simulation:finished');
     };
   }, []);
 
@@ -248,9 +274,24 @@ const SimulationView: React.FC = () => {
 
   return (
     <div className="sim-container">
+      {/* ── SIMULATION FINISHED BANNER ── */}
+      {simulationFinished && (
+        <div className="sim-finished-banner">
+          <span className="material-symbols-outlined">check_circle</span>
+          <span>SIMULATION COMPLETE — all algorithms stopped</span>
+        </div>
+      )}
+
       {/* ── TOP CONTROLS ── */}
       <div className="sim-top-bar">
-        {algorithmsList.map(algo => (
+      {algorithmsList.map(algo => {
+          const isPaused = !!pausedAlgorithms[algo];
+          const handlePauseToggle = async () => {
+            const command = isPaused ? 'resume' : 'pause';
+            await handleSendAlgorithmCommand(algo, command);
+            setPausedAlgorithms(prev => ({ ...prev, [algo]: !isPaused }));
+          };
+          return (
           <div key={algo} className="control-group">
             <span className="algo-label">{algo.toUpperCase()}</span>
             <button 
@@ -260,14 +301,20 @@ const SimulationView: React.FC = () => {
             >
               <span className="material-symbols-outlined">play_circle</span> START
             </button>
-            <button className="control-btn outline-btn" onClick={() => handleSendAlgorithmCommand(algo, 'pause')}>
-              <span className="material-symbols-outlined">pause</span> PAUSE
+            <button
+              className={`control-btn ${isPaused ? 'outline-btn ready' : 'outline-btn'}`}
+              onClick={handlePauseToggle}
+              title={isPaused ? 'Resume algorithm' : 'Pause algorithm'}
+            >
+              <span className="material-symbols-outlined">{isPaused ? 'play_arrow' : 'pause'}</span>
+              {isPaused ? 'RESUME' : 'PAUSE'}
             </button>
             <button className="control-btn danger-outline" onClick={() => handleSendAlgorithmCommand(algo, 'stop')}>
               <span className="material-symbols-outlined">stop</span> STOP
             </button>
           </div>
-        ))}
+        );
+        })}
 
         {!algorithmsList.length && (
           <div className="control-group">
@@ -326,12 +373,15 @@ const SimulationView: React.FC = () => {
               <span className="log-level info">[WAIT]</span> AWAITING_SIMULATION_UPLINK...
             </div>
           ) : (
-            logs.map((log, i) => (
-              <div key={i} className="log-entry">
-                <span className="log-time">{log.time}</span>
-                <span className="log-level info">{log.level}</span> {log.msg}
-              </div>
-            ))
+            logs.map((log, i) => {
+              const levelClass = log.level === '[MSG]' ? 'msg' : 'info';
+              return (
+                <div key={i} className="log-entry">
+                  <span className="log-time">{log.time}</span>
+                  <span className={`log-level ${levelClass}`}>{log.level}</span> {log.msg}
+                </div>
+              );
+            })
           )}
           <div ref={logEndRef} />
         </div>
