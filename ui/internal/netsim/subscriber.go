@@ -98,22 +98,11 @@ func (s *Subscriber) SendGlobalBroadcast(payload interface{}) error {
 		return fmt.Errorf("resolve remote addr: %w", err)
 	}
 
-	rawPayload, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("marshal payload: %w", err)
-	}
-
-	// Rust Vec<u8> deserializes from a JSON list of numbers [0..255].
-	var byteList []int
-	for _, b := range rawPayload {
-		byteList = append(byteList, int(b))
-	}
-
 	packet := map[string]interface{}{
 		"topic": "broadcast",
 		"payload": map[string]interface{}{
 			"uav_id":  "",
-			"payload": byteList,
+			"payload": payload,
 		},
 	}
 

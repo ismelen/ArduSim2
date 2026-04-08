@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import './MapLibre.css';
 import './SimulationView.css';
 import { useConfig } from './hooks/useConfig';
+import { useFleet } from './hooks/useFleet';
 import type { UAVState } from './hooks/useTelemetry';
 import { useTelemetry } from './hooks/useTelemetry';
 
@@ -25,21 +26,32 @@ const createUAVMarkerElement = (heading: number, altitude: number) => {
 };
 
 const SimulationView: React.FC = () => {
-  const { handleExitSimulation: exitSim } = useConfig();
+  const { handleExitSimulation: exitSim, handleSendAlgorithmCommand } = useConfig();
+  const { uavs: fleetUavs } = useFleet();
   const uavs = useTelemetry();
   const [time, setTime] = useState(0);
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
   const [logs, setLogs] = useState<{ time: string, level: string, msg: string }[]>([]);
+  const [showTrails, setShowTrails] = useState(true);
 
   
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<Record<string, maplibregl.Marker>>({});
+  const trailsRef = useRef<Record<string, [number, number][]>>({});
   const centeredRef = useRef(false);
+  const logEndRef = useRef<HTMLDivElement>(null);
 
   // Get current UAVs as a list
   const uavList: UAVState[] = Object.values(uavs);
   const mainUav = uavList.length > 0 ? uavList[0] : null;
+
+  const runningAlgorithms = new Set<string>();
+  fleetUavs.forEach(u => u.services?.forEach(s => runningAlgorithms.add(s.serviceId)));
+  const algorithmsList = Array.from(runningAlgorithms);
+
+  // Logic for enabling START mission button: all configured UAVs must have reported telemetry with at least one GPS satellite
+  const allUavsReady = fleetUavs.length > 0 && fleetUavs.every(fu => uavs[fu.id] && uavs[fu.id].nrGpsOnline > 0);
 
   // Initialize MapLibre
   useEffect(() => {
@@ -51,6 +63,7 @@ const SimulationView: React.FC = () => {
       center: [0, 0],
       zoom: 13,
       pitch: viewMode === '3d' ? 60 : 0,
+      maxPitch: 85,
       dragRotate: true,
       scrollZoom: true,
       dragPan: true,
@@ -58,48 +71,28 @@ const SimulationView: React.FC = () => {
     });
 
 
-    // ── NATIVE INTERACTION Logic for Middle-click (button 1) ──
-    const container = mapContainerRef.current;
-    let isRotating = false;
-
-    const handleMouseDown = (e: MouseEvent) => {
-      // ONLY Right-click (2) to rotate/pitch. Middle-click (1) removed as requested.
-      if (e.button === 2) {
-        e.preventDefault();
-        isRotating = true;
-        if (container) container.style.cursor = 'grabbing';
-      }
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isRotating && mapRef.current) {
-        const deltaX = e.movementX;
-        const deltaY = e.movementY;
-        
-        // Much lower sensitivity for ultra-precise rotation (0.08)
-        const bearing = mapRef.current.getBearing() + deltaX * 0.005;
-        const pitch = Math.max(0, Math.min(85, mapRef.current.getPitch() - deltaY * 0.005));
-        
-        mapRef.current.setBearing(bearing);
-        mapRef.current.setPitch(pitch);
-      }
-    };
-
-    const handleMouseUp = () => {
-      isRotating = false;
-      if (container) container.style.cursor = '';
-    };
-
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-    };
-
-    container.addEventListener('mousedown', handleMouseDown);
-    container.addEventListener('contextmenu', handleContextMenu);
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-
     map.on('load', () => {
+      // Add GeoJSON trace layer
+      map.addSource('uav-trails', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] }
+      });
+      map.addLayer({
+        id: 'uav-trails-layer',
+        type: 'line',
+        source: 'uav-trails',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+          'visibility': showTrails ? 'visible' : 'none'
+        },
+        paint: {
+          'line-color': '#4edea3',
+          'line-width': 2,
+          'line-opacity': 0.6
+        }
+      });
+
       // Add 3D Building Layer (fill-extrusion)
       const layers = map.getStyle().layers;
       const labelLayerId = layers?.find(l => l.type === 'symbol' && l.layout && l.layout['text-field'])?.id;
@@ -123,10 +116,6 @@ const SimulationView: React.FC = () => {
     mapRef.current = map;
 
     return () => {
-      container.removeEventListener('mousedown', handleMouseDown);
-      container.removeEventListener('contextmenu', handleContextMenu);
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
       map.remove();
       mapRef.current = null;
     };
@@ -142,9 +131,17 @@ const SimulationView: React.FC = () => {
     }
   }, [viewMode]);
 
+  useEffect(() => {
+    if (mapRef.current && mapRef.current.getLayer('uav-trails-layer')) {
+      mapRef.current.setLayoutProperty('uav-trails-layer', 'visibility', showTrails ? 'visible' : 'none');
+    }
+  }, [showTrails]);
+
   // Update Markers and Auto-Center
   useEffect(() => {
     if (!mapRef.current) return;
+
+    let featuresHasUpdates = false;
 
     uavList.forEach((uav) => {
       // 1. Auto-center on first valid coordinate (NOT 0,0)
@@ -177,9 +174,36 @@ const SimulationView: React.FC = () => {
           .addTo(mapRef.current!);
         markersRef.current[uav.id] = marker;
       }
+
+      // 3. Manage Trails
+      if (!trailsRef.current[uav.id]) {
+        trailsRef.current[uav.id] = [];
+      }
+      
+      const lastPos = trailsRef.current[uav.id][trailsRef.current[uav.id].length - 1];
+      // Only push if coordinate has actually moved and is valid (not 0,0)
+      if ((!lastPos || lastPos[0] !== uav.lon || lastPos[1] !== uav.lat) && (uav.lon !== 0 || uav.lat !== 0)) {
+        trailsRef.current[uav.id].push([uav.lon, uav.lat]);
+        featuresHasUpdates = true;
+      }
     });
 
-    // Cleanup markers for offline UAVs (optional, depending on requirements)
+    // Update GeoJSON source efficiently
+    if (featuresHasUpdates) {
+      const source = mapRef.current.getSource('uav-trails') as maplibregl.GeoJSONSource;
+      if (source) {
+        const features = Object.entries(trailsRef.current).map(([id, coords]) => ({
+          type: 'Feature' as const,
+          properties: { uavId: id },
+          geometry: {
+            type: 'LineString' as const,
+            coordinates: coords
+          }
+        }));
+        source.setData({ type: 'FeatureCollection', features });
+      }
+    }
+
   }, [uavs]);
 
   // Simulation timer and Log listener
@@ -198,6 +222,11 @@ const SimulationView: React.FC = () => {
       EventsOff('simulation:log');
     };
   }, []);
+
+  // Log auto-scroll
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [logs]);
 
 
   const formatTime = (seconds: number) => {
@@ -221,20 +250,45 @@ const SimulationView: React.FC = () => {
     <div className="sim-container">
       {/* ── TOP CONTROLS ── */}
       <div className="sim-top-bar">
-        <div className="control-group">
-          <button className="control-btn">
-            <span className="material-symbols-outlined">pause</span> PAUSE
-          </button>
-          <button className="control-btn">
-            <span className="material-symbols-outlined">stop</span> STOP
-          </button>
-          <button className="control-btn emergency">
-            <span className="material-symbols-outlined">priority_high</span> EMERGENCY RTL
+        {algorithmsList.map(algo => (
+          <div key={algo} className="control-group">
+            <span className="algo-label">{algo.toUpperCase()}</span>
+            <button 
+              className={`control-btn outline-btn ${allUavsReady ? 'ready' : 'not-ready'}`}
+              disabled={!allUavsReady}
+              onClick={() => handleSendAlgorithmCommand(algo, 'start')}
+            >
+              <span className="material-symbols-outlined">play_circle</span> START
+            </button>
+            <button className="control-btn outline-btn" onClick={() => handleSendAlgorithmCommand(algo, 'pause')}>
+              <span className="material-symbols-outlined">pause</span> PAUSE
+            </button>
+            <button className="control-btn danger-outline" onClick={() => handleSendAlgorithmCommand(algo, 'stop')}>
+              <span className="material-symbols-outlined">stop</span> STOP
+            </button>
+          </div>
+        ))}
+
+        {!algorithmsList.length && (
+          <div className="control-group">
+            <button className="control-btn outline-btn disabled">
+              NO ALGORITHMS
+            </button>
+          </div>
+        )}
+        
+        <div className="view-toggle">
+          <button className="toggle-btn active" onClick={handleRecenter}>
+            <span className="material-symbols-outlined">center_focus_strong</span>
           </button>
         </div>
         <div className="view-toggle">
-          <button className="toggle-btn active" onClick={handleRecenter}>
-            <span className="material-symbols-outlined">center_focus_strong</span> RECENTER
+          <button 
+            className={`toggle-btn ${showTrails ? 'active' : ''}`}
+            onClick={() => setShowTrails(!showTrails)}
+            title="Toggle Trails"
+          >
+            <span className="material-symbols-outlined">route</span>
           </button>
         </div>
         <div className="view-toggle">
@@ -279,52 +333,52 @@ const SimulationView: React.FC = () => {
               </div>
             ))
           )}
+          <div ref={logEndRef} />
         </div>
 
       </div>
 
       {/* ── TELEMETRY SIDEBAR (RIGHT) ── */}
       <aside className="sim-sidebar">
-        <div className="sidebar-title">TELEMETRY_MASTER</div>
+        <div className="sidebar-title">FLEET TELEMETRY</div>
         
-        <div className="telemetry-card">
-          <div className="card-label">ALTITUDE <span className="material-symbols-outlined">flight_takeoff</span></div>
-          <div className="card-value">
-            {mainUav ? mainUav.alt.toLocaleString(undefined, { minimumFractionDigits: 1 }) : '0.0'} 
-            <span className="unit">M</span>
-          </div>
-          <div className="progress-bar">
-            <div className="fill" style={{ width: `${Math.min((mainUav?.alt ?? 0) / 20, 100)}%` }}></div>
-          </div>
-        </div>
+        <div className="uav-cards-container">
+          {uavList.length === 0 && (
+            <div className="telemetry-card system-mode">
+              <div className="card-value mode-text">AWAITING UAVs</div>
+            </div>
+          )}
+          {uavList.map(uav => (
+            <div key={uav.id} className="telemetry-card compact-card">
+              <div className="card-label">UAV {uav.id} <span className="status-dot"></span></div>
+              
+              <div className="compact-stats">
+                <div className="stat">
+                  <span className="material-symbols-outlined">flight_takeoff</span>
+                  <span>{uav.alt.toFixed(1)} <small>m</small></span>
+                </div>
+                <div className="stat">
+                  <span className="material-symbols-outlined">speed</span>
+                  <span>{Math.sqrt(uav.vx**2 + uav.vy**2).toFixed(1)} <small>m/s</small></span>
+                </div>
+                <div className="stat">
+                  <span className="material-symbols-outlined">battery_charging_full</span>
+                  <span>{uav.battery}%</span>
+                </div>
+                <div className="stat">
+                  <span className="mode-text">{uav.flight_mode}</span>
+                </div>
+              </div>
 
-        <div className="telemetry-card">
-          <div className="card-label">VELOCITY <span className="material-symbols-outlined">speed</span></div>
-          <div className="card-value">
-            {mainUav ? Math.sqrt(mainUav.vx**2 + mainUav.vy**2).toFixed(1) : '0.0'} 
-            <span className="unit">M/S</span>
-          </div>
-          <div className="progress-bar">
-            <div className="fill" style={{ width: `${Math.min(Math.sqrt((mainUav?.vx ?? 0)**2 + (mainUav?.vy ?? 0)**2) * 5, 100)}%` }}></div>
-          </div>
-        </div>
-
-        <div className="telemetry-card system-mode">
-          <div className="card-label">SYSTEM MODE <span className="status-dot"></span></div>
-          <div className="card-value mode-text">{mainUav?.flight_mode || 'OFFLINE'}</div>
-          <div className="sub-value">STATUS: {mainUav?.status || 'UNKNOWN'}</div>
-        </div>
-
-        <div className="telemetry-card coords">
-          <div className="card-label">COORDINATES</div>
-          <div className="coord-row"><span>LAT:</span> <span>{mainUav?.lat.toFixed(6) || '0.000000'}°</span></div>
-          <div className="coord-row"><span>LNG:</span> <span>{mainUav?.lon.toFixed(6) || '0.000000'}°</span></div>
-          <div className="coord-row"><span>HDG:</span> <span className="heading">{mainUav?.heading.toFixed(0) || '0'}°</span></div>
-        </div>
-
-        <div className="telemetry-card">
-          <div className="card-label">FLEET ENERGY <span className="material-symbols-outlined">battery_charging_full</span></div>
-          <div className="card-value">{mainUav?.battery || 0} <span className="unit">% AVG</span></div>
+              <div className="compact-coords" style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', color: 'var(--on-surface-variant)', marginTop: '0.4rem', letterSpacing: '0.05em' }}>
+                <span style={{color: 'var(--on-surface)'}}>LAT</span> {uav.lat.toFixed(5)}° &bull; <span style={{color: 'var(--on-surface)'}}>LNG</span> {uav.lon.toFixed(5)}° &bull; <span style={{color: 'var(--primary)'}}>HDG</span> {uav.heading.toFixed(0)}°
+              </div>
+              
+              <div className="progress-bar mini-bar">
+                <div className="fill" style={{ width: `${uav.battery}%` }}></div>
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="sidebar-footer">

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { StartSimulation, StopSimulation, LoadSimulationConfig } from "../../wailsjs/go/main/App";
+import { StartSimulation, StopSimulation, LoadSimulationConfig, SendAlgorithmCommand } from "../../wailsjs/go/main/App";
 import { useEnvironment } from "./useEnvironment";
 import { useFleet } from "./useFleet";
 import { useNavigation } from "./useNavigation";
@@ -29,6 +29,7 @@ interface ConfigState extends GeneralConfigState {
   handleStartSimulation: () => Promise<void>;
   handleExitSimulation: () => Promise<void>;
   handleLoadSimulation: () => Promise<void>;
+  handleSendAlgorithmCommand: (serviceId: string, command: string) => Promise<void>;
 }
 
 export const useConfig = create<ConfigState>((set, get) => ({
@@ -121,6 +122,15 @@ export const useConfig = create<ConfigState>((set, get) => ({
       alert(`LOAD_ERROR: ${err instanceof Error ? err.message : String(err)}`);
       throw err;
     }
+  },
 
+  handleSendAlgorithmCommand: async (serviceId: string, command: string) => {
+    try {
+      await SendAlgorithmCommand(serviceId, command);
+    } catch (err) {
+      console.error("Failed to send algorithm command:", err);
+      alert(`COMMAND_ERROR: ${err instanceof Error ? err.message : String(err)}`);
+      throw err;
+    }
   },
 }));

@@ -51,14 +51,20 @@ func (d *Discoverer) loadServiceType(dirName string) (simulation.ServiceType, bo
 	}
 
 	var schema struct {
-		Title string `json:"title"`
+		ServiceID string `json:"service_id"`
+		Title     string `json:"title"`
 	}
 	if err := json.Unmarshal(rawData, &schema); err != nil {
 		return simulation.ServiceType{}, false
 	}
 
+	svcID := schema.ServiceID
+	if svcID == "" {
+		svcID = dirName
+	}
+
 	return simulation.ServiceType{
-		ID:        dirName,
+		ID:        svcID,
 		Title:     schema.Title,
 		SchemaRaw: string(rawData),
 	}, true

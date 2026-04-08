@@ -109,6 +109,38 @@
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
+.algo-label {
+  color: var(--primary);
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  margin-right: 0.25rem;
+  background: rgba(78, 222, 163, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+}
+
+.control-btn.start-mission.ready {
+  color: var(--on-primary) !important;
+  background: var(--primary) !important;
+  border-radius: 4px;
+  box-shadow: 0 0 15px rgba(78, 222, 163, 0.4);
+}
+
+.control-btn.start-mission.ready:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 0 20px rgba(78, 222, 163, 0.6);
+}
+
+.control-btn.start-mission.not-ready {
+  opacity: 0.3;
+  cursor: not-allowed;
+  border: 1px solid var(--outline-variant);
+}
+
 .view-toggle {
   display: flex;
   background: rgba(19, 19, 19, 0.85);
@@ -135,13 +167,13 @@
 
 /* ─── SIDEBAR ─── */
 .sim-sidebar {
-  width: 320px;
+  width: 340px;
   background-color: var(--surface-lowest);
   border-left: 1px solid var(--outline-variant);
-  padding: 2rem;
+  padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
   z-index: 10000;
 }
 
@@ -198,8 +230,10 @@
 }
 
 .telemetry-card.system-mode .mode-text {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--primary);
+  font-family: var(--font-display);
+  font-weight: 700;
 }
 .telemetry-card.system-mode .sub-value {
   font-size: 0.6rem;
@@ -214,15 +248,58 @@
   box-shadow: 0 0 5px var(--primary);
 }
 
-.telemetry-card.coords .coord-row {
+.uav-cards-container {
   display: flex;
-  justify-content: space-between;
-  font-family: var(--font-display);
-  font-size: 0.75rem;
-  margin-top: 0.4rem;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 0.5rem;
+  margin-right: -0.5rem;
 }
 
-.telemetry-card.coords .heading { color: var(--primary); }
+.uav-cards-container::-webkit-scrollbar {
+  width: 4px;
+}
+.uav-cards-container::-webkit-scrollbar-thumb {
+  background: var(--outline-variant);
+  border-radius: 4px;
+}
+
+.compact-card {
+  padding: 0.85rem 1rem;
+}
+
+.compact-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin-top: 0.5rem;
+}
+
+.compact-stats .stat {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  color: var(--on-surface);
+}
+
+.compact-stats .stat .material-symbols-outlined {
+  font-size: 1.1rem;
+  color: var(--on-surface-variant);
+}
+
+.compact-stats .stat small {
+  font-size: 0.65rem;
+  color: var(--on-surface-variant);
+}
+
+.compact-card .mini-bar {
+  margin-top: 0.75rem;
+  height: 2px;
+}
 
 .sidebar-footer {
   margin-top: auto;
@@ -269,7 +346,7 @@
   position: absolute;
   bottom: 1rem;
   left: 1.5rem;
-  right: 335px; /* Sidebar (320px) + margin */
+  right: 355px; /* Sidebar (340px) + margin */
   background: rgba(19, 19, 19, 0.85);
   backdrop-filter: blur(12px);
   border: 1px solid var(--outline-variant);
@@ -314,6 +391,14 @@
   gap: 0.5rem;
   overflow-y: auto;
   flex: 1;
+}
+
+.log-content::-webkit-scrollbar {
+  width: 6px;
+}
+.log-content::-webkit-scrollbar-thumb {
+  background: var(--outline-variant);
+  border-radius: 4px;
 }
 
 .log-entry { display: flex; gap: 0.75rem; white-space: nowrap; }

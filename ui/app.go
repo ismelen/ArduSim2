@@ -74,22 +74,12 @@ func (a *App) StartSimulation(uavs []simulation.UAV, generalConfig simulation.Ge
 			return err
 		}
 
-		// Prepare the subscriber to wait for the fleet before starting the mission
+		// Prepare the subscriber to track the fleet
 		var uavIDs []string
 		for _, uav := range uavs {
 			uavIDs = append(uavIDs, uav.ID)
 		}
-		a.subscriber.SetExpectedFleet(uavIDs, func() {
-			// Broadcast the mission start command to all UAVs
-			payload := map[string]interface{}{
-				"topic":   "algo/mission",
-				"command": "start",
-			}
-			err := a.subscriber.SendGlobalBroadcast(payload)
-			if err != nil {
-				fmt.Printf("[app] failed to auto-start mission: %v\n", err)
-			}
-		})
+		a.subscriber.SetExpectedFleet(uavIDs, nil)
 
 		// Create a session-specific context that can be cancelled without killing the app.
 		if a.simCancel != nil {
@@ -100,6 +90,15 @@ func (a *App) StartSimulation(uavs []simulation.UAV, generalConfig simulation.Ge
 	}
 
 	return nil
+}
+
+// SendAlgorithmCommand broadcasts a command message to the specified algorithm of all UAVs.
+func (a *App) SendAlgorithmCommand(serviceId string, command string) error {
+	payload := map[string]interface{}{
+		"topic":   "algo/" + serviceId,
+		"command": command,
+	}
+	return a.subscriber.SendGlobalBroadcast(payload)
 }
 
 // LoadSimulationConfig opens a directory picker and attempts to read a

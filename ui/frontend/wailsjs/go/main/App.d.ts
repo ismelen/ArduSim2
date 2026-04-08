@@ -8,6 +8,8 @@ export function LoadSimulationConfig():Promise<simulation.SimulationState>;
 
 export function SelectFile():Promise<string>;
 
+export function SendAlgorithmCommand(arg1:string,arg2:string):Promise<void>;
+
 export function StartSimulation(arg1:Array<simulation.UAV>,arg2:simulation.GeneralConfig,arg3:string,arg4:boolean):Promise<void>;
 
 export function StopSimulation():Promise<void>;

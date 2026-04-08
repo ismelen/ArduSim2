@@ -15,6 +15,7 @@ export interface TelemetryData {
         battery: number;
         status: string;
         flight_mode: string;
+        nr_gps_online: number;
         time_boot_ms: number;
     };
 }
@@ -32,6 +33,7 @@ export interface UAVState {
     battery: number;
     status: string;
     flight_mode: string;
+    nrGpsOnline: number;
 }
 
 /**
@@ -60,6 +62,7 @@ export function useTelemetry() {
                 battery: msg.payload.battery,
                 status: msg.payload.status,
                 flight_mode: msg.payload.flight_mode,
+                nrGpsOnline: msg.payload.nr_gps_online,
             };
             uavsRef.current[msg.uav_id] = newState;
         });
