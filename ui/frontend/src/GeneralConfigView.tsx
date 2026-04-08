@@ -226,6 +226,78 @@ export const GeneralConfigView: React.FC = () => {
               </div>
             </div>
           </Card>
+          
+          <Card 
+            title="GROUND FORMATION" 
+            subtitle="INITIAL_DEPLOYMENT_LAYOUT"
+            headerIcon={<SlidersIcon />}
+            className="config-card"
+          >
+            <div className="form-group">
+              <label className="label-font">FORMATION TYPE</label>
+              <select 
+                className="select-input"
+                value={store.groundFormation}
+                onChange={(e) => store.setGroundFormation(e.target.value)}
+              >
+                <option value="LINEAR">LINEAR</option>
+                <option value="MATRIX">MATRIX</option>
+                <option value="CIRCLE">CIRCLE</option>
+                <option value="RANDOM">RANDOM</option>
+              </select>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label className="label-font">CENTER LATITUDE</label>
+                <div className="unit-input">
+                  <input 
+                    type="number" 
+                    placeholder="39.482594"
+                    value={store.formationCenterLat || ''}
+                    onKeyDown={handleDecimalKeyDown}
+                    onChange={(e) => handleNumericChange(e.target.value, store.setFormationCenterLat)}
+                    inputMode="decimal"
+                    step="0.000001"
+                  />
+                  <span className="unit-label">DEG</span>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="label-font">CENTER LONGITUDE</label>
+                <div className="unit-input">
+                  <input 
+                    type="number" 
+                    placeholder="-0.346265"
+                    value={store.formationCenterLon || ''}
+                    onKeyDown={handleDecimalKeyDown}
+                    onChange={(e) => handleNumericChange(e.target.value, store.setFormationCenterLon)}
+                    inputMode="decimal"
+                    step="0.000001"
+                  />
+                  <span className="unit-label">DEG</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="label-font">SPACING</label>
+              <div className="unit-input">
+                <input 
+                  type="number" 
+                  placeholder="5.0"
+                  value={store.formationSpacing || ''}
+                  onKeyDown={handleDecimalKeyDown}
+                  onChange={(e) => handleNumericChange(e.target.value, store.setFormationSpacing)}
+                  inputMode="decimal"
+                  step="0.1"
+                  min="0"
+                />
+                <span className="unit-label">METERS</span>
+              </div>
+            </div>
+          </Card>
         </div>
       </div>
     </main>

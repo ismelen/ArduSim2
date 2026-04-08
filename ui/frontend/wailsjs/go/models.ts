@@ -28,6 +28,10 @@ export namespace simulation {
 	    windEnabled: boolean;
 	    windDirection: number;
 	    windSpeed: number;
+	    groundFormation: string;
+	    formationCenterLat: number;
+	    formationCenterLon: number;
+	    formationSpacing: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new GeneralConfig(source);
@@ -44,6 +48,10 @@ export namespace simulation {
 	        this.windEnabled = source["windEnabled"];
 	        this.windDirection = source["windDirection"];
 	        this.windSpeed = source["windSpeed"];
+	        this.groundFormation = source["groundFormation"];
+	        this.formationCenterLat = source["formationCenterLat"];
+	        this.formationCenterLon = source["formationCenterLon"];
+	        this.formationSpacing = source["formationSpacing"];
 	    }
 	}
 	export class ServiceType {

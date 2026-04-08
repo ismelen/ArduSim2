@@ -14,6 +14,10 @@ export interface GeneralConfigState {
   windEnabled: boolean;
   windDirection: number;
   windSpeed: number;
+  groundFormation: string;
+  formationCenterLat: number;
+  formationCenterLon: number;
+  formationSpacing: number;
 }
 
 interface ConfigState extends GeneralConfigState {
@@ -26,6 +30,10 @@ interface ConfigState extends GeneralConfigState {
   setWindEnabled: (enabled: boolean) => void;
   setWindDirection: (direction: number) => void;
   setWindSpeed: (speed: number) => void;
+  setGroundFormation: (formation: string) => void;
+  setFormationCenterLat: (lat: number) => void;
+  setFormationCenterLon: (lon: number) => void;
+  setFormationSpacing: (spacing: number) => void;
   handleStartSimulation: () => Promise<void>;
   handleExitSimulation: () => Promise<void>;
   handleLoadSimulation: () => Promise<void>;
@@ -42,6 +50,10 @@ export const useConfig = create<ConfigState>((set, get) => ({
   windEnabled: false,
   windDirection: 0,
   windSpeed: 0,
+  groundFormation: "LINEAR",
+  formationCenterLat: 39.482594,
+  formationCenterLon: -0.346265,
+  formationSpacing: 5.0,
 
   setSpeedProfilePath: (speedProfilePath) => set({ speedProfilePath }),
   setLoggingEnabled: (loggingEnabled) => set({ loggingEnabled }),
@@ -52,6 +64,10 @@ export const useConfig = create<ConfigState>((set, get) => ({
   setWindEnabled: (windEnabled) => set({ windEnabled }),
   setWindDirection: (windDirection) => set({ windDirection }),
   setWindSpeed: (windSpeed) => set({ windSpeed }),
+  setGroundFormation: (groundFormation) => set({ groundFormation }),
+  setFormationCenterLat: (formationCenterLat) => set({ formationCenterLat }),
+  setFormationCenterLon: (formationCenterLon) => set({ formationCenterLon }),
+  setFormationSpacing: (formationSpacing) => set({ formationSpacing }),
 
   handleStartSimulation: async () => {
     const { uavs } = useFleet.getState();
@@ -97,7 +113,8 @@ export const useConfig = create<ConfigState>((set, get) => ({
       const { 
         setSpeedProfilePath, setLoggingEnabled, setBatteryRestricted, 
         setBatteryCapacity, setVerboseLogging, setStoreLocalData, 
-        setWindEnabled, setWindDirection, setWindSpeed 
+        setWindEnabled, setWindDirection, setWindSpeed,
+        setGroundFormation, setFormationCenterLat, setFormationCenterLon, setFormationSpacing
       } = get();
 
       // Load Fleet
@@ -116,6 +133,10 @@ export const useConfig = create<ConfigState>((set, get) => ({
       setWindEnabled(state.generalConfig.windEnabled);
       setWindDirection(state.generalConfig.windDirection);
       setWindSpeed(state.generalConfig.windSpeed);
+      setGroundFormation(state.generalConfig.groundFormation || "LINEAR");
+      setFormationCenterLat(state.generalConfig.formationCenterLat || 39.482594);
+      setFormationCenterLon(state.generalConfig.formationCenterLon || -0.346265);
+      setFormationSpacing(state.generalConfig.formationSpacing || 5.0);
 
     } catch (err) {
       console.error("Failed to load simulation:", err);

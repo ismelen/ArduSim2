@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"ui/internal/config"
+	"ui/internal/geo"
+	"ui/internal/simulation/formation"
 )
 
 // Orchestrator coordinates a full simulation run: creates the directory tree,
@@ -46,8 +48,12 @@ func (o *Orchestrator) Run(uavs []UAV, generalConfig GeneralConfig, activeMode s
 	builder := newComposeBuilder()
 	builder.AddNetworkSimulator()
 
-	for _, uav := range uavs {
-		if err := o.appendUAV(uav, paramFileName, builder, writer); err != nil {
+	// Calculate ground formation offsets (Strategy Pattern)
+	f := formation.GetFormation(generalConfig.GroundFormation)
+	offsets := f.CalculateOffsets(len(uavs), generalConfig.FormationSpacing)
+
+	for i, uav := range uavs {
+		if err := o.appendUAV(uav, paramFileName, builder, writer, generalConfig, offsets[i]); err != nil {
 			return "", fmt.Errorf("uav %s: %w", uav.ID, err)
 		}
 	}
@@ -74,7 +80,7 @@ func (o *Orchestrator) createSimulationDirs() (simDir, resDir string, err error)
 }
 
 // appendUAV adds all service blocks for a single UAV to the builder.
-func (o *Orchestrator) appendUAV(uav UAV, paramFileName string, builder *composeBuilder, writer *ResourceWriter) error {
+func (o *Orchestrator) appendUAV(uav UAV, paramFileName string, builder *composeBuilder, writer *ResourceWriter, config GeneralConfig, offset formation.Offset) error {
 	uavNum, _ := strconv.Atoi(uav.ID)
 
 	builder.AddUAVNetwork(uav.ID)
@@ -90,7 +96,12 @@ func (o *Orchestrator) appendUAV(uav UAV, paramFileName string, builder *compose
 	if err != nil {
 		return err
 	}
-	builder.AddUAVController(uav.ID, ucFileName, paramFileName)
+
+	// Calculate absolute home location for this UAV
+	homeLat, homeLon := geo.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
+	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
+
+	builder.AddUAVController(uav.ID, ucFileName, paramFileName, homeLocation)
 
 	ecOverrides := map[string]interface{}{
 		// uav_id and simulator coordinates must be unique per UAV instance.

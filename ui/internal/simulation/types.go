@@ -34,6 +34,12 @@ type GeneralConfig struct {
 	WindEnabled       bool    `json:"windEnabled"`
 	WindDirection     float64 `json:"windDirection"`
 	WindSpeed         float64 `json:"windSpeed"`
+
+	// Ground Formation configuration
+	GroundFormation    string  `json:"groundFormation"` // LINEAR, MATRIX, CIRCLE, RANDOM
+	FormationCenterLat float64 `json:"formationCenterLat"`
+	FormationCenterLon float64 `json:"formationCenterLon"`
+	FormationSpacing   float64 `json:"formationSpacing"`
 }
 
 // UAV groups a UAV identifier with its set of deployed services.
