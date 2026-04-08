@@ -50,8 +50,7 @@ func (b *UDPBroker) sendSubscription(topic string) {
 	b.publishJSON(msg)
 }
 
-func (b *UDPBroker) Publish(topic string, payload map[string]interface{}) error {
-	payload["topic"] = topic
+func (b *UDPBroker) Publish(payload map[string]interface{}) error {
 	return b.publishJSON(payload)
 }
 

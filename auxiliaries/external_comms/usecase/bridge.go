@@ -50,17 +50,17 @@ func (g *GatewayBridge) handleInternalBrokerMessage(msg ports.BrokerMessage) {
 	switch msg.Topic {
 	case g.config.SubTelemetryTopic:
 		// Route internal telemetry to swarm
-		extMsg := domain.NetSimMessage{
+		extMsg := domain.SendedNetSimMessage{
 			Topic:    "telemetry",
 			Source:  fmt.Sprintf("%d", g.config.UAVId),
 			Payload: msg.Payload,
 		}
 		g.netLink.Send(extMsg)
-		log.Printf("[Internal->External] Forwarded Telemetry")
+		// log.Printf("[Internal->External] Forwarded Telemetry")
 
 	case g.config.SubMessagesTopic:
 		// Route internal P2P message to swarm
-		extMsg := domain.NetSimMessage{
+		extMsg := domain.SendedNetSimMessage{
 			Topic:    "message",
 			Source:  fmt.Sprintf("%d", g.config.UAVId),
 			Payload: msg.Payload,
@@ -70,12 +70,13 @@ func (g *GatewayBridge) handleInternalBrokerMessage(msg ports.BrokerMessage) {
 	}
 }
 
-func (g *GatewayBridge) handleExternalNetMessage(msg domain.NetSimMessage) {
+func (g *GatewayBridge) handleExternalNetMessage(msg domain.ReceivedNetSimMessage) {
 	// External to Internal
 	// Ignore our own echo if NetSim broadcasts everything back
+	log.Printf("[External->Internal] Forwarding message from %s: %v", msg.Source, msg.Payload)
 	if msg.Source == fmt.Sprintf("%d", g.config.UAVId) {
 		return
 	}
 
-	g.broker.Publish(msg.Topic, msg.Payload)
+	g.broker.Publish(msg.Payload)
 }

@@ -22,8 +22,8 @@ func NewMockBroker() *MockBroker {
 }
 
 func (m *MockBroker) Connect(ip string, port int, subTopics []string) error { return nil }
-func (m *MockBroker) Publish(topic string, payload map[string]interface{}) error {
-	m.PublishedMessages = append(m.PublishedMessages, ports.BrokerMessage{Topic: topic, Payload: payload})
+func (m *MockBroker) Publish(payload map[string]interface{}) error {
+	m.PublishedMessages = append(m.PublishedMessages, ports.BrokerMessage{Payload: payload})
 	return nil
 }
 func (m *MockBroker) Listen() (<-chan ports.BrokerMessage, error) { return m.msgChan, nil }
@@ -33,23 +33,23 @@ func (m *MockBroker) SendToChannel(topic string, payload map[string]interface{})
 }
 
 type MockNetSimLink struct {
-	SentMessages []domain.NetSimMessage
-	msgChan      chan domain.NetSimMessage
+	SentMessages []domain.SendedNetSimMessage
+	msgChan      chan domain.ReceivedNetSimMessage
 }
 
 func NewMockNetSimLink() *MockNetSimLink {
 	return &MockNetSimLink{
-		msgChan: make(chan domain.NetSimMessage, 10),
+		msgChan: make(chan domain.ReceivedNetSimMessage, 10),
 	}
 }
 
-func (m *MockNetSimLink) Send(msg domain.NetSimMessage) error {
+func (m *MockNetSimLink) Send(msg domain.SendedNetSimMessage) error {
 	m.SentMessages = append(m.SentMessages, msg)
 	return nil
 }
-func (m *MockNetSimLink) Listen() (<-chan domain.NetSimMessage, error) { return m.msgChan, nil }
+func (m *MockNetSimLink) Listen() (<-chan domain.ReceivedNetSimMessage, error) { return m.msgChan, nil }
 func (m *MockNetSimLink) Close() error                                 { close(m.msgChan); return nil }
-func (m *MockNetSimLink) SendToChannel(msg domain.NetSimMessage) {
+func (m *MockNetSimLink) SendToChannel(msg domain.ReceivedNetSimMessage) {
 	m.msgChan <- msg
 }
 
@@ -95,10 +95,9 @@ func TestGatewayBridge_ExternalToInternal(t *testing.T) {
 	go bridge.Run()
 
 	// Simulate receiving external message from drone 2
-	netMsg := domain.NetSimMessage{
-		Topic:    "message",
+	netMsg := domain.ReceivedNetSimMessage{
 		Source:  "2",
-		Payload: map[string]interface{}{"text": "hello"},
+		Payload: map[string]interface{}{"text": "hello", "topic": "message"},
 	}
 	netSim.SendToChannel(netMsg)
 

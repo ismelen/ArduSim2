@@ -35,7 +35,7 @@ func NewUDPNetSimLink(ip string, port int) (*UDPNetSimLink, error) {
 	}, nil
 }
 
-func (n *UDPNetSimLink) Send(msg domain.NetSimMessage) error {
+func (n *UDPNetSimLink) Send(msg domain.SendedNetSimMessage) error {
 	valid_msg := map[string]interface{}{
 		"topic": msg.Topic,
 		"payload": map[string]interface{}{
@@ -51,8 +51,8 @@ func (n *UDPNetSimLink) Send(msg domain.NetSimMessage) error {
 	return err
 }
 
-func (n *UDPNetSimLink) Listen() (<-chan domain.NetSimMessage, error) {
-	msgChan := make(chan domain.NetSimMessage, 100)
+func (n *UDPNetSimLink) Listen() (<-chan domain.ReceivedNetSimMessage, error) {
+	msgChan := make(chan domain.ReceivedNetSimMessage, 100)
 
 	go func() {
 		defer close(msgChan)
@@ -63,9 +63,11 @@ func (n *UDPNetSimLink) Listen() (<-chan domain.NetSimMessage, error) {
 				return
 			}
 
-			var msg domain.NetSimMessage
+			var msg domain.ReceivedNetSimMessage
 			if err := json.Unmarshal(buffer[:bytesRead], &msg); err == nil {
 				msgChan <- msg
+			} else {
+				fmt.Println(err.Error())
 			}
 		}
 	}()
