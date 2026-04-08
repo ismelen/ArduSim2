@@ -84,8 +84,10 @@ struct Args {
 #[derive(Deserialize, Debug)]
 #[serde(tag = "topic", content = "payload", rename_all = "lowercase")]
 pub enum UdpMessage {
-    /// Request to subscribe to telemetry updates.
-    Subscribe,
+    /// Request to subscribe to updates.
+    Subscribe {
+        topic: String,
+    },
     /// Request to broadcast a generic payload.
     Broadcast {
         uav_id: String,
@@ -154,8 +156,8 @@ fn main() {
             let start = Instant::now();
 
             match received.msg {
-                UdpMessage::Subscribe => {
-                    sim.subscribe_telemetry(received.addr);
+                UdpMessage::Subscribe { topic } => {
+                    sim.subscribe(received.addr, topic);
                 }
                 UdpMessage::Broadcast { uav_id: sender_id, payload } => {
                     sim.enqueue_broadcast(sender_id, serde_json::to_string(&payload).unwrap(), 0);

@@ -316,7 +316,7 @@ fn test_telemetry_subscription_broadcasts_on_update() {
     
     // Subscribe an arbitrary telemetry address
     let sub_addr = addr(9999);
-    sim.subscribe_telemetry(sub_addr);
+    sim.subscribe(sub_addr, "telemetry".to_string());
 
     // Verify it is broadcasting via logging stat triggers by executing the update
     let tel = mock_telemetry(1.0, 2.0, 3.0);

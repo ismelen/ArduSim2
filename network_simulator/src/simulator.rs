@@ -56,9 +56,9 @@ impl NetworkSimulator {
         }
     }
 
-    /// Registers a new subscriber for telemetry updates.
-    pub fn subscribe_telemetry(&mut self, addr: SocketAddr) {
-        self.telemetry.subscribe(addr);
+    /// Registers a new subscriber for a given topic ("telemetry", "messages", etc.).
+    pub fn subscribe(&mut self, addr: SocketAddr, topic: String) {
+        self.telemetry.subscribe(addr, topic);
     }
 
     /// Informs the simulator of a system active via specific addresses. Registers its updated chunk.
@@ -159,6 +159,9 @@ impl NetworkSimulator {
             }
         }
         
+        // Also relay to GUI/subscribers tracking "messages" topic
+        self.telemetry.relay_message(&payload, &sender_id);
+
         self.logger.broadcast_success_summary(&sender_id, delivered_count);
     }
 

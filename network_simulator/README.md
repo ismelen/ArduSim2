@@ -125,9 +125,14 @@ Sent by UAVs to announce their presence and position.
 ```
 
 ### 3. Subscribe
-External tools (GCS, UI) send this to receive a stream of all UAV telemetry.
+External tools (GCS, UI) send this to receive a stream of information. The `topic` inside the payload can be either `"telemetry"` (to get all UAV state updates) or `"messages"` (to get all broadcasts).
 ```json
-{ "topic": "subscribe" }
+{
+  "topic": "subscribe",
+  "payload": {
+    "topic": "telemetry"
+  }
+}
 ```
 
 ---
