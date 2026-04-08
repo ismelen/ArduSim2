@@ -1,4 +1,5 @@
 {
+  "service_id": "collission_avoidance",
   "title": "Collision Avoidance (MBCAP) Configuration",
   "type": "object",
   "required": [

@@ -1,4 +1,5 @@
 {
+  "service_id": "mission",
   "title": "Mission Algorithm Configuration",
   "type": "object",
   "required": [
