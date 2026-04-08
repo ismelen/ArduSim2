@@ -3,6 +3,7 @@ package usecase
 import (
 	"encoding/json"
 	"log"
+	"sort"
 	"sync"
 	"time"
 
@@ -82,50 +83,73 @@ func (m *MovementMixer) evaluateAndMixWindow() {
 		return
 	}
 
-	// 1. Check for Absolute Priority (Structural overrules all)
-	for _, req := range currentBatch {
-		if req.IsStructural() {
-			log.Printf("Executing Structural Priority Override: %v", req.Endpoint)
-			m.uav.SendSuggestion(req)
-			
-			// If it's a stopping event, broadcast to others
-			if req.Endpoint == domain.ActionLand || req.Flightmode == "RTL" || req.Flightmode == "BRAKE" {
-				m.broker.Publish(m.config.GlobalCommands, map[string]interface{}{
-					"command": "stop",
-				})
-			}
-			return // Ignore any other vector
-		}
-	}
+	// Indices to keep track of the latest suggestion for each movement category (ArduSim Slot Logic)
+	lastMoveToIdx := -1
+	lastMoveByVecIdx := -1
+	lastRotateIdx := -1
 
-	// 2. Vectorial Mix (If no structural priority occurred)
-	// For simplicity, we split into Point-based and Vector-based. 
-	// If the batch has conflicts (some want Points, some want Vectors), we prioritize the most frequent.
-	// For this naive mix, we will just average Lat/Lon/Alt for MoveToPosition.
+	// For structural/priority commands, we keep all of them to respect sequential logic
+	structuralIndices := []int{}
 	
-	var latSum, lonSum, altSum float64
-	var count float64
-	var lastType domain.ActionType
+	// Flag to detect if a critical stopping command (Priority) is present
+	hasCritical := false
 
-	for _, req := range currentBatch {
-		if req.Endpoint == domain.ActionMoveToPosition || req.Endpoint == domain.ActionMoveByVector {
-			latSum += req.Latitude
-			lonSum += req.Longitude
-			altSum += req.Altitude
-			count++
-			lastType = req.Endpoint
+	for i, req := range currentBatch {
+		if req.IsStructural() {
+			structuralIndices = append(structuralIndices, i)
+			if req.IsCritical() {
+				hasCritical = true
+			}
+		} else if req.IsMovement() {
+			switch req.Endpoint {
+			case domain.ActionMoveToPosition:
+				lastMoveToIdx = i
+			case domain.ActionMoveByVector:
+				lastMoveByVecIdx = i
+			case domain.ActionRotate:
+				lastRotateIdx = i
+			}
+		} else {
+			// Complementary commands (SetMessageInterval, etc.) are treated as structural (sequential)
+			structuralIndices = append(structuralIndices, i)
 		}
 	}
 
-	if count > 0 {
-		mixed := domain.Suggestion{
-			Endpoint:  lastType,
-			Latitude:  latSum / count,
-			Longitude: lonSum / count,
-			Altitude:  altSum / count,
+	// If a critical command (Land/Brake/RTL) is present, discard all movements in this window
+	if hasCritical {
+		lastMoveToIdx = -1
+		lastMoveByVecIdx = -1
+		lastRotateIdx = -1
+		log.Printf("Critical Priority detected: Discarding movement vectors in this window.")
+	}
+
+	// Collect all winning indices
+	finalIndices := make([]int, 0)
+	if lastMoveToIdx >= 0 {
+		finalIndices = append(finalIndices, lastMoveToIdx)
+	}
+	if lastMoveByVecIdx >= 0 {
+		finalIndices = append(finalIndices, lastMoveByVecIdx)
+	}
+	if lastRotateIdx >= 0 {
+		finalIndices = append(finalIndices, lastRotateIdx)
+	}
+	finalIndices = append(finalIndices, structuralIndices...)
+
+	// Sort indices to respect order of arrival
+	sort.Ints(finalIndices)
+
+	// Execute suggestions in order
+	for _, idx := range finalIndices {
+		req := currentBatch[idx]
+		log.Printf("Executing Suggestion (Idx %d): %v", idx, req.Endpoint)
+		m.uav.SendSuggestion(req)
+
+		// Broadcast stopping events if necessary
+		if req.IsCritical() {
+			m.broker.Publish(m.config.GlobalCommands, map[string]interface{}{
+				"command": "stop",
+			})
 		}
-		
-		log.Printf("Executing Mixed Vector (%d suggestions): Type=%v Lat=%f Lon=%f", int(count), mixed.Endpoint, mixed.Latitude, mixed.Longitude)
-		m.uav.SendSuggestion(mixed)
 	}
 }
