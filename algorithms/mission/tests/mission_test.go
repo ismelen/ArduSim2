@@ -75,6 +75,7 @@ func (m *MockConfigLoader) LoadAppConfig(filePath string) (*domain.AppConfig, er
 		DistanceToWaypointReached:       5.0,
 		MinimumWaypointRelativeAltitude: 10.0,
 		WaypointsRelativeAltitude:       15.0,
+		ExternalMessagesTopic:           "external/messages",
 	}, nil
 }
 
@@ -144,5 +145,21 @@ func TestMissionManager(t *testing.T) {
 	landMsg := mockBroker.PublishedMessages[0]
 	if landMsg.Payload["endpoint"] != "Land" {
 		t.Errorf("Expected Land, got %v", landMsg.Payload)
+	}
+
+	// Phase 4: Send telemetry for landing
+	mockBroker.PublishedMessages = []domain.BrokerMessage{} // clear
+	mockBroker.SimulateTelemetry("uav/1/telemetry", 39.4834, -0.3407, 0.2) // near ground
+	time.Sleep(100 * time.Millisecond)
+
+	if len(mockBroker.PublishedMessages) < 1 {
+		t.Fatalf("Expected external messages finish command, got 0")
+	}
+	finishMsg := mockBroker.PublishedMessages[0]
+	if finishMsg.Topic != "external/messages" {
+		t.Errorf("Expected topic external/messages, got %s", finishMsg.Topic)
+	}
+	if finishMsg.Payload["command"] != "finish" {
+		t.Errorf("Expected command finish, got %v", finishMsg.Payload)
 	}
 }

@@ -16,6 +16,7 @@ const (
 	FLYING
 	PAUSED
 	LANDING
+	FINISHED
 )
 
 // AppConfig represents the JSON execution configuration.
@@ -29,6 +30,7 @@ type AppConfig struct {
 	DistanceToWaypointReached       float64 `json:"distance_to_waypoint_reached"`
 	MinimumWaypointRelativeAltitude float64 `json:"minimum_waypoint_relative_altitude"`
 	WaypointsRelativeAltitude       float64 `json:"waypoints_relative_altitude"`
+	ExternalMessagesTopic           string  `json:"external_messages_topic"`
 }
 
 // BrokerMessage represents a message received from or sent to the broker.

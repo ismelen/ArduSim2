@@ -11,7 +11,8 @@
     "telemetry_topic",
     "distance_to_waypoint_reached",
     "minimum_waypoint_relative_altitude",
-    "waypoints_relative_altitude"
+    "waypoints_relative_altitude",
+    "external_messages_topic"
   ],
   "properties": {
     "mission_file": {
@@ -60,6 +61,11 @@
       "type": "number",
       "title": "Waypoints Relative Altitude (m)",
       "default": 15.0
+    },
+    "external_messages_topic": {
+      "type": "string",
+      "description": "El canal donde se mandan mensajes al finalizar la misión.",
+      "default": "external/messages"
     }
   }
 }

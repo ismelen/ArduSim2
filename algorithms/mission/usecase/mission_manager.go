@@ -78,33 +78,39 @@ func (m *MissionManager) handleCommand(payload map[string]interface{}) {
 
 	switch cmd {
 	case "start":
-		if m.state == domain.IDLE || m.state == domain.PAUSED {
-			if m.state == domain.IDLE {
-				m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "Arm"})
-				m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "SetFlightmode", "flightmode": "GUIDED"})
+		if m.state == domain.IDLE {
+			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "Arm"})
+			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "SetFlightmode", "flightmode": "GUIDED"})
 
-				takeoffAlt := m.waypoints[1].Altitude
-				if takeoffAlt == 0 {
-					takeoffAlt = m.config.MinimumWaypointRelativeAltitude
-				}
-
-				m.broker.Publish(m.config.PublishTopic, map[string]interface{}{
-					"endpoint": "Takeoff",
-					"altitude": takeoffAlt,
-				})
-				m.state = domain.TAKEOFF
-				log.Printf("Starting mission: taking off to %.2f\n", takeoffAlt)
-			} else {
-				m.state = domain.FLYING
-				log.Println("Resuming mission...")
-				m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "SetFlightmode", "flightmode": "GUIDED"})
+			takeoffAlt := m.waypoints[1].Altitude
+			if takeoffAlt == 0 {
+				takeoffAlt = m.config.MinimumWaypointRelativeAltitude
 			}
+
+			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{
+				"endpoint": "Takeoff",
+				"altitude": takeoffAlt,
+			})
+			m.state = domain.TAKEOFF
+			log.Printf("Starting mission: taking off to %.2f\n", takeoffAlt)
+		}
+	case "resume":
+		if m.state == domain.PAUSED {
+			m.state = domain.FLYING
+			log.Println("Resuming mission...")
+			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "SetFlightmode", "flightmode": "GUIDED"})
 		}
 	case "pause":
 		if m.state == domain.FLYING {
 			m.state = domain.PAUSED
 			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "SetFlightmode", "flightmode": "BRAKE"})
 			log.Println("Mission paused.")
+		}
+	case "stop":
+		if m.state != domain.IDLE && m.state != domain.FINISHED {
+			m.state = domain.LANDING
+			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "Land"})
+			log.Println("Mission stopped. Landing...")
 		}
 	case "rtl":
 		m.state = domain.LANDING
@@ -150,6 +156,13 @@ func (m *MissionManager) handleTelemetry(payload map[string]interface{}) {
 					log.Println("Mission complete. Landing...")
 				}
 			}
+		}
+	case domain.LANDING:
+		alt, ok := payload["relative_alt"].(float64)
+		if ok && alt <= 0.5 {
+			m.state = domain.FINISHED
+			m.broker.Publish(m.config.ExternalMessagesTopic, map[string]interface{}{"command": "finish", "source": "mission"})
+			log.Println("UAV landed. Mission finished.")
 		}
 	}
 }
