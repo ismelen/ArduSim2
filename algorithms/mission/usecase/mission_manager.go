@@ -118,6 +118,7 @@ func (m *MissionManager) handleCommand(payload map[string]interface{}) {
 }
 
 func (m *MissionManager) handleTelemetry(payload map[string]interface{}) {
+	payload, _ = payload["position"].(map[string]interface{})
 	switch m.state {
 	case domain.TAKEOFF:
 		alt, _ := payload["relative_alt"].(float64)
