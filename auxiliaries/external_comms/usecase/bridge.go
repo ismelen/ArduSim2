@@ -61,7 +61,7 @@ func (g *GatewayBridge) handleInternalBrokerMessage(msg ports.BrokerMessage) {
 	case g.config.SubMessagesTopic:
 		// Route internal P2P message to swarm
 		extMsg := domain.SendedNetSimMessage{
-			Topic:    "message",
+			Topic:    "broadcast",
 			Source:  fmt.Sprintf("%d", g.config.UAVId),
 			Payload: msg.Payload,
 		}
