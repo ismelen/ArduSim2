@@ -11,8 +11,8 @@ type Broker interface {
 }
 
 type BrokerMessage struct {
-	Topic   string
-	Payload map[string]interface{}
+	Topic   string `json:"topic"`
+	Payload map[string]interface{} `json:"payload"`
 }
 
 // UAVLink directly interfaces via UDP with ArduPilot uav_controller

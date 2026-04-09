@@ -75,14 +75,11 @@ func (b *UDPBroker) Listen() (<-chan ports.BrokerMessage, error) {
 				return
 			}
 
-			var payload map[string]interface{}
-			if err := json.Unmarshal(buffer[:n], &payload); err == nil {
-				if topic, ok := payload["topic"].(string); ok {
-					msgChan <- ports.BrokerMessage{
-						Topic:   topic,
-						Payload: payload,
-					}
-				}
+			var msg ports.BrokerMessage
+			if err := json.Unmarshal(buffer[:n], &msg); err == nil {
+				msgChan <- msg
+			} else {
+				fmt.Println("Error unmarshalling message:", err)
 			}
 		}
 	}()

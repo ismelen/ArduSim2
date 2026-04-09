@@ -52,8 +52,10 @@ func (b *UDPBroker) sendSubscription(topic string) {
 }
 
 func (b *UDPBroker) Publish(topic string, payload map[string]interface{}) error {
-	payload["topic"] = topic
-	return b.publishJSON(payload)
+	return b.publishJSON(map[string]interface{}{
+		"topic":   topic,
+		"payload": payload,
+	})
 }
 
 func (b *UDPBroker) publishJSON(msg interface{}) error {
@@ -61,6 +63,7 @@ func (b *UDPBroker) publishJSON(msg interface{}) error {
 	if err != nil {
 		return err
 	}
+
 	_, err = b.conn.WriteToUDP(data, b.addr)
 	return err
 }
@@ -77,14 +80,11 @@ func (b *UDPBroker) Listen() (<-chan ports.BrokerMessage, error) {
 				return
 			}
 
-			var payload map[string]interface{}
-			if err := json.Unmarshal(buffer[:n], &payload); err == nil {
-				if topic, ok := payload["topic"].(string); ok {
-					msgChan <- ports.BrokerMessage{
-						Topic:   topic,
-						Payload: payload,
-					}
-				}
+			var msg ports.BrokerMessage
+			if err := json.Unmarshal(buffer[:n], &msg); err == nil {
+				msgChan <- msg
+			} else {
+				fmt.Println("Error unmarshalling message:", err)
 			}
 		}
 	}()

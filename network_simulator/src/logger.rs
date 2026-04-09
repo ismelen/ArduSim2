@@ -223,13 +223,15 @@ impl Logger {
         );
     }
 
-    /// Logs a telemetry subscription from a given address.
-    pub fn telemetry_subscribed(&self, addr: &std::net::SocketAddr) {
-        self.stats.inc(&self.stats.telemetry_subscriptions);
+    /// Logs a subscription from a given address.
+    pub fn topic_susbscribed(&self, addr: &std::net::SocketAddr, topic: &str) {
+        if topic == "telemetry" {
+            self.stats.inc(&self.stats.telemetry_subscriptions)
+        }
         self.log(
             LogLevel::Success,
-            &format!("Telemetry subscriber registered: {}", addr),
-        );
+            &format!("{} subscriber registered: {}", topic, addr)
+        )
     }
 
     /// Logs when a telemetry update is related to subscribers.

@@ -135,7 +135,9 @@ func collectAlgorithmIDs(uavs []simulation.UAV) []string {
 func (a *App) SendAlgorithmCommand(serviceId string, command string) error {
 	payload := map[string]interface{}{
 		"topic":   "algo/" + serviceId,
-		"command": command,
+		"payload": map[string]interface{}{
+			"command": command,
+		},
 	}
 	if err := a.subscriber.SendGlobalBroadcast(payload); err != nil {
 		return err

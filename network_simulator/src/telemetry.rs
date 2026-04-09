@@ -26,8 +26,8 @@ impl TelemetryManager {
 
     /// Registers a new subscriber for updates on a specific topic.
     pub fn subscribe(&mut self, addr: SocketAddr, topic: String) {
-        if self.subscriptions.entry(topic).or_default().insert(addr) {
-            self.logger.telemetry_subscribed(&addr); // Optionally update logger to differentiate topics
+        if self.subscriptions.entry(topic.clone()).or_default().insert(addr) {
+            self.logger.topic_susbscribed(&addr, &topic);
         }
     }
 
@@ -40,10 +40,8 @@ impl TelemetryManager {
 
         if let Ok(json_payload) = serde_json::to_vec(&serde_json::json!({
             "topic": "telemetry",
-            "payload": {
-                "uav_id": uav_id,
-                "payload": telemetry
-            }
+            "uav_id": uav_id,
+            "payload": telemetry
         })) {
             for sub_addr in subscribers {
                 let _ = self.socket.send_to(&json_payload, sub_addr);
@@ -65,10 +63,8 @@ impl TelemetryManager {
 
         if let Ok(json_payload) = serde_json::to_vec(&serde_json::json!({
             "topic": "messages",
-            "payload": {
-                "uav_id": sender_id,
-                "payload": payload_val
-            }
+            "uav_id": sender_id,
+            "payload": payload_val
         })) {
             for sub_addr in subscribers {
                 let _ = self.socket.send_to(&json_payload, sub_addr);

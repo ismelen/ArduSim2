@@ -10,39 +10,37 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // NetSimMessage represents a message received on the "messages" topic.
 type NetSimMessage struct {
+	Topic   string                 `json:"topic"`
 	UavID   string                 `json:"uav_id"`
 	Payload map[string]interface{} `json:"payload"`
 }
 
-type TelemetryPosition struct {
-	Heading     float64 `json:"heading"`
-	Alt         float64 `json:"alt"`
-	RelativeAlt float64 `json:"relative_alt"`
-	Lon         float64 `json:"lon"`
-	Lat         float64 `json:"lat"`
-}
-
-type TelemetrySpeed struct {
-	VX float64 `json:"vx"`
-	VY float64 `json:"vy"`
-	VZ float64 `json:"vz"`
-}
-
 type TelemetryData struct {
-	NrGpsOnline int               `json:"nr_gps_online"`
-	Position    TelemetryPosition `json:"position"`
-	Type        string            `json:"type"`
-	Battery     int               `json:"battery"`
-	Version     string            `json:"version"`
-	TimeBootMs  uint64            `json:"time_boot_ms"`
-	Speed       TelemetrySpeed    `json:"speed"`
-	Status      string            `json:"status"`
-	FlightMode  string            `json:"flight_mode"`
+	NrGpsOnline int `mapstructure:"nr_gps_online" json:"nr_gps_online"`
+	Position    struct {
+		Heading     float64 `mapstructure:"heading" json:"heading"`
+		Alt         float64 `mapstructure:"alt" json:"alt"`
+		RelativeAlt float64 `mapstructure:"relative_alt" json:"relative_alt"`
+		Lon         float64 `mapstructure:"lon" json:"lon"`
+		Lat         float64 `mapstructure:"lat" json:"lat"`
+	} `mapstructure:"position" json:"position"`
+	Type       string `mapstructure:"type" json:"type"`
+	Battery    int    `mapstructure:"battery" json:"battery"`
+	Version    string `mapstructure:"version" json:"version"`
+	TimeBootMs uint64 `mapstructure:"time_boot_ms" json:"time_boot_ms"`
+	Speed      struct {
+		VX float64 `mapstructure:"vx" json:"vx"`
+		VY float64 `mapstructure:"vy" json:"vy"`
+		VZ float64 `mapstructure:"vz" json:"vz"`
+	} `mapstructure:"speed" json:"speed"`
+	Status     string `mapstructure:"status" json:"status"`
+	FlightMode string `mapstructure:"flight_mode" json:"flight_mode"`
 }
 
 type TelemetryMessage struct {
@@ -65,24 +63,20 @@ const (
 // for telemetry and messages topics. It supports tracking fleet readiness to
 // trigger simulation events automatically.
 type Subscriber struct {
-	mu            sync.Mutex
-	expectedUAVs  map[string]bool
-	receivedUAVs  map[string]bool
-	finishedUAVs  map[string]bool
-	onAllReady    func()
-	onFinish      func()
-	ready         bool
-	finished      bool
-	wailsCtx      context.Context
+	mu           sync.Mutex
+	expectedUAVs int
+	receivedUAVs int
+	finishedUAVs int
+	onAllReady   func()
+	onFinish     func()
+	ready        bool
+	finished     bool
+	wailsCtx     context.Context
 }
 
 // NewSubscriber creates a Subscriber with empty tracking maps.
 func NewSubscriber() *Subscriber {
-	return &Subscriber{
-		expectedUAVs: make(map[string]bool),
-		receivedUAVs: make(map[string]bool),
-		finishedUAVs: make(map[string]bool),
-	}
+	return &Subscriber{}
 }
 
 // SetContext stores the Wails context so the subscriber can emit frontend events.
@@ -121,16 +115,12 @@ func (s *Subscriber) SetExpectedFleet(uavIDs []string, callback func()) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.expectedUAVs = make(map[string]bool)
-	s.receivedUAVs = make(map[string]bool)
-	s.finishedUAVs = make(map[string]bool)
+	s.expectedUAVs = len(uavIDs)
+	s.receivedUAVs = 0
+	s.finishedUAVs = 0
 	s.onAllReady = callback
 	s.ready = false
 	s.finished = false
-
-	for _, id := range uavIDs {
-		s.expectedUAVs[id] = true
-	}
 }
 
 // SendGlobalBroadcast dispatches a JSON message to port 3000 of the simulator,
@@ -286,75 +276,94 @@ func (s *Subscriber) readLoop(ctx context.Context, conn *net.UDPConn) {
 			continue
 		}
 
-		// Use a raw wrapper to inspect the topic before typed parsing.
-		var rawWrapper struct {
-			Topic string `json:"topic"`
-		}
-		if err := json.Unmarshal(buffer[:bytesRead], &rawWrapper); err != nil {
-			fmt.Printf("[netsim] failed to read packet topic: %v\n", err)
+		var msg NetSimMessage
+		if err := json.Unmarshal(buffer[:bytesRead], &msg); err != nil {
+			fmt.Printf("[netsim] failed to parse telemetry: %v\n", err)
 			continue
 		}
 
-		switch rawWrapper.Topic {
+		switch msg.Topic {
 		case "telemetry":
-			s.handleTelemetryPacket(ctx, buffer[:bytesRead])
+			s.handleTelemetryPacket(ctx, msg)
 		case "messages":
-			s.handleMessagesPacket(ctx, buffer[:bytesRead])
+			s.handleMessagesPacket(ctx, msg)
 		}
 	}
 }
 
 // handleTelemetryPacket parses and dispatches a telemetry packet.
-func (s *Subscriber) handleTelemetryPacket(ctx context.Context, data []byte) {
-	var wrapper struct {
-		Topic   string           `json:"topic"`
-		Payload TelemetryMessage `json:"payload"`
-	}
-	if err := json.Unmarshal(data, &wrapper); err != nil {
+func (s *Subscriber) handleTelemetryPacket(ctx context.Context, msg NetSimMessage) {
+	var telemetry TelemetryData
+	if err := mapstructure.Decode(msg.Payload, &telemetry); err != nil {
 		fmt.Printf("[netsim] failed to parse telemetry: %v\n", err)
 		return
 	}
 
-	msg := wrapper.Payload
-	runtime.EventsEmit(ctx, "telemetry", msg)
+	runtime.EventsEmit(ctx, "telemetry", TelemetryMessage{
+		UavID:   msg.UavID,
+		Payload: telemetry,
+	})
 
-	// Check-in logic to trigger automatic mission start.
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if !s.ready && s.expectedUAVs[msg.UavID] {
-		s.receivedUAVs[msg.UavID] = true
-		if len(s.receivedUAVs) == len(s.expectedUAVs) {
-			s.ready = true
-			fmt.Printf("[netsim] all expected UAVs registered, triggering startup...\n")
-			if s.onAllReady != nil {
-				go s.onAllReady()
-			}
-		}
+	if s.ready {
+		return
+	}
+	if telemetry.NrGpsOnline <= 0 {
+		return
+	}
+
+	s.receivedUAVs++
+	if s.receivedUAVs != s.expectedUAVs {
+		return
+	}
+
+	fmt.Printf("[netsim] all expected UAVs registered, triggering startup...\n")
+	s.ready = true
+	if s.onAllReady != nil {
+		s.onAllReady()
 	}
 }
 
 // handleMessagesPacket parses a messages-topic packet, logs it to stdout,
 // emits it to the frontend, and tracks "finish" signals per UAV.
 // The simulation is considered done when all expected UAVs have sent "finish".
-func (s *Subscriber) handleMessagesPacket(ctx context.Context, data []byte) {
-	var wrapper struct {
-		Topic   string        `json:"topic"`
-		Payload NetSimMessage `json:"payload"`
+func (s *Subscriber) handleMessagesPacket(ctx context.Context, msg NetSimMessage) {
+	var service, command string
+
+	switch msg.UavID {
+	case "":
+		{
+			var content struct {
+				Payload struct {
+					Command string
+				}
+				Topic string
+			}
+			if err := mapstructure.Decode(msg.Payload, &content); err != nil {
+				fmt.Printf("[netsim] failed to parse message: %v\n", err)
+				return
+			}
+			service = serviceNameFromTopic(content.Topic)
+			command = content.Payload.Command
+		}
+	default:
+		{
+			var content struct {
+				Command string
+				Source  string
+			}
+			if err := mapstructure.Decode(msg.Payload, &content); err != nil {
+				fmt.Printf("[netsim] failed to parse message: %v\n", err)
+				return
+			}
+
+			service = content.Source
+			command = content.Command
+		}
 	}
-	if err := json.Unmarshal(data, &wrapper); err != nil {
-		fmt.Printf("[netsim] failed to parse message: %v\n", err)
-		return
-	}
 
-	msg := wrapper.Payload
-	command, _ := msg.Payload["command"].(string)
-
-	// Extract the service name from the inner "topic" field (e.g. "algo/mission" → "mission").
-	service := serviceNameFromTopic(msg.Payload)
-
-	// Format source: empty uav_id means the message came from the UI itself.
 	source := formatSource(msg.UavID)
-
 	logLine := fmt.Sprintf("%s%s: %s", source, service, command)
 	fmt.Printf("[netsim/messages] %s\n", logLine)
 
@@ -373,16 +382,15 @@ func (s *Subscriber) handleMessagesPacket(ctx context.Context, data []byte) {
 
 // serviceNameFromTopic extracts a readable service name from the payload's
 // "topic" field. E.g. payload["topic"] = "algo/mission" → "mission".
-func serviceNameFromTopic(payload map[string]interface{}) string {
-	topic, _ := payload["topic"].(string)
-	if topic == "" {
+func serviceNameFromTopic(name string) string {
+	if name == "" {
 		return "unknown"
 	}
 	// Strip the "algo/" prefix if present.
-	if idx := lastSlashIndex(topic); idx >= 0 {
-		return topic[idx+1:]
+	if idx := lastSlashIndex(name); idx >= 0 {
+		return name[idx+1:]
 	}
-	return topic
+	return name
 }
 
 // lastSlashIndex returns the index of the last '/' in s, or -1 if not found.
@@ -416,19 +424,10 @@ func (s *Subscriber) registerFinish(ctx context.Context, uavID string) {
 	}
 
 	if uavID != "" {
-		s.finishedUAVs[uavID] = true
+		s.finishedUAVs++
 	}
 
-	// Check if all expected UAVs have reported finish.
-	allDone := len(s.expectedUAVs) > 0
-	for id := range s.expectedUAVs {
-		if !s.finishedUAVs[id] {
-			allDone = false
-			break
-		}
-	}
-
-	if allDone {
+	if s.finishedUAVs == s.expectedUAVs {
 		s.finished = true
 		fmt.Printf("[netsim] all UAVs finished — simulation complete\n")
 		runtime.EventsEmit(ctx, "simulation:finished", nil)
@@ -436,6 +435,6 @@ func (s *Subscriber) registerFinish(ctx context.Context, uavID string) {
 			go s.onFinish()
 		}
 	} else {
-		fmt.Printf("[netsim] UAV %s finished (%d/%d)\n", uavID, len(s.finishedUAVs), len(s.expectedUAVs))
+		fmt.Printf("[netsim] UAV %s finished (%d/%d)\n", uavID, s.finishedUAVs, s.expectedUAVs)
 	}
 }

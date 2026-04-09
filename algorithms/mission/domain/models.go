@@ -35,6 +35,6 @@ type AppConfig struct {
 
 // BrokerMessage represents a message received from or sent to the broker.
 type BrokerMessage struct {
-	Topic   string
-	Payload map[string]interface{}
+	Topic   string `json:"topic"`
+	Payload map[string]interface{} `json:"payload"`
 }

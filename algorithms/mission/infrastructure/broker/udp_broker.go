@@ -3,6 +3,7 @@ package broker
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 
 	"mission/domain"
@@ -51,8 +52,10 @@ func (b *UDPBroker) sendSubscription(topic string) {
 }
 
 func (b *UDPBroker) Publish(topic string, payload map[string]interface{}) error {
-	payload["topic"] = topic
-	return b.publishJSON(payload)
+	return b.publishJSON(map[string]interface{}{
+		"topic":   topic,
+		"payload": payload,
+	})
 }
 
 func (b *UDPBroker) publishJSON(msg interface{}) error {
@@ -76,14 +79,11 @@ func (b *UDPBroker) Listen() (<-chan domain.BrokerMessage, error) {
 				return // Connection closed
 			}
 
-			var payload map[string]interface{}
-			if err := json.Unmarshal(buffer[:n], &payload); err == nil {
-				if topic, ok := payload["topic"].(string); ok {
-					msgChan <- domain.BrokerMessage{
-						Topic:   topic,
-						Payload: payload,
-					}
-				}
+			var msg domain.BrokerMessage
+			if err := json.Unmarshal(buffer[:n], &msg); err == nil {
+				msgChan <- msg
+			} else {
+				log.Printf("Error unmarshalling message: %v", err)
 			}
 		}
 	}()

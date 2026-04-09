@@ -11,8 +11,8 @@ type Broker interface {
 }
 
 type BrokerMessage struct {
-	Topic   string
-	Payload map[string]interface{}
+	Topic   string `json:"topic"`
+	Payload map[string]interface{} `json:"payload"`
 }
 
 // NetSimLink handles raw UDP communication with the external Network Simulator

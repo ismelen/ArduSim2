@@ -66,7 +66,7 @@ func (g *GatewayBridge) handleInternalBrokerMessage(msg ports.BrokerMessage) {
 			Payload: msg.Payload,
 		}
 		g.netLink.Send(extMsg)
-		log.Printf("[Internal->External] Forwarded Message")
+		log.Printf("[Internal->External] Forwarded Message: %v", msg.Payload)
 	}
 }
 
@@ -75,6 +75,9 @@ func (g *GatewayBridge) handleExternalNetMessage(msg domain.ReceivedNetSimMessag
 	// Ignore our own echo if NetSim broadcasts everything back
 	log.Printf("[External->Internal] Forwarding message from %s: %v", msg.Source, msg.Payload)
 	if msg.Source == fmt.Sprintf("%d", g.config.UAVId) {
+		return
+	}
+	if _, ok := msg.Payload["topic"]; !ok {
 		return
 	}
 
