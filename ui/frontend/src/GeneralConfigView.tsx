@@ -9,6 +9,9 @@ import {
   WindIcon
 } from './components/Icons';
 import { useConfig } from './hooks/useConfig';
+import { useFleet } from './hooks/useFleet';
+import { useServices } from './hooks/useServices';
+import { GetKmlFirstCoordinate } from '../wailsjs/go/main/App';
 
 export const GeneralConfigView: React.FC = () => {
   const store = useConfig();
@@ -54,6 +57,46 @@ export const GeneralConfigView: React.FC = () => {
     // Block non-digit characters
     if (!/^[0-9]$/.test(e.key)) {
       e.preventDefault();
+    }
+  };
+
+  const uavs = useFleet(s => s.uavs);
+  const availableServices = useServices(s => s.availableServices);
+
+  const attachedKmls = React.useMemo(() => {
+    const kmls = new Set<string>();
+    uavs.forEach(uav => {
+      uav.services.forEach(svc => {
+        const schema = availableServices.find(s => s.id === svc.serviceId);
+        if (schema?.schemaRaw) {
+          try {
+            const schemaObj = JSON.parse(schema.schemaRaw);
+            if (schemaObj.properties) {
+              Object.entries<any>(schemaObj.properties).forEach(([key, prop]) => {
+                if (prop.format === 'kml' && svc.config[key]) {
+                  kmls.add(svc.config[key]);
+                }
+              });
+            }
+          } catch (e) {}
+        }
+      });
+    });
+    return Array.from(kmls);
+  }, [uavs, availableServices]);
+
+  const handleCenterModeChange = async (mode: string) => {
+    store.setFormationCenterMode(mode);
+    if (mode !== 'CUSTOM') {
+      try {
+        const coords = await GetKmlFirstCoordinate(mode);
+        if (coords) {
+          store.setFormationCenterLat(coords.lat);
+          store.setFormationCenterLon(coords.lon);
+        }
+      } catch (err) {
+        console.error("Failed to extract KML coordinates:", err);
+      }
     }
   };
 
@@ -248,19 +291,41 @@ export const GeneralConfigView: React.FC = () => {
           >
             <div className="form-group">
               <label className="label-font">FORMATION TYPE</label>
-              <select 
-                className="select-input"
-                value={store.groundFormation}
-                onChange={(e) => store.setGroundFormation(e.target.value)}
-              >
-                <option value="LINEAR">LINEAR</option>
-                <option value="MATRIX">MATRIX</option>
-                <option value="CIRCLE">CIRCLE</option>
-                <option value="RANDOM">RANDOM</option>
-              </select>
+              <div className="service-select-container" style={{ minWidth: '100%' }}>
+                <select 
+                  className="service-select"
+                  value={store.groundFormation}
+                  onChange={(e) => store.setGroundFormation(e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="LINEAR">LINEAR</option>
+                  <option value="MATRIX">MATRIX</option>
+                  <option value="CIRCLE">CIRCLE</option>
+                  <option value="RANDOM">RANDOM</option>
+                </select>
+              </div>
             </div>
 
-            <div className="form-row">
+            <div className="form-group">
+              <label className="label-font">FORMATION CENTER</label>
+              <div className="service-select-container" style={{ minWidth: '100%' }}>
+                <select 
+                  className="service-select"
+                  value={store.formationCenterMode}
+                  onChange={(e) => handleCenterModeChange(e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="CUSTOM">CUSTOM COORDINATES</option>
+                  {attachedKmls.map(path => (
+                    <option key={path} value={path}>
+                      FILE: {path.split('/').pop()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="form-row" style={{ opacity: store.formationCenterMode === 'CUSTOM' ? 1 : 0.6 }}>
               <div className="form-group">
                 <label className="label-font">CENTER LATITUDE</label>
                 <div className="unit-input">

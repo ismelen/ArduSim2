@@ -1,5 +1,21 @@
 export namespace simulation {
 	
+	export class Coordinate {
+	    lat: number;
+	    lon: number;
+	    alt: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Coordinate(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.lat = source["lat"];
+	        this.lon = source["lon"];
+	        this.alt = source["alt"];
+	    }
+	}
 	export class DeployedService {
 	    instanceId: string;
 	    serviceId: string;
@@ -34,6 +50,7 @@ export namespace simulation {
 	    formationCenterLat: number;
 	    formationCenterLon: number;
 	    formationSpacing: number;
+	    formationCenterMode: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new GeneralConfig(source);
@@ -56,6 +73,7 @@ export namespace simulation {
 	        this.formationCenterLat = source["formationCenterLat"];
 	        this.formationCenterLon = source["formationCenterLon"];
 	        this.formationSpacing = source["formationSpacing"];
+	        this.formationCenterMode = source["formationCenterMode"];
 	    }
 	}
 	export class ServiceType {

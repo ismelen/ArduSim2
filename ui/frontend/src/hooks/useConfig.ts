@@ -20,6 +20,7 @@ export interface GeneralConfigState {
   formationCenterLat: number;
   formationCenterLon: number;
   formationSpacing: number;
+  formationCenterMode: string;
 }
 
 interface ConfigState extends GeneralConfigState {
@@ -38,6 +39,7 @@ interface ConfigState extends GeneralConfigState {
   setFormationCenterLat: (lat: number) => void;
   setFormationCenterLon: (lon: number) => void;
   setFormationSpacing: (spacing: number) => void;
+  setFormationCenterMode: (mode: string) => void;
   handleStartSimulation: () => Promise<void>;
   handleExitSimulation: () => Promise<void>;
   handleLoadSimulation: () => Promise<void>;
@@ -60,6 +62,7 @@ export const useConfig = create<ConfigState>((set, get) => ({
   formationCenterLat: 39.482594,
   formationCenterLon: -0.346265,
   formationSpacing: 5.0,
+  formationCenterMode: "CUSTOM",
 
   setSimulationName: (simulationName) => set({ simulationName }),
   setOriginalSimulationName: (originalSimulationName) => set({ originalSimulationName }),
@@ -76,6 +79,7 @@ export const useConfig = create<ConfigState>((set, get) => ({
   setFormationCenterLat: (formationCenterLat) => set({ formationCenterLat }),
   setFormationCenterLon: (formationCenterLon) => set({ formationCenterLon }),
   setFormationSpacing: (formationSpacing) => set({ formationSpacing }),
+  setFormationCenterMode: (formationCenterMode) => set({ formationCenterMode }),
 
   handleStartSimulation: async () => {
     const { uavs } = useFleet.getState();
@@ -122,7 +126,7 @@ export const useConfig = create<ConfigState>((set, get) => ({
         setSimulationName, setOriginalSimulationName, setSpeedProfilePath, setLoggingEnabled, setBatteryRestricted, 
         setBatteryCapacity, setVerboseLogging, setStoreLocalData, 
         setWindEnabled, setWindDirection, setWindSpeed,
-        setGroundFormation, setFormationCenterLat, setFormationCenterLon, setFormationSpacing
+        setGroundFormation, setFormationCenterLat, setFormationCenterLon, setFormationSpacing, setFormationCenterMode
       } = get();
 
       // Load Fleet
@@ -147,6 +151,7 @@ export const useConfig = create<ConfigState>((set, get) => ({
       setFormationCenterLat(state.generalConfig.formationCenterLat || 39.482594);
       setFormationCenterLon(state.generalConfig.formationCenterLon || -0.346265);
       setFormationSpacing(state.generalConfig.formationSpacing || 5.0);
+      setFormationCenterMode(state.generalConfig.formationCenterMode || "CUSTOM");
 
     } catch (err) {
       console.error("Failed to load simulation:", err);

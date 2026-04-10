@@ -224,10 +224,15 @@ const SimulationView: React.FC = () => {
 
   }, [uavs]);
 
-  // Simulation timer, log listener, and netsim message listener
+  // Simulation timer
   useEffect(() => {
+    if (simulationFinished) return;
     const interval = setInterval(() => setTime(t => t + 1), 1000);
-    
+    return () => clearInterval(interval);
+  }, [simulationFinished]);
+
+  // Log listener and netsim message listener
+  useEffect(() => {
     // Docker-compose build / run logs from backend
     EventsOn('simulation:log', (message: string) => {
       const now = new Date();
@@ -250,7 +255,6 @@ const SimulationView: React.FC = () => {
     });
 
     return () => {
-      clearInterval(interval);
       EventsOff('simulation:log');
       EventsOff('netsim:message');
       EventsOff('simulation:finished');

@@ -6,6 +6,10 @@ export function GetAvailableServices() {
   return window['go']['main']['App']['GetAvailableServices']();
 }
 
+export function GetKmlFirstCoordinate(arg1) {
+  return window['go']['main']['App']['GetKmlFirstCoordinate'](arg1);
+}
+
 export function LoadSimulationConfig() {
   return window['go']['main']['App']['LoadSimulationConfig']();
 }

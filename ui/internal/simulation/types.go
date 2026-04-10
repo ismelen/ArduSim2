@@ -39,10 +39,11 @@ type GeneralConfig struct {
 	OriginalSimulationName string `json:"originalSimulationName"`
 
 	// Ground Formation configuration
-	GroundFormation    string  `json:"groundFormation"` // LINEAR, MATRIX, CIRCLE, RANDOM
-	FormationCenterLat float64 `json:"formationCenterLat"`
-	FormationCenterLon float64 `json:"formationCenterLon"`
-	FormationSpacing   float64 `json:"formationSpacing"`
+	GroundFormation     string  `json:"groundFormation"` // LINEAR, MATRIX, CIRCLE, RANDOM
+	FormationCenterLat  float64 `json:"formationCenterLat"`
+	FormationCenterLon  float64 `json:"formationCenterLon"`
+	FormationSpacing    float64 `json:"formationSpacing"`
+	FormationCenterMode string  `json:"formationCenterMode"`
 }
 
 // UAV groups a UAV identifier with its set of deployed services.

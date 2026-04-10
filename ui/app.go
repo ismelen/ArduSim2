@@ -283,6 +283,11 @@ func (a *App) SelectFile() (string, error) {
 	})
 }
 
+// GetKmlFirstCoordinate extracts the first coordinate (Lat, Lon, Alt) from a KML file.
+func (a *App) GetKmlFirstCoordinate(path string) (*simulation.Coordinate, error) {
+	return simulation.GetFirstCoordinate(path)
+}
+
 // shutdown is called by Wails before the window closes.
 func (a *App) shutdown() {
 	a.StopSimulation()

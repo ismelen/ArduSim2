@@ -4,6 +4,8 @@ import {simulation} from '../models';
 
 export function GetAvailableServices():Promise<Array<simulation.ServiceType>>;
 
+export function GetKmlFirstCoordinate(arg1:string):Promise<simulation.Coordinate>;
+
 export function LoadSimulationConfig():Promise<simulation.SimulationState>;
 
 export function SelectFile():Promise<string>;
