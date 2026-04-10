@@ -7,6 +7,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strings"
+	"time"
 
 	"ui/internal/config"
 	"ui/internal/netsim"
@@ -65,9 +68,15 @@ func (a *App) GetAvailableServices() []simulation.ServiceType {
 // StartSimulation generates the Docker Compose environment for the given fleet
 // and, when isLocal is true, launches it and subscribes to network telemetry.
 func (a *App) StartSimulation(uavs []simulation.UAV, generalConfig simulation.GeneralConfig, activeMode string, isLocal bool) error {
+
+	simDir, err := a.handleSimulationDirectory(&generalConfig)
+	if err != nil {
+		return fmt.Errorf("handle simulation directory: %w", err)
+	}
+
 	orchestrator := simulation.NewOrchestrator(a.paths)
 
-	composePath, err := orchestrator.Run(uavs, generalConfig, activeMode, isLocal)
+	composePath, err := orchestrator.Run(uavs, generalConfig, activeMode, isLocal, simDir)
 	if err != nil {
 		return fmt.Errorf("prepare simulation: %w", err)
 	}
@@ -112,6 +121,60 @@ func (a *App) StartSimulation(uavs []simulation.UAV, generalConfig simulation.Ge
 	}
 
 	return nil
+}
+
+func (a *App) handleSimulationDirectory(config *simulation.GeneralConfig) (string, error) {
+	name := strings.TrimSpace(config.SimulationName)
+	if name == "" {
+		name = time.Now().Format("20060102_150405")
+	} else {
+		// Just remove anything outside azAZ0-9 _ -
+		reg := regexp.MustCompile(`[^a-zA-Z0-9_\-]+`)
+		name = reg.ReplaceAllString(name, "_")
+	}
+	config.SimulationName = name
+
+	targetPath := filepath.Join(a.paths.SimulationsDir, name)
+
+	// User loaded this config from a folder
+	if config.OriginalSimulationName != "" {
+		originalPath := filepath.Join(a.paths.SimulationsDir, config.OriginalSimulationName)
+		if name != config.OriginalSimulationName {
+			// Renamed. Delete the old one.
+			os.RemoveAll(originalPath)
+		}
+		// Reset resources for this one
+		os.RemoveAll(targetPath)
+		return targetPath, nil
+	}
+
+	// New config
+	if _, err := os.Stat(targetPath); err == nil {
+		res, err := runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
+			Type:          runtime.QuestionDialog,
+			Title:         "Carpeta Existente",
+			Message:       fmt.Sprintf("La simulación '%s' ya existe. ¿Quieres reemplazarla? Si pulsas No, se creará una copia.", name),
+			DefaultButton: "Yes",
+		})
+		if err != nil {
+			return "", err
+		}
+		if res == "Yes" {
+			os.RemoveAll(targetPath)
+		} else {
+			for i := 2; ; i++ {
+				newName := fmt.Sprintf("%s(%d)", name, i)
+				newPath := filepath.Join(a.paths.SimulationsDir, newName)
+				if _, err := os.Stat(newPath); os.IsNotExist(err) {
+					name = newName
+					targetPath = newPath
+					config.SimulationName = name
+					break
+				}
+			}
+		}
+	}
+	return targetPath, nil
 }
 
 // collectAlgorithmIDs returns the unique algorithm service IDs across all UAVs.
@@ -186,6 +249,9 @@ func (a *App) LoadSimulationConfig() (*simulation.SimulationState, error) {
 	if err := json.Unmarshal(data, &state); err != nil {
 		return nil, fmt.Errorf("parse simulation state: %w", err)
 	}
+
+	state.GeneralConfig.OriginalSimulationName = filepath.Base(selectedDir)
+	state.GeneralConfig.SimulationName = filepath.Base(selectedDir)
 
 	return &state, nil
 }

@@ -150,6 +150,19 @@ export const GeneralConfigView: React.FC = () => {
                 onChange={store.setStoreLocalData}
               />
             </div>
+
+            <div className="form-group" style={{ marginTop: '1.5rem' }}>
+              <label className="label-font">SIMULATION NAME</label>
+              <div className="unit-input">
+                <input 
+                  type="text" 
+                  placeholder="CUSTOM_SIM_NAME" 
+                  value={store.simulationName}
+                  onChange={(e) => store.setSimulationName(e.target.value)}
+                  style={{ width: '100%', padding: '0.6rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--outline-variant)', color: 'var(--on-surface)', borderRadius: '4px' }}
+                />
+              </div>
+            </div>
           </Card>
         </div>
 

@@ -5,6 +5,8 @@ import { useFleet } from "./useFleet";
 import { useNavigation } from "./useNavigation";
 
 export interface GeneralConfigState {
+  simulationName: string;
+  originalSimulationName: string;
   speedProfilePath: string;
   loggingEnabled: boolean;
   batteryRestricted: boolean;
@@ -21,6 +23,8 @@ export interface GeneralConfigState {
 }
 
 interface ConfigState extends GeneralConfigState {
+  setSimulationName: (name: string) => void;
+  setOriginalSimulationName: (name: string) => void;
   setSpeedProfilePath: (path: string) => void;
   setLoggingEnabled: (enabled: boolean) => void;
   setBatteryRestricted: (restricted: boolean) => void;
@@ -41,6 +45,8 @@ interface ConfigState extends GeneralConfigState {
 }
 
 export const useConfig = create<ConfigState>((set, get) => ({
+  simulationName: "",
+  originalSimulationName: "",
   speedProfilePath: "",
   loggingEnabled: false,
   batteryRestricted: false,
@@ -55,6 +61,8 @@ export const useConfig = create<ConfigState>((set, get) => ({
   formationCenterLon: -0.346265,
   formationSpacing: 5.0,
 
+  setSimulationName: (simulationName) => set({ simulationName }),
+  setOriginalSimulationName: (originalSimulationName) => set({ originalSimulationName }),
   setSpeedProfilePath: (speedProfilePath) => set({ speedProfilePath }),
   setLoggingEnabled: (loggingEnabled) => set({ loggingEnabled }),
   setBatteryRestricted: (batteryRestricted) => set({ batteryRestricted }),
@@ -111,7 +119,7 @@ export const useConfig = create<ConfigState>((set, get) => ({
       const { loadFleet } = useFleet.getState();
       const { setActiveMode } = useEnvironment.getState();
       const { 
-        setSpeedProfilePath, setLoggingEnabled, setBatteryRestricted, 
+        setSimulationName, setOriginalSimulationName, setSpeedProfilePath, setLoggingEnabled, setBatteryRestricted, 
         setBatteryCapacity, setVerboseLogging, setStoreLocalData, 
         setWindEnabled, setWindDirection, setWindSpeed,
         setGroundFormation, setFormationCenterLat, setFormationCenterLon, setFormationSpacing
@@ -124,6 +132,8 @@ export const useConfig = create<ConfigState>((set, get) => ({
       setActiveMode(state.activeMode as any);
 
       // Load General Config
+      setSimulationName(state.generalConfig.simulationName || state.generalConfig.originalSimulationName || "");
+      setOriginalSimulationName(state.generalConfig.originalSimulationName || state.generalConfig.simulationName || "");
       setSpeedProfilePath(state.generalConfig.speedProfilePath);
       setLoggingEnabled(state.generalConfig.loggingEnabled);
       setBatteryRestricted(state.generalConfig.batteryRestricted);

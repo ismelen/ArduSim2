@@ -35,6 +35,9 @@ type GeneralConfig struct {
 	WindDirection     float64 `json:"windDirection"`
 	WindSpeed         float64 `json:"windSpeed"`
 
+	SimulationName         string `json:"simulationName"`
+	OriginalSimulationName string `json:"originalSimulationName"`
+
 	// Ground Formation configuration
 	GroundFormation    string  `json:"groundFormation"` // LINEAR, MATRIX, CIRCLE, RANDOM
 	FormationCenterLat float64 `json:"formationCenterLat"`

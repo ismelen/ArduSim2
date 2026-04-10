@@ -43,8 +43,8 @@ const SimulationView: React.FC = () => {
   const [simulationFinished, setSimulationFinished] = useState(false);
   // Tracks which algorithms are currently paused (true = paused, false = running).
   const [pausedAlgorithms, setPausedAlgorithms] = useState<Record<string, boolean>>({});
+  const [startedAlgorithms, setStartedAlgorithms] = useState<Record<string, boolean>>({});
 
-  
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<Record<string, maplibregl.Marker>>({});
@@ -73,7 +73,7 @@ const SimulationView: React.FC = () => {
       center: [0, 0],
       zoom: 13,
       pitch: viewMode === '3d' ? 60 : 0,
-      maxPitch: 85,
+      maxPitch: 0,
       dragRotate: true,
       scrollZoom: true,
       dragPan: true,
@@ -131,15 +131,23 @@ const SimulationView: React.FC = () => {
     };
   }, []);
 
-  // Handle View Mode changes
-  useEffect(() => {
+  const handle2DSelect = () => {
+    setViewMode('2d');
     if (mapRef.current) {
-      mapRef.current.easeTo({
-        pitch: viewMode === '3d' ? 60 : 0,
-        duration: 1000
-      });
+      mapRef.current.setMaxPitch(0);
+      mapRef.current.setMinPitch(0);
+      mapRef.current.easeTo({ pitch: 0, bearing: 0, duration: 1000 });
     }
-  }, [viewMode]);
+  };
+
+  const handle3DSelect = () => {
+    setViewMode('3d');
+    if (mapRef.current) {
+      mapRef.current.setMaxPitch(85);
+      mapRef.current.setMinPitch(0);
+      mapRef.current.easeTo({ pitch: 60, bearing: 0, duration: 1000 });
+    }
+  };
 
   useEffect(() => {
     if (mapRef.current && mapRef.current.getLayer('uav-trails-layer')) {
@@ -285,31 +293,48 @@ const SimulationView: React.FC = () => {
       {/* ── TOP CONTROLS ── */}
       <div className="sim-top-bar">
       {algorithmsList.map(algo => {
+          const isStarted = !!startedAlgorithms[algo];
           const isPaused = !!pausedAlgorithms[algo];
+          
           const handlePauseToggle = async () => {
             const command = isPaused ? 'resume' : 'pause';
             await handleSendAlgorithmCommand(algo, command);
             setPausedAlgorithms(prev => ({ ...prev, [algo]: !isPaused }));
           };
+
+          const handleStart = async () => {
+            await handleSendAlgorithmCommand(algo, 'start');
+            setStartedAlgorithms(prev => ({ ...prev, [algo]: true }));
+          };
+
+          const handleStop = async () => {
+             await handleSendAlgorithmCommand(algo, 'stop');
+          };
+
           return (
           <div key={algo} className="control-group">
             <span className="algo-label">{algo.toUpperCase()}</span>
             <button 
-              className={`control-btn outline-btn ${allUavsReady ? 'ready' : 'not-ready'}`}
-              disabled={!allUavsReady}
-              onClick={() => handleSendAlgorithmCommand(algo, 'start')}
+              className={`control-btn outline-btn ${allUavsReady && !isStarted ? 'ready' : 'not-ready'}`}
+              disabled={!allUavsReady || isStarted}
+              onClick={handleStart}
             >
               <span className="material-symbols-outlined">play_circle</span> START
             </button>
             <button
-              className={`control-btn ${isPaused ? 'outline-btn ready' : 'outline-btn'}`}
+              className={`control-btn ${isPaused ? 'outline-btn ready' : 'outline-btn'} ${!isStarted ? 'not-ready' : ''}`}
+              disabled={!isStarted}
               onClick={handlePauseToggle}
               title={isPaused ? 'Resume algorithm' : 'Pause algorithm'}
             >
               <span className="material-symbols-outlined">{isPaused ? 'play_arrow' : 'pause'}</span>
               {isPaused ? 'RESUME' : 'PAUSE'}
             </button>
-            <button className="control-btn danger-outline" onClick={() => handleSendAlgorithmCommand(algo, 'stop')}>
+            <button 
+              className={`control-btn ${isStarted ? 'danger-outline' : 'not-ready'}`} 
+              disabled={!isStarted}
+              onClick={handleStop}
+            >
               <span className="material-symbols-outlined">stop</span> STOP
             </button>
           </div>
@@ -341,13 +366,13 @@ const SimulationView: React.FC = () => {
         <div className="view-toggle">
           <button 
             className={`toggle-btn ${viewMode === '2d' ? 'active' : ''}`}
-            onClick={() => setViewMode('2d')}
+            onClick={handle2DSelect}
           >
             2D
           </button>
           <button 
             className={`toggle-btn ${viewMode === '3d' ? 'active' : ''}`}
-            onClick={() => setViewMode('3d')}
+            onClick={handle3DSelect}
           >
             3D
           </button>
@@ -400,7 +425,7 @@ const SimulationView: React.FC = () => {
           )}
           {uavList.map(uav => (
             <div key={uav.id} className="telemetry-card compact-card">
-              <div className="card-label">UAV {uav.id} <span className="status-dot"></span></div>
+              <div className="card-label">UAV {uav.id} <span className={`status-dot ${uav.nrGpsOnline > 0 ? 'ready' : 'not-ready'}`}></span></div>
               
               <div className="compact-stats">
                 <div className="stat">

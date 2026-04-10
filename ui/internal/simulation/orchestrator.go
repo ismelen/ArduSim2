@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"ui/internal/config"
 	"ui/internal/geo"
@@ -29,10 +28,10 @@ func NewOrchestrator(paths config.Paths) *Orchestrator {
 // Run generates the simulation directory and Docker Compose file for the given
 // fleet, then launches Docker if isLocal is true.
 // Returns the path to the generated docker-compose.yaml.
-func (o *Orchestrator) Run(uavs []UAV, generalConfig GeneralConfig, activeMode string, isLocal bool) (string, error) {
-	simDir, resDir, err := o.createSimulationDirs()
-	if err != nil {
-		return "", err
+func (o *Orchestrator) Run(uavs []UAV, generalConfig GeneralConfig, activeMode string, isLocal bool, simDir string) (string, error) {
+	resDir := filepath.Join(simDir, "resources")
+	if err := os.MkdirAll(resDir, 0755); err != nil {
+		return "", fmt.Errorf("create simulation dirs: %w", err)
 	}
 
 	// Capture and save the full simulation state for later reloading.
@@ -66,18 +65,7 @@ func (o *Orchestrator) Run(uavs []UAV, generalConfig GeneralConfig, activeMode s
 	return composePath, nil
 }
 
-// createSimulationDirs creates the timestamped simulation directory and the
-// resources subdirectory inside it, returning both paths.
-func (o *Orchestrator) createSimulationDirs() (simDir, resDir string, err error) {
-	timestamp := time.Now().Format("20060102_150405")
-	simDir = filepath.Join(o.paths.SimulationsDir, timestamp)
-	resDir = filepath.Join(simDir, "resources")
 
-	if err = os.MkdirAll(resDir, 0755); err != nil {
-		return "", "", fmt.Errorf("create simulation dirs: %w", err)
-	}
-	return simDir, resDir, nil
-}
 
 // appendUAV adds all service blocks for a single UAV to the builder.
 func (o *Orchestrator) appendUAV(uav UAV, paramFileName string, builder *composeBuilder, writer *ResourceWriter, config GeneralConfig, offset formation.Offset) error {

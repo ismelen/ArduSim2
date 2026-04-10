@@ -28,6 +28,8 @@ export namespace simulation {
 	    windEnabled: boolean;
 	    windDirection: number;
 	    windSpeed: number;
+	    simulationName: string;
+	    originalSimulationName: string;
 	    groundFormation: string;
 	    formationCenterLat: number;
 	    formationCenterLon: number;
@@ -48,6 +50,8 @@ export namespace simulation {
 	        this.windEnabled = source["windEnabled"];
 	        this.windDirection = source["windDirection"];
 	        this.windSpeed = source["windSpeed"];
+	        this.simulationName = source["simulationName"];
+	        this.originalSimulationName = source["originalSimulationName"];
 	        this.groundFormation = source["groundFormation"];
 	        this.formationCenterLat = source["formationCenterLat"];
 	        this.formationCenterLon = source["formationCenterLon"];

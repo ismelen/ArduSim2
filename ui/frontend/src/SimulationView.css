@@ -68,8 +68,7 @@
 .sim-top-bar {
   position: absolute;
   top: 1.5rem;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 1.5rem;
   display: flex;
   gap: 1rem;
   z-index: 10000;
@@ -243,9 +242,15 @@
 .status-dot {
   width: 6px;
   height: 6px;
-  background: var(--primary);
   border-radius: 50%;
+}
+.status-dot.ready {
+  background: var(--primary);
   box-shadow: 0 0 5px var(--primary);
+}
+.status-dot.not-ready {
+  background: var(--outline-variant);
+  box-shadow: none;
 }
 
 .uav-cards-container {
@@ -394,7 +399,7 @@
   border-color: var(--primary);
   color: var(--primary);
 }
-.control-btn.outline-btn.not-ready {
+.control-btn.outline-btn.not-ready, .control-btn.not-ready {
   opacity: 0.3;
   cursor: not-allowed;
 }
