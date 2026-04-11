@@ -21,8 +21,18 @@ func newComposeBuilder() *composeBuilder {
 }
 
 // AddNetworkSimulator appends the shared network_simulator service block.
-func (b *composeBuilder) AddNetworkSimulator() {
-	b.services.WriteString(`  network_simulator:
+func (b *composeBuilder) AddNetworkSimulator(logDir string, verbose bool) {
+	var env string
+	if verbose {
+		env = "    environment:\n      - DEBUG=true\n"
+	}
+
+	var vols string
+	if logDir != "" {
+		vols = fmt.Sprintf("    volumes:\n      - %s:/app/logs\n", logDir)
+	}
+
+	fmt.Fprintf(&b.services, `  network_simulator:
     image: network_simulator
     build:
       context: ../../network_simulator
@@ -32,10 +42,10 @@ func (b *composeBuilder) AddNetworkSimulator() {
       - "host.docker.internal:host-gateway"
     ports:
       - 3000:3000/udp
-    networks:
+%s%s    networks:
       - air
 
-`)
+`, env, vols)
 	b.addNetwork("air")
 }
 
@@ -45,25 +55,47 @@ func (b *composeBuilder) AddUAVNetwork(uavID string) {
 }
 
 // AddCommunicationModule appends the communication_module service for a UAV.
-func (b *composeBuilder) AddCommunicationModule(uavID string) {
+func (b *composeBuilder) AddCommunicationModule(uavID, logDir string, verbose bool) {
 	uavNet := uavNetworkName(uavID)
+	
+	var env string
+	if verbose {
+		env = "    environment:\n      - DEBUG=true\n"
+	}
+
+	var vols string
+	if logDir != "" {
+		vols = fmt.Sprintf("    volumes:\n      - %s:/app/logs\n", logDir)
+	}
+
 	fmt.Fprintf(&b.services, `  communication_module_%s:
     image: communication_module
     build:
       context: ../../communication_module
       dockerfile: Dockerfile
     container_name: communication_module_%s
-    networks:
+%s%s    networks:
       %s:
         aliases:
           - communication_module
 
-`, uavID, uavID, uavNet)
+`, uavID, uavID, env, vols, uavNet)
 }
 
 // AddApplication appends the application service for a UAV.
-func (b *composeBuilder) AddApplication(uavID, configFileName string) {
+func (b *composeBuilder) AddApplication(uavID, configFileName, logDir string, verbose bool) {
 	uavNet := uavNetworkName(uavID)
+
+	var env string
+	if verbose {
+		env = "    environment:\n      - DEBUG=true\n"
+	}
+
+	vols := fmt.Sprintf("      - ./resources/%s:/app/config.json\n", configFileName)
+	if logDir != "" {
+		vols += fmt.Sprintf("      - %s:/app/logs\n", logDir)
+	}
+
 	fmt.Fprintf(&b.services, `  application_%s:
     image: application
     build:
@@ -73,19 +105,30 @@ func (b *composeBuilder) AddApplication(uavID, configFileName string) {
     depends_on:
       - communication_module_%s
       - uav_controller_%s
-    volumes:
-      - ./resources/%s:/app/config.json
-    networks:
+%s    volumes:
+%s    networks:
       %s:
         aliases:
           - application
 
-`, uavID, uavID, uavID, uavID, configFileName, uavNet)
+`, uavID, uavID, uavID, uavID, env, vols, uavNet)
 }
 
 // AddUAVController appends the uav_controller (SITL) service for a UAV.
-func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, homeLocation string) {
+func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, homeLocation, logDir string, verbose bool) {
 	uavNet := uavNetworkName(uavID)
+
+	var env string
+	if verbose {
+		env = "      - DEBUG=true\n"
+	}
+
+	vols := fmt.Sprintf("      - ./resources/%s:/app/config.json\n", configFileName)
+	vols += fmt.Sprintf("      - ./resources/%s:/app/copter.parm\n", paramFileName)
+	if logDir != "" {
+		vols += fmt.Sprintf("      - %s:/app/logs\n", logDir)
+	}
+
 	fmt.Fprintf(&b.services, `  uav_controller_%s:
     image: copter453
     build:
@@ -96,21 +139,30 @@ func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, 
       - communication_module_%s
     environment:
       - UAV_HOME_LOCATION=%s
-    volumes:
-      - ./resources/%s:/app/config.json
-      - ./resources/%s:/app/copter.parm
-    networks:
+%s    volumes:
+%s    networks:
       %s:
         aliases:
           - uav_controller
 
-`, uavID, uavID, uavID, homeLocation, configFileName, paramFileName, uavNet)
+`, uavID, uavID, uavID, homeLocation, env, vols, uavNet)
 }
 
 // AddExternalComms appends the external_comms service for a UAV.
 // This service bridges the per-UAV network and the shared air network.
-func (b *composeBuilder) AddExternalComms(uavID, configFileName string) {
+func (b *composeBuilder) AddExternalComms(uavID, configFileName, logDir string, verbose bool) {
 	uavNet := uavNetworkName(uavID)
+
+	var env string
+	if verbose {
+		env = "    environment:\n      - DEBUG=true\n"
+	}
+
+	vols := fmt.Sprintf("      - ./resources/%s:/app/config.json\n", configFileName)
+	if logDir != "" {
+		vols += fmt.Sprintf("      - %s:/app/logs\n", logDir)
+	}
+
 	fmt.Fprintf(&b.services, `  external_comms_%s:
     image: external_comms
     build:
@@ -120,25 +172,32 @@ func (b *composeBuilder) AddExternalComms(uavID, configFileName string) {
     depends_on:
       - communication_module_%s
       - network_simulator
-    volumes:
-      - ./resources/%s:/app/config.json
-    networks:
+%s    volumes:
+%s    networks:
       %s:
         aliases:
           - external_comms
       air:
 
-`, uavID, uavID, uavID, configFileName, uavNet)
+`, uavID, uavID, uavID, env, vols, uavNet)
 }
 
 // AddAlgorithmService appends a user-deployed algorithm service for a UAV.
-func (b *composeBuilder) AddAlgorithmService(uavID string, svc DeployedService, configFileName string, extraVolumes []VolumeMount) {
+func (b *composeBuilder) AddAlgorithmService(uavID string, svc DeployedService, configFileName string, extraVolumes []VolumeMount, logDir string, verbose bool) {
 	uavNet := uavNetworkName(uavID)
+
+	var env string
+	if verbose {
+		env = "    environment:\n      - DEBUG=true\n"
+	}
 
 	var vols strings.Builder
 	fmt.Fprintf(&vols, "      - ./resources/%s:/app/config.json\n", configFileName)
 	for _, v := range extraVolumes {
 		fmt.Fprintf(&vols, "      - ./resources/%s:%s\n", v.HostPath, v.ContainerPath)
+	}
+	if logDir != "" {
+		fmt.Fprintf(&vols, "      - %s:/app/logs\n", logDir)
 	}
 
 	fmt.Fprintf(&b.services, `  %s_%s:
@@ -149,7 +208,7 @@ func (b *composeBuilder) AddAlgorithmService(uavID string, svc DeployedService, 
     container_name: %s_%s
     depends_on:
       - communication_module_%s
-    volumes:
+%s    volumes:
 %s    networks:
       %s:
         aliases:
@@ -160,6 +219,7 @@ func (b *composeBuilder) AddAlgorithmService(uavID string, svc DeployedService, 
 		svc.ServiceId,
 		svc.ServiceId, uavID,
 		uavID,
+		env,
 		vols.String(),
 		uavNet,
 		svc.ServiceId)

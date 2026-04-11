@@ -6,6 +6,9 @@
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::SystemTime;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
+use std::path::Path;
 
 /// Accumulated statistics for the network simulation pipeline.
 #[derive(Debug, Default)]
@@ -151,6 +154,48 @@ impl LogWriter for UdpWriter {
     }
 }
 
+pub struct FileWriter {
+    file: std::sync::Mutex<File>,
+}
+
+impl FileWriter {
+    pub fn new<P: AsRef<Path>>(path: P) -> std::io::Result<Self> {
+        let file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)?;
+        Ok(Self {
+            file: std::sync::Mutex::new(file),
+        })
+    }
+}
+
+impl LogWriter for FileWriter {
+    fn write(&self, ts: &str, level: &LogLevel, message: &str) {
+        if let Ok(mut file) = self.file.lock() {
+            let _ = writeln!(file, "[{}] [{}] {}", ts, level.label(), message);
+        }
+    }
+}
+
+pub struct MultiWriter {
+    writers: Vec<Box<dyn LogWriter>>,
+}
+
+impl MultiWriter {
+    pub fn new(writers: Vec<Box<dyn LogWriter>>) -> Self {
+        Self { writers }
+    }
+}
+
+impl LogWriter for MultiWriter {
+    fn write(&self, ts: &str, level: &LogLevel, message: &str) {
+        for writer in &self.writers {
+            writer.write(ts, level, message);
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum LogMode {
     Debug,
@@ -162,20 +207,39 @@ pub struct LoggerFactory;
 
 impl LoggerFactory {
     pub fn create(mode: LogMode) -> Logger {
-        let (writer, is_important_only): (Box<dyn LogWriter>, bool) = match mode.clone() {
+        let (writer, mut is_important_only): (Box<dyn LogWriter>, bool) = match mode.clone() {
             LogMode::Debug => (Box::new(StdOutWriter), false),
             LogMode::DebugImportant => (Box::new(StdOutWriter), true),
             LogMode::Prod { ip, port } => (Box::new(UdpWriter::new(&ip, port)), true),
         };
 
+        // Override importance if DEBUG=true env var is set
+        if std::env::var("DEBUG").unwrap_or_default() == "true" {
+            is_important_only = false;
+        }
+
+        // Add file logging if /app/logs directory exists
+        let mut final_writer = writer;
+        if Path::new("/app/logs").is_dir() {
+            if let Ok(file_writer) = FileWriter::new("/app/logs/network_simulator.log") {
+                final_writer = Box::new(MultiWriter::new(vec![
+                    final_writer,
+                    Box::new(file_writer),
+                ]));
+            }
+        }
+
         let logger = Logger {
             stats: Stats::default(),
             enabled: AtomicBool::new(true),
-            writer,
+            writer: final_writer,
             is_important_only,
         };
         
         logger.log(LogLevel::Info, &format!("Network simulator logger initialized in {:?} mode", mode));
+        if !is_important_only {
+            logger.log(LogLevel::Info, "Verbose logging enabled (DEBUG=true)");
+        }
         logger
     }
 }

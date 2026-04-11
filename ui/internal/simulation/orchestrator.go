@@ -11,6 +11,7 @@ import (
 	"ui/internal/config"
 	"ui/internal/geo"
 	"ui/internal/simulation/formation"
+	"time"
 )
 
 // Orchestrator coordinates a full simulation run: creates the directory tree,
@@ -34,25 +35,57 @@ func (o *Orchestrator) Run(uavs []UAV, generalConfig GeneralConfig, activeMode s
 		return "", fmt.Errorf("create simulation dirs: %w", err)
 	}
 
+	// Determine if we are storing data and create the run directory
+	var runDir string
+	if generalConfig.StoreLocalData {
+		timestamp := time.Now().Format("2006-01-02_15-04-05")
+		runDir = filepath.Join(simDir, "runs", timestamp)
+		if err := os.MkdirAll(runDir, 0755); err != nil {
+			return "", fmt.Errorf("create runs dir: %w", err)
+		}
+	}
+
 	// Capture and save the full simulation state for later reloading.
 	o.saveSimulationState(uavs, generalConfig, activeMode, simDir)
 
-	// Generate custom ArduPilot parameters based on the template and UI configuration.
-	paramFileName, err := o.generateCustomParams(generalConfig, resDir)
-	if err != nil {
-		return "", fmt.Errorf("generate custom params: %w", err)
+	// Load speed profile if provided
+	var speeds []float64
+	if generalConfig.SpeedProfilePath != "" {
+		var err error
+		speeds, err = o.loadSpeedProfile(generalConfig.SpeedProfilePath)
+		if err != nil {
+			fmt.Printf("[orchestrator] warning: failed to load speed profile: %v\n", err)
+		}
 	}
 
 	writer := NewResourceWriter(resDir)
 	builder := newComposeBuilder()
-	builder.AddNetworkSimulator()
+
+	// Add Network Simulator with its own log dir if persistence is enabled
+	var nsLogDir string
+	if runDir != "" {
+		nsLogDir = filepath.Join(runDir, "network_simulator")
+		_ = os.MkdirAll(nsLogDir, 0755)
+	}
+	builder.AddNetworkSimulator(nsLogDir, generalConfig.VerboseLogging)
 
 	// Calculate ground formation offsets (Strategy Pattern)
 	f := formation.GetFormation(generalConfig.GroundFormation)
 	offsets := f.CalculateOffsets(len(uavs), generalConfig.FormationSpacing)
 
 	for i, uav := range uavs {
-		if err := o.appendUAV(uav, paramFileName, builder, writer, generalConfig, offsets[i]); err != nil {
+		uavSpeed := 10.0 // Default speed
+		if i < len(speeds) {
+			uavSpeed = speeds[i]
+		}
+
+		// Generate per-UAV custom parameters (for individual initial speeds)
+		paramFileName, err := o.generateUAVParams(uav.ID, uavSpeed, generalConfig, resDir)
+		if err != nil {
+			return "", fmt.Errorf("generate uav %s params: %w", uav.ID, err)
+		}
+
+		if err := o.appendUAV(uav, paramFileName, builder, writer, generalConfig, offsets[i], runDir); err != nil {
 			return "", fmt.Errorf("uav %s: %w", uav.ID, err)
 		}
 	}
@@ -68,18 +101,29 @@ func (o *Orchestrator) Run(uavs []UAV, generalConfig GeneralConfig, activeMode s
 
 
 // appendUAV adds all service blocks for a single UAV to the builder.
-func (o *Orchestrator) appendUAV(uav UAV, paramFileName string, builder *composeBuilder, writer *ResourceWriter, config GeneralConfig, offset formation.Offset) error {
+func (o *Orchestrator) appendUAV(uav UAV, paramFileName string, builder *composeBuilder, writer *ResourceWriter, config GeneralConfig, offset formation.Offset, runDir string) error {
 	uavNum, _ := strconv.Atoi(uav.ID)
 
-	builder.AddUAVNetwork(uav.ID)
-	builder.AddCommunicationModule(uav.ID)
+	// Per-UAV log root if persistence is enabled: /runs/xxx/uav-N
+	var uavLogRoot string
+	if runDir != "" {
+		uavLogRoot = filepath.Join(runDir, fmt.Sprintf("uav-%s", uav.ID))
+		_ = os.MkdirAll(uavLogRoot, 0755)
+	}
 
+	builder.AddUAVNetwork(uav.ID)
+	
+	commLogDir := o.getServiceLogDir(uavLogRoot, "communication_module")
+	builder.AddCommunicationModule(uav.ID, commLogDir, config.VerboseLogging)
+
+	appLogDir := o.getServiceLogDir(uavLogRoot, "application")
 	appFileName, err := o.writeTemplateConfig("application_config", nil, writer)
 	if err != nil {
 		return err
 	}
-	builder.AddApplication(uav.ID, appFileName)
+	builder.AddApplication(uav.ID, appFileName, appLogDir, config.VerboseLogging)
 
+	ucLogDir := o.getServiceLogDir(uavLogRoot, "uav_controller")
 	ucFileName, err := o.writeTemplateConfig("uav_controller_config", nil, writer)
 	if err != nil {
 		return err
@@ -89,19 +133,20 @@ func (o *Orchestrator) appendUAV(uav UAV, paramFileName string, builder *compose
 	homeLat, homeLon := geo.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
 	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
 
-	builder.AddUAVController(uav.ID, ucFileName, paramFileName, homeLocation)
+	builder.AddUAVController(uav.ID, ucFileName, paramFileName, homeLocation, ucLogDir, config.VerboseLogging)
 
+	ecLogDir := o.getServiceLogDir(uavLogRoot, "external_comms")
 	ecOverrides := map[string]interface{}{
 		// uav_id and simulator coordinates must be unique per UAV instance.
-		"uav_id":        uavNum,
-		"simulator_ip":  "network_simulator",
+		"uav_id":         uavNum,
+		"simulator_ip":   "network_simulator",
 		"simulator_port": 3000,
 	}
 	ecFileName, err := o.writeTemplateConfig("external_comms_config", ecOverrides, writer)
 	if err != nil {
 		return err
 	}
-	builder.AddExternalComms(uav.ID, ecFileName)
+	builder.AddExternalComms(uav.ID, ecFileName, ecLogDir, config.VerboseLogging)
 
 	for _, svc := range uav.Services {
 		var extraVolumes []VolumeMount
@@ -154,16 +199,25 @@ func (o *Orchestrator) appendUAV(uav UAV, paramFileName string, builder *compose
 		if err != nil {
 			return fmt.Errorf("service %q config: %w", svc.ServiceId, err)
 		}
-		builder.AddAlgorithmService(uav.ID, svc, svcFileName, extraVolumes)
+		
+		svcLogDir := o.getServiceLogDir(uavLogRoot, svc.ServiceId)
+		builder.AddAlgorithmService(uav.ID, svc, svcFileName, extraVolumes, svcLogDir, config.VerboseLogging)
 	}
 
 	return nil
 }
 
-// generateCustomParams reads the base copter.parm and appends values from generalConfig.
-func (o *Orchestrator) generateCustomParams(config GeneralConfig, resDir string) (string, error) {
-	// Base copter.parm is located in uav_controller/ardupilot4_5_3/ardupilot/
-	// o.paths.ResourcesDir is ui/../resources
+func (o *Orchestrator) getServiceLogDir(uavLogRoot, serviceName string) string {
+	if uavLogRoot == "" {
+		return ""
+	}
+	dir := filepath.Join(uavLogRoot, serviceName)
+	_ = os.MkdirAll(dir, 0755)
+	return dir
+}
+
+// generateUAVParams reads the base copter.parm and appends values from generalConfig, including per-UAV speed.
+func (o *Orchestrator) generateUAVParams(uavID string, speed float64, config GeneralConfig, resDir string) (string, error) {
 	baseParmPath := filepath.Join(o.paths.ResourcesDir, "..", "uav_controller", "ardupilot4_5_3", "ardupilot", "copter.parm")
 	content, err := os.ReadFile(baseParmPath)
 	if err != nil {
@@ -175,16 +229,15 @@ func (o *Orchestrator) generateCustomParams(config GeneralConfig, resDir string)
 		params += "\n"
 	}
 
-	// Append custom parameters
+	// Append custom parameters from UI
 	if !config.LoggingEnabled {
 		params += "LOG_BITMASK 0\n"
 	}
 
 	if config.BatteryRestricted {
 		params += fmt.Sprintf("BATT_CAPACITY %d\n", config.BatteryCapacity)
-		// Set failsafe to 20% of capacity
 		params += fmt.Sprintf("FS_BATT_MAH %d\n", config.BatteryCapacity*20/100)
-		params += "FS_BATT_ENABLE 2\n" // RTL on battery failsafe
+		params += "FS_BATT_ENABLE 2\n"
 	}
 
 	if config.WindEnabled {
@@ -192,13 +245,40 @@ func (o *Orchestrator) generateCustomParams(config GeneralConfig, resDir string)
 		params += fmt.Sprintf("SIM_WIND_SPD %.2f\n", config.WindSpeed)
 	}
 
-	fileName := "custom_params.param"
+	// Apply Per-UAV Speed (Mapped to ArduPilot WPNAV_SPEED)
+	// WPNAV_SPEED is in cm/s
+	params += fmt.Sprintf("WPNAV_SPEED %d\n", int(speed*100))
+	params += fmt.Sprintf("WPNAV_SPEED_UP %d\n", int(speed*100))
+	params += fmt.Sprintf("WPNAV_SPEED_DN %d\n", int(speed*100))
+
+	fileName := fmt.Sprintf("uav_%s_params.param", uavID)
 	destPath := filepath.Join(resDir, fileName)
 	if err := os.WriteFile(destPath, []byte(params), 0644); err != nil {
-		return "", fmt.Errorf("write custom params: %w", err)
+		return "", fmt.Errorf("write uav params: %w", err)
 	}
 
 	return fileName, nil
+}
+
+func (o *Orchestrator) loadSpeedProfile(path string) ([]float64, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	var speeds []float64
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		val, err := strconv.ParseFloat(line, 64)
+		if err == nil {
+			speeds = append(speeds, val)
+		}
+	}
+	return speeds, nil
 }
 
 // writeTemplateConfig loads a base JSON config from the resources directory,

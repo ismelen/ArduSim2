@@ -7,6 +7,9 @@ use std::collections::HashSet;
 use std::collections::HashMap;
 use anyhow::Result;
 use topic_validator::*;
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::path::Path;
 
 /// Main loop that will run forever, accepting messages and distributing them through the network. 
 ///
@@ -38,6 +41,9 @@ fn main(){
     let local_addr = socket.local_addr().expect("Failed to get local address");
     println!("Listening for UDP messages on {}", local_addr);
 
+    // Initial log message to file if directory exists
+    log_to_file("Communication module (broker) started.");
+
     let mut nodes: HashMap<std::net::SocketAddr, HashSet<String>> = HashMap::new();
     
     loop{
@@ -54,9 +60,11 @@ fn main(){
         };
 
         if topic.starts_with("$"){
+            log_to_file(&format!("Command from {:?}: {}", src_addr, topic));
             process_command_msg(topic,msg,src_addr,&mut nodes);
         }
         else{
+            log_to_file(&format!("Publishing on topic: {}", topic));
             publish_msg(topic,msg,&nodes,&socket);
         }
     }                       
@@ -529,6 +537,19 @@ mod test{
 
             let msg = receive_json_msg(&listener);
             assert_eq!(msg.is_err(),true);
+        }
+    }
+}
+
+fn log_to_file(message: &str) {
+    if Path::new("/app/logs").is_dir() {
+        if let Ok(mut file) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("/app/logs/communication_module.log")
+        {
+            let now = std::time::SystemTime::now();
+            let _ = writeln!(file, "[{:?}] {}", now, message);
         }
     }
 }
