@@ -4,7 +4,7 @@ use std::time::Duration;
 pub const DEFAULT_BUFFER_SIZE: usize = 163_840;
 
 /// Size of each spatial chunk in meters.
-pub const CHUNK_SIZE_M: f64 = 0.350;
+pub const CHUNK_SIZE_M: f64 = 350.0;
 
 
 /// Neighborhood radius for chunk lookups (5x5x5 = offsets -2..+2).
