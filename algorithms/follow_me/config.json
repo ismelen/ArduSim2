@@ -1,0 +1,11 @@
+{
+  "role": "slave",
+  "broker_ip": "communication_module",
+  "broker_port": 3400,
+  "telemetry_topic": "uav/telemetry",
+  "suggestions_topic": "uav/suggestions",
+  "broadcast_topic": "external/messages",
+  "subscription_topic": "algo/followme",
+  "slaves_takeoff_altitude": 19.0,
+  "send_period_ms": 1000
+}
