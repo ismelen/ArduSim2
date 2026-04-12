@@ -4,6 +4,7 @@ import { useServices, buildDefaultValuesFromSchema } from './useServices';
 export interface DeployedService {
   instanceId:   string;
   serviceId:    string;
+  folderName:   string;
   serviceTitle: string;
   config:       Record<string, any>;
 }
@@ -163,6 +164,7 @@ export const useFleet = create<FleetState>((set, get) => ({
 
     deployService(activeUavId, {
       serviceId: selectedServiceId,
+      folderName: selectedSvc?.folderName ?? selectedServiceId,
       serviceTitle: selectedSvc?.title ?? selectedServiceId,
       config: { ...formValues },
     }, editingInstanceId);
@@ -177,6 +179,7 @@ export const useFleet = create<FleetState>((set, get) => ({
 
     deployToAll({
       serviceId: selectedServiceId,
+      folderName: selectedSvc?.folderName ?? selectedServiceId,
       serviceTitle: selectedSvc?.title ?? selectedServiceId,
       config: { ...formValues }
     });

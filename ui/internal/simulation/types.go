@@ -2,9 +2,10 @@ package simulation
 
 // ServiceType describes an available algorithm/service discovered on disk.
 type ServiceType struct {
-	ID        string `json:"id"`
-	Title     string `json:"title"`
-	SchemaRaw string `json:"schemaRaw"`
+	ID         string `json:"id"`
+	FolderName string `json:"folderName"`
+	Title      string `json:"title"`
+	SchemaRaw  string `json:"schemaRaw"`
 }
 
 // DeployedService represents a user-selected service assigned to a UAV,
@@ -12,6 +13,7 @@ type ServiceType struct {
 type DeployedService struct {
 	InstanceId   string                 `json:"instanceId"`
 	ServiceId    string                 `json:"serviceId"`
+	FolderName   string                 `json:"folderName"`
 	ServiceTitle string                 `json:"serviceTitle"`
 	Config       map[string]interface{} `json:"config"`
 }

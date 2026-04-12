@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from './common/Button';
 import { SelectFile } from '../../wailsjs/go/main/App';
+import { Switch } from './common/FormField';
 
 interface DynamicFormProps {
   schemaRaw: string;
@@ -17,6 +18,27 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({ schemaRaw, values, onC
     <div className="dynamic-form-grid horizontal-alignment">
       {Object.entries<any>(schema.properties).map(([key, prop]) => {
         const value = values[key] !== undefined ? values[key] : '';
+
+        if (prop.enum) {
+          return (
+            <div key={key} className="config-group">
+              <label className="label-font">{prop.title || key}</label>
+              <div className="service-select-container" style={{ minWidth: '100%' }}>
+                <select 
+                  className="service-select" 
+                  value={value} 
+                  onChange={e => onChange(key, e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  {!value && <option value="" disabled>Select option...</option>}
+                  {prop.enum.map((opt: string) => (
+                    <option key={opt} value={opt}>{opt.toUpperCase()}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          );
+        }
 
         if (prop.type === 'string' && prop.format === 'kml') {
           return (
@@ -51,19 +73,20 @@ export const DynamicForm: React.FC<DynamicFormProps> = ({ schemaRaw, values, onC
 
         if (prop.type === 'boolean') {
           return (
-            <label key={key} className="custom-checkbox config-group">
-              <input type="checkbox" checked={!!value}
-                onChange={e => onChange(key, e.target.checked)} />
-              <span className="checkmark" />
-              <span className="chk-label">{prop.title || key}</span>
-            </label>
+            <div key={key} className="config-group">
+              <Switch 
+                label={prop.title || key} 
+                checked={!!value}
+                onChange={checked => onChange(key, checked)}
+              />
+            </div>
           );
         }
 
         const isNumeric = prop.type === 'number' || prop.type === 'integer';
         return (
           <div key={key} className="config-group">
-            <label>{prop.title || key}</label>
+            <label className="label-font">{prop.title || key}</label>
             <input
               type={isNumeric ? 'number' : 'text'}
               className="service-input"

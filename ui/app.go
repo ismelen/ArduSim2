@@ -250,6 +250,26 @@ func (a *App) LoadSimulationConfig() (*simulation.SimulationState, error) {
 		return nil, fmt.Errorf("parse simulation state: %w", err)
 	}
 
+	// Repair missing FolderName if loading an old simulation config
+	availableServices := a.GetAvailableServices()
+	svcMap := make(map[string]string)
+	for _, s := range availableServices {
+		svcMap[s.ID] = s.FolderName
+	}
+
+	for i := range state.UAVs {
+		for j := range state.UAVs[i].Services {
+			if state.UAVs[i].Services[j].FolderName == "" {
+				if folder, ok := svcMap[state.UAVs[i].Services[j].ServiceId]; ok {
+					state.UAVs[i].Services[j].FolderName = folder
+				} else {
+					// Fallback to ServiceId if not found in current discovered services
+					state.UAVs[i].Services[j].FolderName = state.UAVs[i].Services[j].ServiceId
+				}
+			}
+		}
+	}
+
 	state.GeneralConfig.OriginalSimulationName = filepath.Base(selectedDir)
 	state.GeneralConfig.SimulationName = filepath.Base(selectedDir)
 

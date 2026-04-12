@@ -363,6 +363,10 @@ func (s *Subscriber) handleMessagesPacket(ctx context.Context, msg NetSimMessage
 		}
 	}
 
+	if command == "" {
+		return
+	}
+
 	source := formatSource(msg.UavID)
 	logLine := fmt.Sprintf("%s%s: %s", source, service, command)
 	fmt.Printf("[netsim/messages] %s\n", logLine)

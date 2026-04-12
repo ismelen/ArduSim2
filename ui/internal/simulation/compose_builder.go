@@ -200,6 +200,11 @@ func (b *composeBuilder) AddAlgorithmService(uavID string, svc DeployedService, 
 		fmt.Fprintf(&vols, "      - %s:/app/logs\n", logDir)
 	}
 
+	folderName := svc.FolderName
+	if folderName == "" {
+		folderName = svc.ServiceId
+	}
+
 	fmt.Fprintf(&b.services, `  %s_%s:
     image: %s
     build:
@@ -216,7 +221,7 @@ func (b *composeBuilder) AddAlgorithmService(uavID string, svc DeployedService, 
 
 `, svc.ServiceId, uavID,
 		svc.ServiceId,
-		svc.ServiceId,
+		folderName,
 		svc.ServiceId, uavID,
 		uavID,
 		env,

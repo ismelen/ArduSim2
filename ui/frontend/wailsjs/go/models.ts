@@ -19,6 +19,7 @@ export namespace simulation {
 	export class DeployedService {
 	    instanceId: string;
 	    serviceId: string;
+	    folderName: string;
 	    serviceTitle: string;
 	    config: Record<string, any>;
 	
@@ -30,6 +31,7 @@ export namespace simulation {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.instanceId = source["instanceId"];
 	        this.serviceId = source["serviceId"];
+	        this.folderName = source["folderName"];
 	        this.serviceTitle = source["serviceTitle"];
 	        this.config = source["config"];
 	    }
@@ -78,6 +80,7 @@ export namespace simulation {
 	}
 	export class ServiceType {
 	    id: string;
+	    folderName: string;
 	    title: string;
 	    schemaRaw: string;
 	
@@ -88,6 +91,7 @@ export namespace simulation {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
+	        this.folderName = source["folderName"];
 	        this.title = source["title"];
 	        this.schemaRaw = source["schemaRaw"];
 	    }

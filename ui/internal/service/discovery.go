@@ -64,8 +64,9 @@ func (d *Discoverer) loadServiceType(dirName string) (simulation.ServiceType, bo
 	}
 
 	return simulation.ServiceType{
-		ID:        svcID,
-		Title:     schema.Title,
-		SchemaRaw: string(rawData),
+		ID:         svcID,
+		FolderName: dirName,
+		Title:      schema.Title,
+		SchemaRaw:  string(rawData),
 	}, true
 }

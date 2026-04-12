@@ -156,7 +156,7 @@ func (o *Orchestrator) appendUAV(uav UAV, paramFileName string, builder *compose
 			cfg[k] = v
 		}
 
-		if schema, err := o.getServiceSchema(svc.ServiceId); err == nil {
+		if schema, err := o.getServiceSchema(svc.FolderName); err == nil {
 			if props, ok := schema["properties"].(map[string]interface{}); ok {
 				for key, val := range props {
 					prop, ok := val.(map[string]interface{})
@@ -200,7 +200,7 @@ func (o *Orchestrator) appendUAV(uav UAV, paramFileName string, builder *compose
 			return fmt.Errorf("service %q config: %w", svc.ServiceId, err)
 		}
 		
-		svcLogDir := o.getServiceLogDir(uavLogRoot, svc.ServiceId)
+		svcLogDir := o.getServiceLogDir(uavLogRoot, svc.FolderName)
 		builder.AddAlgorithmService(uav.ID, svc, svcFileName, extraVolumes, svcLogDir, config.VerboseLogging)
 	}
 
@@ -320,8 +320,8 @@ func (o *Orchestrator) saveSimulationState(uavs []UAV, config GeneralConfig, mod
 	}
 }
 
-func (o *Orchestrator) getServiceSchema(serviceID string) (map[string]interface{}, error) {
-	schemaPath := filepath.Join(o.paths.AlgorithmsDir, serviceID, "schema.json")
+func (o *Orchestrator) getServiceSchema(folderName string) (map[string]interface{}, error) {
+	schemaPath := filepath.Join(o.paths.AlgorithmsDir, folderName, "schema.json")
 	rawData, err := os.ReadFile(schemaPath)
 	if err != nil {
 		return nil, err
