@@ -14,4 +14,11 @@ type CommunicationProvider interface {
 
 type FollowMeManager interface {
 	Run() error
+	StartComms() error
+	HandleCommand(payload any) error
+	OnStart()
+	OnPause()
+	OnStop()
+	HandleTelemetryTopic(payload any)
+	HandleSubscriptionTopic(payload any)
 }
