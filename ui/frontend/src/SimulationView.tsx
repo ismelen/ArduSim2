@@ -20,9 +20,10 @@ interface NetSimMessageEvent {
 
 
 // Custom UAV Marker HTML generator
-const createUAVMarkerElement = (heading: number, altitude: number) => {
+const createUAVMarkerElement = (heading: number, altitude: number, color: string) => {
   const el = document.createElement('div');
   el.className = 'uav-marker';
+  el.style.setProperty('--uav-color', color);
   el.innerHTML = `
     <div class="uav-sphere-container">
       <div class="uav-sphere" style="transform: rotate(${heading}deg);"></div>
@@ -30,6 +31,68 @@ const createUAVMarkerElement = (heading: number, altitude: number) => {
     <div class="uav-altitude-tag">${altitude.toFixed(1)}m</div>
   `;
   return el;
+};
+
+interface SplitButtonProps {
+  label: string;
+  icon: string;
+  options: string[];
+  disabled: boolean;
+  activeClass?: string;
+  onMainClick: () => void;
+  onOptionClick: (option: string) => void;
+  isOpen: boolean;
+  setIsOpen: (open: boolean) => void;
+}
+
+const SplitButton: React.FC<SplitButtonProps> = ({
+  label, icon, options, disabled, activeClass = '', onMainClick, onOptionClick, isOpen, setIsOpen
+}) => {
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, setIsOpen]);
+
+  return (
+    <div className={`split-btn-group ${disabled ? 'disabled' : ''} ${activeClass}`} ref={dropdownRef}>
+      <button 
+        className="split-btn-main"
+        onClick={onMainClick}
+        disabled={disabled}
+      >
+        <span className="material-symbols-outlined">{icon}</span> {label}
+      </button>
+      <button  
+        className="split-btn-arrow"
+        onClick={() => setIsOpen(!isOpen)}
+        disabled={disabled || options.length === 0}
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>{isOpen ? 'expand_less' : 'expand_more'}</span>
+      </button>
+      
+      {isOpen && options.length > 0 && (
+        <div className="split-btn-dropdown">
+          {options.map(opt => (
+            <div key={opt} className="split-dropdown-item" onClick={() => {
+              onOptionClick(opt);
+              setIsOpen(false);
+            }}>
+              {opt}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const SimulationView: React.FC = () => {
@@ -49,8 +112,10 @@ const SimulationView: React.FC = () => {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<Record<string, maplibregl.Marker>>({});
   const trailsRef = useRef<Record<string, [number, number][]>>({});
+  const uavColors = useRef<Record<string, string>>({});
   const centeredRef = useRef(false);
   const logEndRef = useRef<HTMLDivElement>(null);
+  const [openDropdown, setOpenDropdown] = useState<'start' | 'pause' | 'stop' | null>(null);
 
   // Get current UAVs as a list
   const uavList: UAVState[] = Object.values(uavs);
@@ -69,7 +134,7 @@ const SimulationView: React.FC = () => {
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+      style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
       center: [0, 0],
       zoom: 13,
       pitch: viewMode === '3d' ? 60 : 0,
@@ -77,7 +142,7 @@ const SimulationView: React.FC = () => {
       dragRotate: true,
       scrollZoom: true,
       dragPan: true,
-      touchZoomRotate: true
+      touchZoomRotate: true,
     });
 
 
@@ -97,15 +162,15 @@ const SimulationView: React.FC = () => {
           'visibility': showTrails ? 'visible' : 'none'
         },
         paint: {
-          'line-color': '#4edea3',
-          'line-width': 2,
-          'line-opacity': 0.6
+          'line-color': ['get', 'color'],
+          'line-width': 4,
+          'line-opacity': 0.8
         }
       });
 
       // Add 3D Building Layer (fill-extrusion)
-      const layers = map.getStyle().layers;
-      const labelLayerId = layers?.find(l => l.type === 'symbol' && l.layout && l.layout['text-field'])?.id;
+      // const layers = map.getStyle().layers;
+      // const labelLayerId = layers?.find(l => l.type === 'symbol' && l.layout && l.layout['text-field'])?.id;
 
       map.addLayer({
         'id': '3d-buildings',
@@ -114,12 +179,20 @@ const SimulationView: React.FC = () => {
         'type': 'fill-extrusion',
         'minzoom': 15,
         'paint': {
-          'fill-extrusion-color': '#4edea3',
-          'fill-extrusion-height': ['get', 'render_height'],
-          'fill-extrusion-base': ['get', 'render_min_height'],
-          'fill-extrusion-opacity': 0.6
+          'fill-extrusion-color': '#d1d5db',
+          'fill-extrusion-height': ['coalesce', ['get', 'render_height'], ['get', 'height'], 15],
+          'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], ['get', 'min_height'], 0],
+          'fill-extrusion-opacity': 1,
+          "fill-extrusion-vertical-gradient": true
         }
-      }, labelLayerId);
+      });
+
+      map.setLight({
+        anchor: 'viewport',
+        color: 'white',
+        intensity: 0.3,
+        position: [1.15, 90, 40] // [radial, azimuthal, polar]
+      });
     });
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
@@ -155,11 +228,18 @@ const SimulationView: React.FC = () => {
     }
   }, [showTrails]);
 
+  const getColorForUav = (id: string) => {
+    if (!uavColors.current[id]) {
+      const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+      const index = Object.keys(uavColors.current).length % colors.length;
+      uavColors.current[id] = colors[index];
+    }
+    return uavColors.current[id];
+  };
+
   // Update Markers and Auto-Center
   useEffect(() => {
     if (!mapRef.current) return;
-
-    let featuresHasUpdates = false;
 
     uavList.forEach((uav) => {
       // 1. Auto-center on first valid coordinate (NOT 0,0)
@@ -186,7 +266,7 @@ const SimulationView: React.FC = () => {
         if (tagEl) tagEl.textContent = `${uav.alt.toFixed(1)}m`;
       } else {
         // Create new marker
-        const el = createUAVMarkerElement(uav.heading, uav.alt);
+        const el = createUAVMarkerElement(uav.heading, uav.alt, getColorForUav(uav.id));
         const marker = new maplibregl.Marker({ element: el })
           .setLngLat([uav.lon, uav.lat])
           .addTo(mapRef.current!);
@@ -199,27 +279,35 @@ const SimulationView: React.FC = () => {
       }
       
       const lastPos = trailsRef.current[uav.id][trailsRef.current[uav.id].length - 1];
-      // Only push if coordinate has actually moved and is valid (not 0,0)
-      if ((!lastPos || lastPos[0] !== uav.lon || lastPos[1] !== uav.lat) && (uav.lon !== 0 || uav.lat !== 0)) {
+      const dist = lastPos ? Math.sqrt(Math.pow(lastPos[0] - uav.lon, 2) + Math.pow(lastPos[1] - uav.lat, 2)) : Infinity;
+      // Push if coordinate moved > 0.000005 deg (~0.5m) to avoid too many points, but keep it high resolution
+      if (dist > 0.000005 && (uav.lon !== 0 || uav.lat !== 0)) {
         trailsRef.current[uav.id].push([uav.lon, uav.lat]);
-        featuresHasUpdates = true;
       }
     });
 
-    // Update GeoJSON source efficiently
-    if (featuresHasUpdates) {
-      const source = mapRef.current.getSource('uav-trails') as maplibregl.GeoJSONSource;
-      if (source) {
-        const features = Object.entries(trailsRef.current).map(([id, coords]) => ({
+    // Always update GeoJSON source every frame so the tip of the trail perfectly perfectly anchors to the UAV
+    const source = mapRef.current.getSource('uav-trails') as maplibregl.GeoJSONSource;
+    if (source) {
+      const features = Object.entries(trailsRef.current).map(([id, coords]) => {
+        const uavState = uavList.find(u => u.id === id);
+        const activeCoords = [...coords];
+        // Append live location to bridge the gap between >0.5m discrete points
+        if (uavState && uavState.lon !== 0 && uavState.lat !== 0) {
+          activeCoords.push([uavState.lon, uavState.lat]);
+        }
+        
+        return {
           type: 'Feature' as const,
-          properties: { uavId: id },
+          properties: { uavId: id, color: getColorForUav(id) },
           geometry: {
             type: 'LineString' as const,
-            coordinates: coords
+            coordinates: activeCoords
           }
-        }));
-        source.setData({ type: 'FeatureCollection', features });
-      }
+        };
+      }).filter(f => f.geometry.coordinates.length >= 2);
+
+      source.setData({ type: 'FeatureCollection', features });
     }
 
   }, [uavs]);
@@ -284,6 +372,37 @@ const SimulationView: React.FC = () => {
     }
   };
 
+  const allStarted = algorithmsList.every(algo => startedAlgorithms[algo]);
+  const anyStarted = algorithmsList.some(algo => startedAlgorithms[algo]);
+  const globalPaused = algorithmsList.some(algo => pausedAlgorithms[algo]);
+
+  const handleStart = async (algo?: string) => {
+    const targets = algo ? [algo] : algorithmsList;
+    for (const a of targets) {
+      if (!startedAlgorithms[a]) {
+        await handleSendAlgorithmCommand(a, 'start');
+        setStartedAlgorithms(prev => ({ ...prev, [a]: true }));
+      }
+    }
+  };
+
+  const handlePauseToggle = async (algo?: string) => {
+    const targets = algo ? [algo] : algorithmsList;
+    const isTargetPaused = algo ? pausedAlgorithms[algo] : globalPaused;
+    const command = isTargetPaused ? 'resume' : 'pause';
+    for (const a of targets) {
+      await handleSendAlgorithmCommand(a, command);
+      setPausedAlgorithms(prev => ({ ...prev, [a]: !isTargetPaused }));
+    }
+  };
+
+  const handleStop = async (algo?: string) => {
+    const targets = algo ? [algo] : algorithmsList;
+    for (const a of targets) {
+      await handleSendAlgorithmCommand(a, 'stop');
+    }
+  };
+
   return (
     <div className="sim-container">
       {/* ── SIMULATION FINISHED BANNER ── */}
@@ -296,62 +415,49 @@ const SimulationView: React.FC = () => {
 
       {/* ── TOP CONTROLS ── */}
       <div className="sim-top-bar">
-      {algorithmsList.map(algo => {
-          const isStarted = !!startedAlgorithms[algo];
-          const isPaused = !!pausedAlgorithms[algo];
-          
-          const handlePauseToggle = async () => {
-            const command = isPaused ? 'resume' : 'pause';
-            await handleSendAlgorithmCommand(algo, command);
-            setPausedAlgorithms(prev => ({ ...prev, [algo]: !isPaused }));
-          };
-
-          const handleStart = async () => {
-            await handleSendAlgorithmCommand(algo, 'start');
-            setStartedAlgorithms(prev => ({ ...prev, [algo]: true }));
-          };
-
-          const handleStop = async () => {
-             await handleSendAlgorithmCommand(algo, 'stop');
-          };
-
-          return (
-          <div key={algo} className="control-group">
-            <span className="algo-label">{algo.toUpperCase()}</span>
-            <button 
-              className={`control-btn outline-btn ${allUavsReady && !isStarted ? 'ready' : 'not-ready'}`}
-              disabled={!allUavsReady || isStarted}
-              onClick={handleStart}
-            >
-              <span className="material-symbols-outlined">play_circle</span> START
-            </button>
-            <button
-              className={`control-btn ${isPaused ? 'outline-btn ready' : 'outline-btn'} ${!isStarted ? 'not-ready' : ''}`}
-              disabled={!isStarted}
-              onClick={handlePauseToggle}
-              title={isPaused ? 'Resume algorithm' : 'Pause algorithm'}
-            >
-              <span className="material-symbols-outlined">{isPaused ? 'play_arrow' : 'pause'}</span>
-              {isPaused ? 'RESUME' : 'PAUSE'}
-            </button>
-            <button 
-              className={`control-btn ${isStarted ? 'danger-outline' : 'not-ready'}`} 
-              disabled={!isStarted}
-              onClick={handleStop}
-            >
-              <span className="material-symbols-outlined">stop</span> STOP
-            </button>
-          </div>
-        );
-        })}
-
-        {!algorithmsList.length && (
-          <div className="control-group">
+        <div className="control-group">
+          {algorithmsList.length > 0 ? (
+            <>
+              <SplitButton 
+                label="START"
+                icon="play_circle"
+                options={algorithmsList.filter(a => !startedAlgorithms[a])}
+                disabled={!allUavsReady || allStarted}
+                activeClass={allUavsReady && !allStarted ? 'btn-solid-ready' : ''}
+                onMainClick={() => handleStart()}
+                onOptionClick={(opt) => handleStart(opt)}
+                isOpen={openDropdown === 'start'}
+                setIsOpen={(open) => setOpenDropdown(open ? 'start' : null)}
+              />
+              <SplitButton 
+                label={globalPaused ? "RESUME" : "PAUSE"}
+                icon={globalPaused ? "play_arrow" : "pause"}
+                options={algorithmsList}
+                disabled={!anyStarted}
+                activeClass={globalPaused ? 'btn-outline-ready' : ''}
+                onMainClick={() => handlePauseToggle()}
+                onOptionClick={(opt) => handlePauseToggle(opt)}
+                isOpen={openDropdown === 'pause'}
+                setIsOpen={(open) => setOpenDropdown(open ? 'pause' : null)}
+              />
+              <SplitButton 
+                label="STOP"
+                icon="stop"
+                options={algorithmsList.filter(a => startedAlgorithms[a])}
+                disabled={!anyStarted}
+                activeClass={anyStarted ? 'btn-danger' : ''}
+                onMainClick={() => handleStop()}
+                onOptionClick={(opt) => handleStop(opt)}
+                isOpen={openDropdown === 'stop'}
+                setIsOpen={(open) => setOpenDropdown(open ? 'stop' : null)}
+              />
+            </>
+          ) : (
             <button className="control-btn outline-btn disabled">
               NO ALGORITHMS
             </button>
-          </div>
-        )}
+          )}
+        </div>
         
         <div className="view-toggle">
           <button className="toggle-btn active" onClick={handleRecenter}>

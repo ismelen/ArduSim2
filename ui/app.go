@@ -137,43 +137,11 @@ func (a *App) handleSimulationDirectory(config *simulation.GeneralConfig) (strin
 	targetPath := filepath.Join(a.paths.SimulationsDir, name)
 
 	// User loaded this config from a folder
-	if config.OriginalSimulationName != "" {
-		originalPath := filepath.Join(a.paths.SimulationsDir, config.OriginalSimulationName)
-		if name != config.OriginalSimulationName {
-			// Renamed. Delete the old one.
-			os.RemoveAll(originalPath)
-		}
-		// Reset resources for this one
-		os.RemoveAll(targetPath)
-		return targetPath, nil
+	if config.OriginalSimulationName != "" && name != config.OriginalSimulationName {
+		// Renamed. Do not delete the original, just start using the new name.
 	}
 
-	// New config
-	if _, err := os.Stat(targetPath); err == nil {
-		res, err := runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
-			Type:          runtime.QuestionDialog,
-			Title:         "Carpeta Existente",
-			Message:       fmt.Sprintf("La simulación '%s' ya existe. ¿Quieres reemplazarla? Si pulsas No, se creará una copia.", name),
-			DefaultButton: "Yes",
-		})
-		if err != nil {
-			return "", err
-		}
-		if res == "Yes" {
-			os.RemoveAll(targetPath)
-		} else {
-			for i := 2; ; i++ {
-				newName := fmt.Sprintf("%s(%d)", name, i)
-				newPath := filepath.Join(a.paths.SimulationsDir, newName)
-				if _, err := os.Stat(newPath); os.IsNotExist(err) {
-					name = newName
-					targetPath = newPath
-					config.SimulationName = name
-					break
-				}
-			}
-		}
-	}
+	// Always just return targetPath so that previous timestamped runs accumulate.
 	return targetPath, nil
 }
 
@@ -276,6 +244,32 @@ func (a *App) LoadSimulationConfig() (*simulation.SimulationState, error) {
 	return &state, nil
 }
 
+// SaveSimulationConfig explicitly saves the configuration JSON state to a folder.
+func (a *App) SaveSimulationConfig(uavs []simulation.UAV, generalConfig simulation.GeneralConfig, activeMode string) error {
+	simDir, err := a.handleSimulationDirectory(&generalConfig)
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(simDir, 0755); err != nil {
+		return err
+	}
+
+	state := simulation.SimulationState{
+		UAVs:          uavs,
+		GeneralConfig: generalConfig,
+		ActiveMode:    activeMode,
+	}
+
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	statePath := filepath.Join(simDir, "simulation.json")
+	return os.WriteFile(statePath, data, 0644)
+}
+
 // StopSimulation performs a clean shutdown of the simulated environment.
 // This is intended to be called when the user exits the simulation view.
 func (a *App) StopSimulation() {
@@ -288,6 +282,38 @@ func (a *App) StopSimulation() {
 		stopDockerCompose(a.activeComposePath)
 		a.activeComposePath = ""
 	}
+}
+
+// DiscardCurrentRun deletes the runs/ folder in the simulation root and specific network logs to discard the current telemetry.
+func (a *App) DiscardCurrentRun(generalConfig simulation.GeneralConfig) error {
+	simDir, err := a.handleSimulationDirectory(&generalConfig)
+	if err != nil {
+		return err
+	}
+
+	// In orchestrator.go, runs are placed in "runs/*" under simDir.
+	// Since we accumulate, if we want to discard *this* run specifically, we should probably know its exact timestamp.
+	// However, if discarding means deleting the latest run... actually, we would need to know the run directory...
+	// To simplify: if they want to discard the run, we can just delete the latest modified directory in simDir/runs.
+	runsDir := filepath.Join(simDir, "runs")
+	entries, err := os.ReadDir(runsDir)
+	if err == nil && len(entries) > 0 {
+		var latest os.DirEntry
+		var latestTime time.Time
+		for _, e := range entries {
+			if e.IsDir() {
+				info, err := e.Info()
+				if err == nil && info.ModTime().After(latestTime) {
+					latest = e
+					latestTime = info.ModTime()
+				}
+			}
+		}
+		if latest != nil {
+			os.RemoveAll(filepath.Join(runsDir, latest.Name()))
+		}
+	}
+	return nil
 }
 
 // SelectFile opens a native file picker and returns the absolute path

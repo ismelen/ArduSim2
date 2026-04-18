@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { StartSimulation, StopSimulation, LoadSimulationConfig, SendAlgorithmCommand } from "../../wailsjs/go/main/App";
+import { StartSimulation, StopSimulation, LoadSimulationConfig, SendAlgorithmCommand, SaveSimulationConfig, DiscardCurrentRun } from "../../wailsjs/go/main/App";
 import { useEnvironment } from "./useEnvironment";
 import { useFleet } from "./useFleet";
 import { useNavigation } from "./useNavigation";
@@ -43,6 +43,7 @@ interface ConfigState extends GeneralConfigState {
   handleStartSimulation: () => Promise<void>;
   handleExitSimulation: () => Promise<void>;
   handleLoadSimulation: () => Promise<void>;
+  handleSaveSimulation: () => Promise<void>;
   handleSendAlgorithmCommand: (serviceId: string, command: string) => Promise<void>;
 }
 
@@ -105,8 +106,15 @@ export const useConfig = create<ConfigState>((set, get) => ({
 
   handleExitSimulation: async () => {
     const { exitSimulation } = useNavigation.getState();
+    const keepLogs = confirm("¿Deseas guardar los logs y telemetría de esta simulación?");
     try {
       await StopSimulation();
+      
+      if (!keepLogs) {
+        const { handleSaveSimulation, handleStartSimulation, handleLoadSimulation, handleExitSimulation, handleSendAlgorithmCommand, ...config } = get();
+        await DiscardCurrentRun(config);
+      }
+
       exitSimulation();
     } catch (err) {
       console.error("Failed to stop simulation:", err);
@@ -156,6 +164,19 @@ export const useConfig = create<ConfigState>((set, get) => ({
     } catch (err) {
       console.error("Failed to load simulation:", err);
       alert(`LOAD_ERROR: ${err instanceof Error ? err.message : String(err)}`);
+      throw err;
+    }
+  },
+
+  handleSaveSimulation: async () => {
+    const { uavs } = useFleet.getState();
+    const { activeMode } = useEnvironment.getState();
+    const { handleSaveSimulation, handleStartSimulation, handleLoadSimulation, handleExitSimulation, handleSendAlgorithmCommand, ...config } = get();
+    try {
+      await SaveSimulationConfig(uavs as any, config, activeMode);
+    } catch (err) {
+      console.error("Failed to save simulation:", err);
+      alert(`SAVE_ERROR: ${err instanceof Error ? err.message : String(err)}`);
       throw err;
     }
   },

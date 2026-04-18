@@ -11,7 +11,7 @@ const TABS = ['ENVIRONMENT', 'FLEET_CONFIG', 'GENERAL_CONFIG'] as const;
 
 function App() {
   const { currentTab, setCurrentTab, isSimulating } = useNavigation();
-  const { handleStartSimulation, handleLoadSimulation } = useConfig();
+  const { handleStartSimulation, handleLoadSimulation, handleSaveSimulation } = useConfig();
 
 
   return (
@@ -19,6 +19,13 @@ function App() {
       {!isSimulating && (
         <header className="top-nav">
           <div className="nav-group-left">
+            <Button
+              variant="ghost"
+              icon="save"
+              onClick={handleSaveSimulation}
+              title="SAVE CONFIGURATION"
+              style={{ padding: '8px', border: 'none' }}
+            />
             <Button
               variant="ghost"
               icon="folder_open"

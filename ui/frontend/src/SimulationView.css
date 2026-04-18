@@ -122,6 +122,151 @@
   border-radius: 3px;
 }
 
+.split-btn-group {
+  display: flex;
+  position: relative;
+  border-radius: 4px;
+  border: 1px solid var(--outline-variant);
+  background: transparent;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--on-surface-variant);
+  transition: all 0.2s;
+}
+
+.split-btn-group:hover:not(.disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.split-btn-group.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Solid Ready (START) */
+.split-btn-group.btn-solid-ready {
+  color: var(--on-primary) !important;
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 15px rgba(78, 222, 163, 0.4);
+}
+
+.split-btn-group.btn-solid-ready .split-btn-arrow {
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.split-btn-group.btn-solid-ready .split-btn-main:hover:not(:disabled),
+.split-btn-group.btn-solid-ready .split-btn-arrow:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* Outline Ready (PAUSE resume) */
+.split-btn-group.btn-outline-ready {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.split-btn-group.btn-outline-ready .split-btn-arrow {
+  border-left: 1px solid rgba(78, 222, 163, 0.3);
+}
+
+.split-btn-group.btn-outline-ready .split-btn-main:hover:not(:disabled),
+.split-btn-group.btn-outline-ready .split-btn-arrow:hover:not(:disabled) {
+  background: rgba(78, 222, 163, 0.15);
+}
+
+.split-btn-group.btn-danger {
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #ef4444;
+}
+
+.split-btn-main {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.split-btn-group.btn-danger {
+  border-color: rgba(239, 68, 68, 0.35);
+  color: rgba(239, 68, 68, 0.8);
+}
+.split-btn-group.btn-danger .split-btn-arrow {
+  border-left: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.split-btn-arrow {
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--outline-variant);
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.5rem;
+  cursor: pointer;
+}
+
+.split-btn-main:hover:not(:disabled), .split-btn-arrow:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.split-btn-group.btn-danger .split-btn-main:hover:not(:disabled),
+.split-btn-group.btn-danger .split-btn-arrow:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.split-btn-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 100%;
+  margin-top: 0.25rem;
+  background: rgba(19, 19, 19, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.split-dropdown-item {
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--on-surface);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  background: rgba(19, 19, 19, 0.95);
+  border-bottom: 1px solid var(--outline-variant);
+  transition: background 0.2s;
+}
+
+.split-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.split-dropdown-item:hover {
+  background: rgba(78, 222, 163, 0.15);
+  color: var(--primary);
+}
+
 .control-btn.start-mission.ready {
   color: var(--on-primary) !important;
   background: var(--primary) !important;
