@@ -13,6 +13,7 @@ type FollowMeBase struct {
 	Cfg    domain.Config
 	Broker ports.CommunicationProvider
 	State  domain.State
+	handler ports.FollowMeHandler
 }
 
 func (f *FollowMeBase) Run() error {
@@ -39,9 +40,9 @@ func (f *FollowMeBase) StartComms() error {
 	for msg := range msgChan {
 		switch msg.Topic {
 		case f.Cfg.TelemetryTopic:
-			f.HandleTelemetryTopic(msg.Payload)
+			f.handler.HandleTelemetryTopic(msg.Payload)
 		case f.Cfg.SubscriptionTopic:
-			f.HandleSubscriptionTopic(msg.Payload)
+			f.handler.HandleSubscriptionTopic(msg.Payload)
 		}
 	}
 
@@ -62,21 +63,16 @@ func (f *FollowMeBase) HandleCommand(payload any) error {
 
 	switch cmd.Command {
 	case "start", "resume":
-		f.OnStart()
+		f.handler.OnStart()
 	case "pause":
-		f.OnPause()
+		f.handler.OnPause()
 	case "stop":
-		f.OnStop()
+		f.handler.OnStop()
 	}
 
 	return nil
 }
 
-func (f *FollowMeBase) OnStart() {}
-func (f *FollowMeBase) OnPause() {}
-func (f *FollowMeBase) OnStop()  {}
-
-func (f *FollowMeBase) HandleTelemetryTopic(payload any) {}
 func (f *FollowMeBase) HandleSubscriptionTopic(payload any) {
 	f.HandleCommand(payload)
 }

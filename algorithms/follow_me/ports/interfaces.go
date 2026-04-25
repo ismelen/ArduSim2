@@ -16,6 +16,9 @@ type FollowMeManager interface {
 	Run() error
 	StartComms() error
 	HandleCommand(payload any) error
+}
+
+type FollowMeHandler interface {
 	OnStart()
 	OnPause()
 	OnStop()

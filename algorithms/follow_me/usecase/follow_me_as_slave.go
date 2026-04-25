@@ -19,13 +19,15 @@ func NewFollowMeAsSlave(
 	cfg domain.Config,
 	broker ports.CommunicationProvider,
 ) *FollowMeAsSlave {
-	return &FollowMeAsSlave{
+	fm := &FollowMeAsSlave{
 		FollowMeBase: FollowMeBase{
 			Cfg:    cfg,
 			Broker: broker,
 			State:  domain.IDLE,
 		},
 	}
+	fm.handler = fm
+	return fm
 }
 
 
