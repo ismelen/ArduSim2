@@ -96,7 +96,7 @@ const SplitButton: React.FC<SplitButtonProps> = ({
 };
 
 const SimulationView: React.FC = () => {
-  const { handleExitSimulation: exitSim, handleSendAlgorithmCommand } = useConfig();
+    const { handleExitSimulation: exitSim, handleSendAlgorithmCommand, isExiting } = useConfig();
   const { uavs: fleetUavs } = useFleet();
   const uavs = useTelemetry();
   const [time, setTime] = useState(0);
@@ -401,6 +401,19 @@ const SimulationView: React.FC = () => {
 
   return (
     <div className="sim-container">
+      {/* ── SIMULATION EXITING OVERLAY ── */}
+      {isExiting && (
+        <div className="sim-exiting-overlay">
+          <div className="exiting-content">
+            <div className="exiting-spinner"></div>
+            <div className="exiting-text-group">
+              <div className="exiting-title">SHUTTING DOWN SIMULATION</div>
+              <div className="exiting-subtitle">Removing containers and cleaning environment...</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── SIMULATION FINISHED BANNER ── */}
       {simulationFinished && (
         <div className="sim-finished-banner">

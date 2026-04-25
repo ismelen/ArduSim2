@@ -40,6 +40,7 @@ interface ConfigState extends GeneralConfigState {
   setFormationCenterLon: (lon: number) => void;
   setFormationSpacing: (spacing: number) => void;
   setFormationCenterMode: (mode: string) => void;
+  isExiting: boolean;
   handleStartSimulation: () => Promise<void>;
   handleExitSimulation: () => Promise<void>;
   handleLoadSimulation: () => Promise<void>;
@@ -64,6 +65,7 @@ export const useConfig = create<ConfigState>((set, get) => ({
   formationCenterLon: -0.346265,
   formationSpacing: 5.0,
   formationCenterMode: "CUSTOM",
+  isExiting: false,
 
   setSimulationName: (simulationName) => set({ simulationName }),
   setOriginalSimulationName: (originalSimulationName) => set({ originalSimulationName }),
@@ -107,6 +109,9 @@ export const useConfig = create<ConfigState>((set, get) => ({
   handleExitSimulation: async () => {
     const { exitSimulation } = useNavigation.getState();
     const keepLogs = confirm("¿Deseas guardar los logs y telemetría de esta simulación?");
+    
+    set({ isExiting: true });
+    
     try {
       await StopSimulation();
       
@@ -119,7 +124,8 @@ export const useConfig = create<ConfigState>((set, get) => ({
     } catch (err) {
       console.error("Failed to stop simulation:", err);
       alert(`STOP_ERROR: ${err instanceof Error ? err.message : String(err)}`);
-      throw err;
+    } finally {
+      set({ isExiting: false });
     }
   },
 

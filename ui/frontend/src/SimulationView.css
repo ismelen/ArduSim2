@@ -618,6 +618,74 @@
 .log-time { color: var(--on-surface-variant); }
 .log-level.ok { color: var(--primary); }
 .log-level.info { color: #3b82f6; }
+
+
+/* ─── EXITING OVERLAY ─── */
+.sim-exiting-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 10, 0.85);
+  backdrop-filter: blur(14px);
+  z-index: 50000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: overlayFadeIn 0.3s ease;
+}
+
+.exiting-content {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 2.5rem 4rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--outline-variant);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.4);
+}
+
+.exiting-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(78, 222, 163, 0.1);
+  border-top: 3px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  box-shadow: 0 0 15px rgba(78, 222, 163, 0.2);
+}
+
+.exiting-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.exiting-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--primary);
+  text-transform: uppercase;
+}
+
+.exiting-subtitle {
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  color: var(--on-surface-variant);
+  letter-spacing: 0.02em;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 .uav-marker-container {
   background: transparent;
   border: none;
