@@ -168,10 +168,6 @@ const SimulationView: React.FC = () => {
         }
       });
 
-      // Add 3D Building Layer (fill-extrusion)
-      // const layers = map.getStyle().layers;
-      // const labelLayerId = layers?.find(l => l.type === 'symbol' && l.layout && l.layout['text-field'])?.id;
-
       map.addLayer({
         'id': '3d-buildings',
         'source': 'carto',
@@ -182,7 +178,7 @@ const SimulationView: React.FC = () => {
           'fill-extrusion-color': '#d1d5db',
           'fill-extrusion-height': ['coalesce', ['get', 'render_height'], ['get', 'height'], 15],
           'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], ['get', 'min_height'], 0],
-          'fill-extrusion-opacity': 1,
+          'fill-extrusion-opacity': .5,
           "fill-extrusion-vertical-gradient": true
         }
       });
