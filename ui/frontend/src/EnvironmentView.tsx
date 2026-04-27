@@ -1,46 +1,12 @@
-import React, { useState } from 'react';
-import { ClipboardSetText } from '../wailsjs/runtime/runtime';
-import { CheckIcon, CopyIcon, NetworkIcon, TerminalIcon } from './components/Icons';
+import React from 'react';
+import { NetworkIcon, TerminalIcon } from './components/Icons';
 import { useEnvironment } from './hooks/useEnvironment';
-import { useNavigation } from './hooks/useNavigation';
 import { Card } from './components/common/Card';
 import { Button } from './components/common/Button';
 import { FormField } from './components/common/FormField';
 
 export const EnvironmentView: React.FC = () => {
-  const { activeMode, setActiveMode, masterIP, setMasterIP, showCommand, setShowCommand } = useEnvironment();
-  const { setCurrentTab } = useNavigation();
-
-  const [copied, setCopied] = useState(false);
-
-  const swarmCommand = `docker swarm join --token SWMTKN-1-49nj... ${masterIP}:2377`;
-
-
-  const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    ClipboardSetText(swarmCommand);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleEstablish = (e: React.MouseEvent) => {
-
-    e.stopPropagation();
-    ClipboardSetText(swarmCommand);
-    setShowCommand(true);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    // Wait 1s then navigate to FLEET_CONFIG
-    setTimeout(() => {
-      setCurrentTab('FLEET_CONFIG');
-    }, 1000);
-  };
-
-  const handleLocalSelect = () => {
-    setActiveMode('LOCAL');
-    setCurrentTab('FLEET_CONFIG');
-  };
-
+  const { activeMode, setActiveMode, masterIP, setMasterIP, masterPort, setMasterPort } = useEnvironment();
 
   return (
     <main className="main-content">
@@ -58,14 +24,14 @@ export const EnvironmentView: React.FC = () => {
           subtitle="SINGLE_SIM_ARCHITECTURE"
           headerIcon={<TerminalIcon />}
           active={activeMode === 'LOCAL'}
-          onClick={handleLocalSelect}
+          onClick={() => setActiveMode('LOCAL')}
         >
           <p className="card-desc">
             Rapid deployment for single-unit testing. Orchestrate simulated
             flight cycles within a sandboxed local container environment.
           </p>
           {activeMode !== 'LOCAL' && (
-            <Button variant="select" onClick={(e) => { e.stopPropagation(); handleLocalSelect(); }}>
+            <Button variant="select" onClick={(e) => { e.stopPropagation(); setActiveMode('LOCAL'); }}>
               Select Mode →
             </Button>
           )}
@@ -83,25 +49,21 @@ export const EnvironmentView: React.FC = () => {
               <FormField label="Master Node IP">
                 <input
                   type="text"
+                  placeholder="192.168.1.100"
                   value={masterIP}
                   onClick={(e) => e.stopPropagation()}
                   onChange={(e) => setMasterIP(e.target.value)}
                 />
               </FormField>
-
-              {showCommand ? (
-                <div className="command-box">
-                  <span className="command-box-label">Run on worker nodes:</span>
-                  <div className="command-box-content">
-                    <code>{swarmCommand}</code>
-                    <button className="copy-btn" onClick={handleCopy} title="Copy">
-                      {copied ? <CheckIcon /> : <CopyIcon />}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <Button onClick={handleEstablish}>Establish</Button>
-              )}
+              <FormField label="Docker API Port">
+                <input
+                  type="number"
+                  placeholder="2375"
+                  value={masterPort}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => setMasterPort(e.target.value)}
+                />
+              </FormField>
             </>
           ) : (
             <>
@@ -117,7 +79,5 @@ export const EnvironmentView: React.FC = () => {
         </Card>
       </div>
     </main>
-
   );
 };
-

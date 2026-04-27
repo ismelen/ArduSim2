@@ -31,6 +31,11 @@ type App struct {
 	// activeComposePath holds the path of the last generated docker-compose.yaml
 	// so that shutdown() can bring down the containers cleanly.
 	activeComposePath  string
+	// activeStackName is set when running in Swarm mode so StopSimulation knows
+	// which stack to remove via docker stack rm.
+	activeStackName   string
+	// activeSwarmHost is the DOCKER_HOST endpoint used for the running Swarm stack.
+	activeSwarmHost   string
 	// activeAlgorithmIDs is the set of algorithm service IDs running in the current session.
 	activeAlgorithmIDs map[string]bool
 	// stoppedAlgorithmIDs tracks which algorithms the user has manually stopped.
@@ -82,6 +87,9 @@ func (a *App) StartSimulation(uavs []simulation.UAV, generalConfig simulation.Ge
 	}
 
 	a.activeComposePath = composePath
+	// Reset swarm state from any previous run.
+	a.activeStackName = ""
+	a.activeSwarmHost = ""
 
 	if isLocal {
 		if err := a.launchDockerCompose(composePath); err != nil {
@@ -111,6 +119,41 @@ func (a *App) StartSimulation(uavs []simulation.UAV, generalConfig simulation.Ge
 				}
 			}
 		})
+
+		// Create a session-specific context that can be cancelled without killing the app.
+		if a.simCancel != nil {
+			a.simCancel()
+		}
+		a.simCtx, a.simCancel = context.WithCancel(a.ctx)
+		go a.subscriber.Start(a.simCtx)
+	} else {
+		// SWARM MODE
+		swarmHost := generalConfig.SwarmHost
+		simName := generalConfig.SimulationName
+		stackName := "Ardusim2-" + simName
+
+		a.activeStackName = stackName
+		a.activeSwarmHost = swarmHost
+
+		if err := a.launchDockerStack(composePath, swarmHost, stackName); err != nil {
+			return err
+		}
+
+		// Point the subscriber at the remote network_simulator.
+		swarmIP, _, splitErr := strings.Cut(swarmHost, ":")
+		if splitErr {
+			a.subscriber.SetRemoteAddr(swarmIP)
+		} else {
+			// Fallback: use swarmHost as-is if no port separator found.
+			a.subscriber.SetRemoteAddr(swarmHost)
+		}
+
+		// Prepare the subscriber fleet tracking.
+		var uavIDs []string
+		for _, uav := range uavs {
+			uavIDs = append(uavIDs, uav.ID)
+		}
+		a.subscriber.SetExpectedFleet(uavIDs, nil)
 
 		// Create a session-specific context that can be cancelled without killing the app.
 		if a.simCancel != nil {
@@ -277,8 +320,13 @@ func (a *App) StopSimulation() {
 		a.simCancel()
 		a.simCancel = nil
 	}
- 
-	if a.activeComposePath != "" {
+
+	if a.activeStackName != "" {
+		// SWARM MODE: remove the Docker stack from the remote host.
+		stopDockerStack(a.activeStackName, a.activeSwarmHost)
+		a.activeStackName = ""
+		a.activeSwarmHost = ""
+	} else if a.activeComposePath != "" {
 		stopDockerCompose(a.activeComposePath)
 		a.activeComposePath = ""
 	}
@@ -350,6 +398,101 @@ func stopDockerCompose(composePath string) {
 	if err := cmd.Run(); err != nil {
 		fmt.Printf("[shutdown] docker compose down failed: %v\n", err)
 	}
+}
+
+// stopDockerStack removes a Swarm stack from the remote Docker host.
+func stopDockerStack(stackName, swarmHost string) {
+	cmd := exec.Command("docker", "stack", "rm", stackName)
+	cmd.Env = append(os.Environ(), "DOCKER_HOST=tcp://"+swarmHost)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("[shutdown] docker stack rm failed: %v\n", err)
+	}
+}
+
+// launchDockerStack deploys a Swarm stack on the remote Docker host and polls
+// until all services are Running. Logs are streamed to the frontend via
+// the "simulation:log" event.
+//
+// Images must already be built and available on the Swarm nodes; this function
+// does not perform any build step.
+func (a *App) launchDockerStack(swarmComposePath, swarmHost, stackName string) error {
+	dockerEnv := append(os.Environ(), "DOCKER_HOST=tcp://"+swarmHost)
+
+	// 1. Deploy the stack (non-detached — blocks until deploy command returns).
+	deployCmd := exec.Command("docker", "stack", "deploy", "-c", swarmComposePath, stackName)
+	deployCmd.Env = dockerEnv
+	deployStdout, _ := deployCmd.StdoutPipe()
+	deployStderr, _ := deployCmd.StderrPipe()
+
+	if err := deployCmd.Start(); err != nil {
+		return fmt.Errorf("docker stack deploy start failed: %w", err)
+	}
+
+	// Stream deploy logs synchronously so the user sees progress.
+	deployScanner := simulation.NewLogScanner(deployStdout, deployStderr)
+	for deployScanner.Scan() {
+		runtime.EventsEmit(a.ctx, "simulation:log", deployScanner.Text())
+	}
+
+	if err := deployCmd.Wait(); err != nil {
+		return fmt.Errorf("docker stack deploy failed: %w", err)
+	}
+
+	// 2. Poll until all services in the stack are Running.
+	go a.pollSwarmStackReady(dockerEnv, stackName)
+
+	return nil
+}
+
+// pollSwarmStackReady polls `docker stack ps` until all tasks in the given
+// stack are in state "Running", emitting each poll result as a simulation:log.
+func (a *App) pollSwarmStackReady(dockerEnv []string, stackName string) {
+	const (
+		maxAttempts = 60
+		pollDelay   = 5 * time.Second
+	)
+
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		time.Sleep(pollDelay)
+
+		cmd := exec.Command("docker", "stack", "ps", "--no-trunc", stackName)
+		cmd.Env = dockerEnv
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			runtime.EventsEmit(a.ctx, "simulation:log",
+				fmt.Sprintf("[swarm] stack ps error: %v", err))
+			continue
+		}
+
+		lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+		for _, line := range lines {
+			runtime.EventsEmit(a.ctx, "simulation:log", "[swarm] "+line)
+		}
+
+		// Check if every task (non-header line) contains "Running".
+		allRunning := true
+		taskLines := 0
+		for _, line := range lines[1:] { // skip header
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			taskLines++
+			if !strings.Contains(line, "Running") {
+				allRunning = false
+			}
+		}
+
+		if taskLines > 0 && allRunning {
+			runtime.EventsEmit(a.ctx, "simulation:log",
+				fmt.Sprintf("[swarm] ✓ All services in stack %q are Running", stackName))
+			return
+		}
+	}
+
+	runtime.EventsEmit(a.ctx, "simulation:log",
+		fmt.Sprintf("[swarm] ⚠ Timeout waiting for all services in %q to reach Running state", stackName))
 }
 
 // launchDockerCompose runs `docker compose up -d` in the directory containing

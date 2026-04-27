@@ -26,9 +26,10 @@ func NewOrchestrator(paths config.Paths) *Orchestrator {
 	return &Orchestrator{paths: paths}
 }
 
-// Run generates the simulation directory and Docker Compose file for the given
-// fleet, then launches Docker if isLocal is true.
-// Returns the path to the generated docker-compose.yaml.
+// Run generates the simulation directory and the appropriate Docker Compose
+// file for the given fleet. In LOCAL mode it generates docker-compose.yaml;
+// in SWARM mode it generates docker-compose.swarm.yaml using the Swarm builder.
+// Returns the path to the generated compose file.
 func (o *Orchestrator) Run(uavs []UAV, generalConfig GeneralConfig, activeMode string, isLocal bool, simDir string) (string, error) {
 	resDir := filepath.Join(simDir, "resources")
 	if err := os.MkdirAll(resDir, 0755); err != nil {
@@ -58,6 +59,18 @@ func (o *Orchestrator) Run(uavs []UAV, generalConfig GeneralConfig, activeMode s
 		}
 	}
 
+	// Calculate ground formation offsets (Strategy Pattern)
+	f := formation.GetFormation(generalConfig.GroundFormation)
+	offsets := f.CalculateOffsets(len(uavs), generalConfig.FormationSpacing)
+
+	if activeMode == "SWARM" {
+		return o.buildSwarmCompose(uavs, generalConfig, speeds, offsets, resDir, simDir)
+	}
+	return o.buildLocalCompose(uavs, generalConfig, speeds, offsets, resDir, simDir, runDir)
+}
+
+// buildLocalCompose generates docker-compose.yaml using the standard bridge builder.
+func (o *Orchestrator) buildLocalCompose(uavs []UAV, generalConfig GeneralConfig, speeds []float64, offsets []formation.Offset, resDir, simDir, runDir string) (string, error) {
 	writer := NewResourceWriter(resDir)
 	builder := newComposeBuilder()
 
@@ -68,10 +81,6 @@ func (o *Orchestrator) Run(uavs []UAV, generalConfig GeneralConfig, activeMode s
 		_ = os.MkdirAll(nsLogDir, 0755)
 	}
 	builder.AddNetworkSimulator(nsLogDir, generalConfig.VerboseLogging)
-
-	// Calculate ground formation offsets (Strategy Pattern)
-	f := formation.GetFormation(generalConfig.GroundFormation)
-	offsets := f.CalculateOffsets(len(uavs), generalConfig.FormationSpacing)
 
 	for i, uav := range uavs {
 		uavSpeed := 10.0 // Default speed
@@ -94,7 +103,36 @@ func (o *Orchestrator) Run(uavs []UAV, generalConfig GeneralConfig, activeMode s
 	if err := os.WriteFile(composePath, []byte(builder.Build()), 0644); err != nil {
 		return "", fmt.Errorf("write docker-compose.yaml: %w", err)
 	}
+	return composePath, nil
+}
 
+// buildSwarmCompose generates docker-compose.swarm.yaml using the overlay builder.
+func (o *Orchestrator) buildSwarmCompose(uavs []UAV, generalConfig GeneralConfig, speeds []float64, offsets []formation.Offset, resDir, simDir string) (string, error) {
+	writer := NewResourceWriter(resDir)
+	builder := newSwarmComposeBuilder()
+
+	builder.AddNetworkSimulator(generalConfig.VerboseLogging)
+
+	for i, uav := range uavs {
+		uavSpeed := 10.0
+		if i < len(speeds) {
+			uavSpeed = speeds[i]
+		}
+
+		paramFileName, err := o.generateUAVParams(uav.ID, uavSpeed, generalConfig, resDir)
+		if err != nil {
+			return "", fmt.Errorf("generate uav %s params: %w", uav.ID, err)
+		}
+
+		if err := o.appendSwarmUAV(uav, paramFileName, builder, writer, generalConfig, offsets[i]); err != nil {
+			return "", fmt.Errorf("swarm uav %s: %w", uav.ID, err)
+		}
+	}
+
+	composePath := filepath.Join(simDir, "docker-compose.swarm.yaml")
+	if err := os.WriteFile(composePath, []byte(builder.Build()), 0644); err != nil {
+		return "", fmt.Errorf("write docker-compose.swarm.yaml: %w", err)
+	}
 	return composePath, nil
 }
 
@@ -332,4 +370,86 @@ func (o *Orchestrator) getServiceSchema(folderName string) (map[string]interface
 		return nil, err
 	}
 	return schema, nil
+}
+
+// appendSwarmUAV adds all service blocks for a single UAV to the Swarm builder.
+// It mirrors appendUAV but uses swarmComposeBuilder semantics: no local log
+// bind-mounts and config files are referenced as Docker configs.
+func (o *Orchestrator) appendSwarmUAV(uav UAV, paramFileName string, builder *swarmComposeBuilder, writer *ResourceWriter, config GeneralConfig, offset formation.Offset) error {
+	uavNum, _ := strconv.Atoi(uav.ID)
+
+	builder.AddUAVNetwork(uav.ID)
+
+	builder.AddCommunicationModule(uav.ID, config.VerboseLogging)
+
+	appFileName, err := o.writeTemplateConfig("application_config", nil, writer)
+	if err != nil {
+		return err
+	}
+	builder.AddApplication(uav.ID, appFileName, config.VerboseLogging)
+
+	ucFileName, err := o.writeTemplateConfig("uav_controller_config", nil, writer)
+	if err != nil {
+		return err
+	}
+
+	homeLat, homeLon := geo.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
+	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
+
+	builder.AddUAVController(uav.ID, ucFileName, paramFileName, homeLocation, config.VerboseLogging)
+
+	ecOverrides := map[string]interface{}{
+		"uav_id":         uavNum,
+		"simulator_ip":   "network_simulator",
+		"simulator_port": 3000,
+	}
+	ecFileName, err := o.writeTemplateConfig("external_comms_config", ecOverrides, writer)
+	if err != nil {
+		return err
+	}
+	builder.AddExternalComms(uav.ID, ecFileName, config.VerboseLogging)
+
+	for _, svc := range uav.Services {
+		cfg := make(map[string]interface{})
+		for k, v := range svc.Config {
+			cfg[k] = v
+		}
+
+		// Promote KML files to Docker config entries by copying them into the resources dir.
+		var extraVolumes []VolumeMount
+		if schema, err := o.getServiceSchema(svc.FolderName); err == nil {
+			if props, ok := schema["properties"].(map[string]interface{}); ok {
+				for key, val := range props {
+					prop, ok := val.(map[string]interface{})
+					if !ok {
+						continue
+					}
+					if format, ok := prop["format"].(string); ok && format == "kml" {
+						if srcPath, ok := cfg[key].(string); ok && srcPath != "" {
+							ext := filepath.Ext(srcPath)
+							hostName := fmt.Sprintf("%s_%s%s", svc.ServiceId, key, ext)
+							if data, err := os.ReadFile(srcPath); err == nil {
+								if err := os.WriteFile(filepath.Join(writer.outputDir, hostName), data, os.ModePerm); err == nil {
+									containerPath := fmt.Sprintf("/app/%s%s", key, ext)
+									cfg[key] = containerPath
+									extraVolumes = append(extraVolumes, VolumeMount{
+										HostPath:      hostName,
+										ContainerPath: containerPath,
+									})
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		svcFileName, err := writer.Write(svc.ServiceId+"_config", cfg)
+		if err != nil {
+			return fmt.Errorf("service %q config: %w", svc.ServiceId, err)
+		}
+		builder.AddAlgorithmService(uav.ID, svc, svcFileName, extraVolumes, config.VerboseLogging)
+	}
+
+	return nil
 }

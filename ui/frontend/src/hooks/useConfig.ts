@@ -21,6 +21,8 @@ export interface GeneralConfigState {
   formationCenterLon: number;
   formationSpacing: number;
   formationCenterMode: string;
+  /** Remote Docker API endpoint for Swarm deployments (e.g. "192.168.1.10:2375") */
+  swarmHost: string;
 }
 
 interface ConfigState extends GeneralConfigState {
@@ -65,6 +67,7 @@ export const useConfig = create<ConfigState>((set, get) => ({
   formationCenterLon: -0.346265,
   formationSpacing: 5.0,
   formationCenterMode: "CUSTOM",
+  swarmHost: "",
   isExiting: false,
 
   setSimulationName: (simulationName) => set({ simulationName }),
@@ -86,20 +89,23 @@ export const useConfig = create<ConfigState>((set, get) => ({
 
   handleStartSimulation: async () => {
     const { uavs } = useFleet.getState();
-    const { activeMode } = useEnvironment.getState();
+    const { activeMode, masterIP, masterPort } = useEnvironment.getState();
     const { startSimulation, exitSimulation } = useNavigation.getState();
     const { handleStartSimulation, ...config } = get();
+
+    // Compose the swarm host address and persist it in the config sent to the backend.
+    const isLocal = activeMode === "LOCAL";
+    const swarmHost = isLocal ? "" : `${masterIP}:${masterPort}`;
+    const configWithSwarm = { ...config, swarmHost };
 
     // Navigate immediately to the simulation view
     startSimulation();
 
     try {
-      await StartSimulation(uavs as any, config, activeMode, activeMode === "LOCAL");
+      await StartSimulation(uavs as any, configWithSwarm, activeMode, isLocal);
     } catch (err) {
       console.error("Failed to start simulation:", err);
-      // Show error message
       alert(`SIMULATION_ERROR: ${err instanceof Error ? err.message : String(err)}`);
-      // Navigate back to configuration
       exitSimulation();
       throw err;
     }
@@ -146,8 +152,13 @@ export const useConfig = create<ConfigState>((set, get) => ({
       // Load Fleet
       loadFleet(state.uavs);
 
-      // Load Environment
+      // Load Environment (including swarm host if present)
       setActiveMode(state.activeMode as any);
+      if (state.generalConfig.swarmHost) {
+        const [ip, port] = state.generalConfig.swarmHost.split(':');
+        useEnvironment.getState().setMasterIP(ip ?? '');
+        useEnvironment.getState().setMasterPort(port ?? '2375');
+      }
 
       // Load General Config
       setSimulationName(state.generalConfig.simulationName || state.generalConfig.originalSimulationName || "");

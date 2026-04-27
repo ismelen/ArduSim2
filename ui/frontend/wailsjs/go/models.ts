@@ -53,6 +53,7 @@ export namespace simulation {
 	    formationCenterLon: number;
 	    formationSpacing: number;
 	    formationCenterMode: string;
+	    swarmHost: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new GeneralConfig(source);
@@ -76,6 +77,7 @@ export namespace simulation {
 	        this.formationCenterLon = source["formationCenterLon"];
 	        this.formationSpacing = source["formationSpacing"];
 	        this.formationCenterMode = source["formationCenterMode"];
+	        this.swarmHost = source["swarmHost"];
 	    }
 	}
 	export class ServiceType {

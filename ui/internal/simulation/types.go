@@ -46,6 +46,9 @@ type GeneralConfig struct {
 	FormationCenterLon  float64 `json:"formationCenterLon"`
 	FormationSpacing    float64 `json:"formationSpacing"`
 	FormationCenterMode string  `json:"formationCenterMode"`
+
+	// Remote Docker API endpoint for Swarm deployments (format: "IP:PORT").
+	SwarmHost string `json:"swarmHost"`
 }
 
 // UAV groups a UAV identifier with its set of deployed services.

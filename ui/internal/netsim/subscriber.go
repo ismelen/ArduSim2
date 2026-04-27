@@ -72,16 +72,35 @@ type Subscriber struct {
 	ready        bool
 	finished     bool
 	wailsCtx     context.Context
+	// remoteAddr is the UDP endpoint of the network simulator (host:port).
+	remoteAddr string
+	// useDockerWait controls whether Start waits for the container via docker inspect.
+	// Set to false in Swarm mode where the container runs on a remote host.
+	useDockerWait bool
 }
 
-// NewSubscriber creates a Subscriber with empty tracking maps.
+// NewSubscriber creates a Subscriber pointing to the local network simulator.
 func NewSubscriber() *Subscriber {
-	return &Subscriber{}
+	return &Subscriber{
+		remoteAddr:    networkSimulatorAddr,
+		useDockerWait: true,
+	}
 }
 
 // SetContext stores the Wails context so the subscriber can emit frontend events.
 func (s *Subscriber) SetContext(ctx context.Context) {
 	s.wailsCtx = ctx
+}
+
+// SetRemoteAddr reconfigures the subscriber to connect to a non-local simulator.
+// ip must be a bare IP address; port 3000 is appended automatically.
+// Calling this also disables the docker inspect wait (useDockerWait = false)
+// because the container runs on a remote host.
+func (s *Subscriber) SetRemoteAddr(ip string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.remoteAddr = ip + ":3000"
+	s.useDockerWait = false
 }
 
 // SetOnFinish registers a callback invoked when simulation is finished.
@@ -126,7 +145,7 @@ func (s *Subscriber) SetExpectedFleet(uavIDs []string, callback func()) {
 // SendGlobalBroadcast dispatches a JSON message to port 3000 of the simulator,
 // intended for delivery to all registered UAVs.
 func (s *Subscriber) SendGlobalBroadcast(payload interface{}) error {
-	remoteAddr, err := net.ResolveUDPAddr("udp", networkSimulatorAddr)
+	remoteUDPAddr, err := net.ResolveUDPAddr("udp", s.remoteAddr)
 	if err != nil {
 		return fmt.Errorf("resolve remote addr: %w", err)
 	}
@@ -150,18 +169,19 @@ func (s *Subscriber) SendGlobalBroadcast(payload interface{}) error {
 	}
 	defer conn.Close()
 
-	if _, err := conn.WriteToUDP(marshaled, remoteAddr); err != nil {
+	if _, err := conn.WriteToUDP(marshaled, remoteUDPAddr); err != nil {
 		return fmt.Errorf("write broadcast packet: %w", err)
 	}
 	return nil
 }
 
 // Start blocks until ctx is cancelled, continuously listening for UDP telemetry.
-// It waits for the network_simulator container to be ready before connecting.
+// It waits for the network_simulator to be ready before connecting.
+// In local mode it polls docker inspect; in Swarm mode it polls TCP reachability.
 // All errors are logged to stdout; transient read errors do not terminate the loop.
 func (s *Subscriber) Start(ctx context.Context) {
-	if err := s.waitForContainer(ctx); err != nil {
-		fmt.Printf("[netsim] container wait failed: %v\n", err)
+	if err := s.waitForSimulator(ctx); err != nil {
+		fmt.Printf("[netsim] simulator wait failed: %v\n", err)
 		return
 	}
 
@@ -184,6 +204,16 @@ func (s *Subscriber) Start(ctx context.Context) {
 	}
 
 	s.readLoop(ctx, conn)
+}
+
+// waitForSimulator waits until the network simulator is accepting connections.
+// In LOCAL mode it polls docker inspect for the container Running state.
+// In SWARM mode it polls with TCP "ping" (dial the simulator port).
+func (s *Subscriber) waitForSimulator(ctx context.Context) error {
+	if s.useDockerWait {
+		return s.waitForContainer(ctx)
+	}
+	return s.waitForTCPReachability(ctx)
 }
 
 // waitForContainer polls Docker until the network_simulator container reports
@@ -209,11 +239,47 @@ func (s *Subscriber) waitForContainer(ctx context.Context) error {
 	return fmt.Errorf("timed out waiting for %s container", networkSimulatorContainer)
 }
 
+// waitForTCPReachability polls the simulator's UDP port via a TCP-level check
+// (attempting to establish a TCP connection to test host reachability) until the
+// host is responding, or the timeout elapses. This is used in Swarm mode where
+// docker inspect is not available locally.
+//
+// Note: the network_simulator listens on UDP 3000, but TCP connectivity to the
+// host validates that the Swarm node is network-reachable. A brief extra delay
+// is added after the host is reachable to let the application process bind its
+// UDP port.
+func (s *Subscriber) waitForTCPReachability(ctx context.Context) error {
+	// Derive the host from remoteAddr (strip the port, use port 3000 for the TCP check).
+	host, _, err := net.SplitHostPort(s.remoteAddr)
+	if err != nil {
+		return fmt.Errorf("invalid remote addr %q: %w", s.remoteAddr, err)
+	}
+	checkAddr := host + ":3000"
+
+	deadline := time.Now().Add(containerReadyTimeout)
+	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		conn, err := net.DialTimeout("tcp", checkAddr, containerReadyPollInterval)
+		if err == nil {
+			conn.Close()
+			time.Sleep(portBindDelay)
+			return nil
+		}
+		time.Sleep(containerReadyPollInterval)
+	}
+	return fmt.Errorf("timed out waiting for remote simulator at %s", checkAddr)
+}
+
 // openUDPConnection resolves the simulator address and opens a local UDP socket.
 func (s *Subscriber) openUDPConnection() (*net.UDPConn, error) {
-	remoteAddr, err := net.ResolveUDPAddr("udp", networkSimulatorAddr)
+	remoteUDPAddr, err := net.ResolveUDPAddr("udp", s.remoteAddr)
 	if err != nil {
-		return nil, fmt.Errorf("resolve %s: %w", networkSimulatorAddr, err)
+		return nil, fmt.Errorf("resolve %s: %w", s.remoteAddr, err)
 	}
 
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
@@ -232,14 +298,14 @@ func (s *Subscriber) openUDPConnection() (*net.UDPConn, error) {
 
 	// Tag the connection with the remote address by doing a zero-byte send;
 	// actual subscription packet is sent in sendSubscribeRequest.
-	_ = remoteAddr
+	_ = remoteUDPAddr
 	return conn, nil
 }
 
 // sendSubscribeRequest sends subscription packets for both "telemetry" and
 // "messages" topics to the simulator.
 func (s *Subscriber) sendSubscribeRequest(conn *net.UDPConn) error {
-	remoteAddr, err := net.ResolveUDPAddr("udp", networkSimulatorAddr)
+	remoteUDPAddr, err := net.ResolveUDPAddr("udp", s.remoteAddr)
 	if err != nil {
 		return fmt.Errorf("resolve remote addr: %w", err)
 	}
@@ -254,7 +320,7 @@ func (s *Subscriber) sendSubscribeRequest(conn *net.UDPConn) error {
 		if err != nil {
 			return fmt.Errorf("marshal subscribe payload for %s: %w", topic, err)
 		}
-		if _, err := conn.WriteToUDP(payload, remoteAddr); err != nil {
+		if _, err := conn.WriteToUDP(payload, remoteUDPAddr); err != nil {
 			return fmt.Errorf("write subscribe packet for %s: %w", topic, err)
 		}
 	}

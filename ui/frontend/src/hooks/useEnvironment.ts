@@ -5,18 +5,17 @@ export type ArchMode = 'LOCAL' | 'SWARM';
 interface EnvironmentState {
   activeMode: ArchMode;
   masterIP: string;
-  showCommand: boolean;
+  masterPort: string;
   setActiveMode: (mode: ArchMode) => void;
   setMasterIP: (ip: string) => void;
-  setShowCommand: (show: boolean) => void;
+  setMasterPort: (port: string) => void;
 }
 
 export const useEnvironment = create<EnvironmentState>((set) => ({
   activeMode: 'LOCAL',
   masterIP: '',
-  showCommand: false,
+  masterPort: '2375',
   setActiveMode: (mode) => set({ activeMode: mode }),
   setMasterIP: (ip) => set({ masterIP: ip }),
-  setShowCommand: (show) => set({ showCommand: show }),
+  setMasterPort: (port) => set({ masterPort: port }),
 }));
-
