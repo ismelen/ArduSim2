@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -91,6 +92,8 @@ func (a *App) StartSimulation(uavs []simulation.UAV, generalConfig simulation.Ge
 	a.activeStackName = ""
 	a.activeSwarmHost = ""
 
+	log.Println(isLocal)
+	
 	if isLocal {
 		if err := a.launchDockerCompose(composePath); err != nil {
 			return err
@@ -419,10 +422,10 @@ func stopDockerStack(stackName, swarmHost string) {
 // does not perform any build step.
 func (a *App) launchDockerStack(swarmComposePath, swarmHost, stackName string) error {
 	dockerEnv := os.Environ()
-	if !(strings.Contains(swarmHost, "localhost") && strings.Contains(swarmHost, "127.0.0.1")) {
+	if !(strings.Contains(swarmHost, "localhost") || strings.Contains(swarmHost, "127.0.0.1")) {
 		dockerEnv = append(dockerEnv, "DOCKER_HOST=tcp://"+swarmHost)
 	}
-
+	
 	// 1. Deploy the stack (non-detached — blocks until deploy command returns).
 	deployCmd := exec.Command("docker", "stack", "deploy", "-c", swarmComposePath, stackName)
 	deployCmd.Env = dockerEnv
@@ -440,6 +443,7 @@ func (a *App) launchDockerStack(swarmComposePath, swarmHost, stackName string) e
 	}
 
 	if err := deployCmd.Wait(); err != nil {
+		log.Println(err, deployCmd.Args)
 		return fmt.Errorf("docker stack deploy failed: %w", err)
 	}
 

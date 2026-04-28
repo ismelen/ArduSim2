@@ -41,11 +41,13 @@ func main() {
 		config.TelemetryTopic,
 	}); err != nil {
 		log.Fatalf("Failed to connect to Broker: %v", err)
+		panic(err)
 	}
 
 	uavLink, err := infrastructure.NewDirectUAVLink(config.UAVControllerIP, config.UAVControllerPort, config.UAVTelemetryPort)
 	if err != nil {
 		log.Fatalf("Failed to establish direct UDP link to UAV: %v", err)
+		panic(err)
 	}
 	defer uavLink.Close()
 

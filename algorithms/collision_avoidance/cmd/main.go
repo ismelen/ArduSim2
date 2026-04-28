@@ -39,6 +39,7 @@ func main() {
 	subTopics := []string{config.TelemetryTopic, config.ExternalTelemetry}
 	if err := udpBroker.Connect(config.BrokerIP, config.BrokerPort, subTopics); err != nil {
 		log.Fatalf("Failed to connect to broker: %v", err)
+		panic(err)
 	}
 
 	mbcapCore := usecase.NewMBCAPCore(udpBroker, memoryStore, config, params)

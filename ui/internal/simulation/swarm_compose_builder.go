@@ -41,7 +41,10 @@ func (b *swarmComposeBuilder) AddNetworkSimulator(verbose bool) {
 	fmt.Fprintf(&b.services, `  network_simulator:
     image: network_simulator
     ports:
-      - 3000:3000/udp
+      - target: 3000
+        published: 3000
+        protocol: udp
+        mode: ingress
 %s    networks:
       - air
 
@@ -80,6 +83,12 @@ func (b *swarmComposeBuilder) AddApplication(uavID, configFileName string, verbo
 %s    configs:
       - source: %s
         target: /app/config.json
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
     networks:
       %s:
         aliases:
@@ -126,6 +135,12 @@ func (b *swarmComposeBuilder) AddExternalComms(uavID, configFileName string, ver
 %s    configs:
       - source: %s
         target: /app/config.json
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
     networks:
       %s:
         aliases:
@@ -156,6 +171,12 @@ func (b *swarmComposeBuilder) AddAlgorithmService(uavID string, svc DeployedServ
       %s:
         aliases:
           - %s
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
 
 `, svc.ServiceId, uavID,
 		svc.ServiceId,

@@ -33,6 +33,7 @@ func main() {
 		config.SubMessagesTopic,
 	}); err != nil {
 		log.Fatalf("Failed to connect broker: %v", err)
+		panic(err)
 	}
 
 	netLink, err := infrastructure.NewUDPNetSimLink(config.NetSimIP, config.NetSimPort)
