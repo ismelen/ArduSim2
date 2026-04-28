@@ -418,7 +418,9 @@ func stopDockerStack(stackName, swarmHost string) {
 // Images must already be built and available on the Swarm nodes; this function
 // does not perform any build step.
 func (a *App) launchDockerStack(swarmComposePath, swarmHost, stackName string) error {
-	dockerEnv := append(os.Environ(), "DOCKER_HOST=tcp://"+swarmHost)
+	if !(strings.Contains(swarmHost, "localhost") && strings.Contains(swarmHost, "127.0.0.1")) {
+		dockerEnv := append(os.Environ(), "DOCKER_HOST=tcp://"+swarmHost)
+	}
 
 	// 1. Deploy the stack (non-detached — blocks until deploy command returns).
 	deployCmd := exec.Command("docker", "stack", "deploy", "-c", swarmComposePath, stackName)
