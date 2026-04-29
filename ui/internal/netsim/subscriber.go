@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"os/exec"
 	"strings"
@@ -198,12 +199,29 @@ func (s *Subscriber) Start(ctx context.Context) {
 		conn.Close()
 	}()
 
-	if err := s.sendSubscribeRequest(conn); err != nil {
-		fmt.Printf("[netsim] subscription request failed: %v\n", err)
-		return
-	}
+	messageReceivedChan := make(chan any, 1)
 
-	s.readLoop(ctx, conn)
+	go func() {
+		deadline := time.Now().Add(containerReadyTimeout)
+		for time.Now().Before(deadline) {
+			select {
+			case <-messageReceivedChan:
+				return
+			case <-ctx.Done():
+				log.Println(ctx.Err())
+				return
+			default:
+			}
+			
+			if err := s.sendSubscribeRequest(conn); err != nil {
+				fmt.Printf("[netsim] subscription request failed: %v\n", err)
+				continue
+			}
+			return
+		}
+	}()
+
+	s.readLoop(ctx, conn, messageReceivedChan)
 }
 
 // waitForSimulator waits until the network simulator is accepting connections.
@@ -213,7 +231,8 @@ func (s *Subscriber) waitForSimulator(ctx context.Context) error {
 	if s.useDockerWait {
 		return s.waitForContainer(ctx)
 	}
-	return s.waitForTCPReachability(ctx)
+	// return s.waitForTCPReachability(ctx)
+	return nil
 }
 
 // waitForContainer polls Docker until the network_simulator container reports
@@ -264,7 +283,8 @@ func (s *Subscriber) waitForTCPReachability(ctx context.Context) error {
 		default:
 		}
 
-		conn, err := net.DialTimeout("tcp", checkAddr, containerReadyPollInterval)
+		//TODO: errores
+		conn, err := net.DialTimeout("udp", checkAddr, containerReadyPollInterval)
 		if err == nil {
 			conn.Close()
 			time.Sleep(portBindDelay)
@@ -329,7 +349,7 @@ func (s *Subscriber) sendSubscribeRequest(conn *net.UDPConn) error {
 
 // readLoop continuously reads UDP datagrams and dispatches each packet based
 // on its topic field. It handles both "telemetry" and "messages" topics.
-func (s *Subscriber) readLoop(ctx context.Context, conn *net.UDPConn) {
+func (s *Subscriber) readLoop(ctx context.Context, conn *net.UDPConn, messageReceived chan any) {
 	buffer := make([]byte, udpBufferSize)
 	fmt.Printf("[netsim] Subscribed to telemetry + messages, reading from %s\n", conn.LocalAddr().String())
 	for {
@@ -341,6 +361,8 @@ func (s *Subscriber) readLoop(ctx context.Context, conn *net.UDPConn) {
 			fmt.Printf("[netsim] read error: %v\n", err)
 			continue
 		}
+
+		messageReceived <- struct{}{}
 
 		var msg NetSimMessage
 		if err := json.Unmarshal(buffer[:bytesRead], &msg); err != nil {
