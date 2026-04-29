@@ -37,6 +37,8 @@ type App struct {
 	activeStackName   string
 	// activeSwarmHost is the DOCKER_HOST endpoint used for the running Swarm stack.
 	activeSwarmHost   string
+	// activeSimulationName stores the name of the current simulation for log organization.
+	activeSimulationName string
 	// activeAlgorithmIDs is the set of algorithm service IDs running in the current session.
 	activeAlgorithmIDs map[string]bool
 	// stoppedAlgorithmIDs tracks which algorithms the user has manually stopped.
@@ -137,6 +139,7 @@ func (a *App) StartSimulation(uavs []simulation.UAV, generalConfig simulation.Ge
 
 		a.activeStackName = stackName
 		a.activeSwarmHost = swarmHost
+		a.activeSimulationName = simName
 
 		if err := a.launchDockerStack(composePath, swarmHost, stackName); err != nil {
 			return err
@@ -316,6 +319,76 @@ func (a *App) SaveSimulationConfig(uavs []simulation.UAV, generalConfig simulati
 	return os.WriteFile(statePath, data, 0644)
 }
 
+// CleanSwarmNodes collects logs from all Swarm services and removes the stack.
+func (a *App) CleanSwarmNodes() {
+	if a.activeStackName == "" || a.activeSwarmHost == "" {
+		return
+	}
+
+	timestamp := time.Now().Format("2006-01-02_15-04-05")
+	runDir := filepath.Join(a.paths.SimulationsDir, a.activeSimulationName, "runs", timestamp)
+
+	dockerEnv := os.Environ()
+	if !(strings.Contains(a.activeSwarmHost, "localhost") || strings.Contains(a.activeSwarmHost, "127.0.0.1")) {
+		dockerEnv = append(dockerEnv, "DOCKER_HOST=tcp://"+a.activeSwarmHost)
+	}
+
+	// 1. Get all services in the stack
+	cmd := exec.Command("docker", "stack", "services", "--format", "{{.Name}}", a.activeStackName)
+	cmd.Env = dockerEnv
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Printf("[CleanSwarmNodes] failed to list services: %v\nOutput: %s\n", err, string(out))
+		stopDockerStack(a.activeStackName, a.activeSwarmHost)
+		return
+	}
+
+	serviceNames := strings.Split(strings.TrimSpace(string(out)), "\n")
+
+	for _, fullName := range serviceNames {
+		fullName = strings.TrimSpace(fullName)
+		if fullName == "" {
+			continue
+		}
+
+		nameWithoutPrefix := strings.TrimPrefix(fullName, a.activeStackName+"_")
+
+		var destDir string
+		if nameWithoutPrefix == "network_simulator" {
+			destDir = filepath.Join(runDir, "network_simulator")
+		} else {
+			parts := strings.Split(nameWithoutPrefix, "_")
+			if len(parts) >= 2 {
+				uavID := parts[len(parts)-1]
+				serviceType := strings.Join(parts[:len(parts)-1], "_")
+				destDir = filepath.Join(runDir, "uav-"+uavID, serviceType)
+			} else {
+				destDir = filepath.Join(runDir, "unknown", nameWithoutPrefix)
+			}
+		}
+
+		if err := os.MkdirAll(destDir, 0755); err != nil {
+			fmt.Printf("[CleanSwarmNodes] failed to create dir %s: %v\n", destDir, err)
+			continue
+		}
+
+		logCmd := exec.Command("docker", "service", "logs", fullName)
+		logCmd.Env = dockerEnv
+		logOut, logErr := logCmd.CombinedOutput()
+		if logErr != nil {
+			fmt.Printf("[CleanSwarmNodes] failed to get logs for %s: %v\n", fullName, logErr)
+			continue
+		}
+
+		logPath := filepath.Join(destDir, "service.log")
+		if err := os.WriteFile(logPath, logOut, 0644); err != nil {
+			fmt.Printf("[CleanSwarmNodes] failed to write log to %s: %v\n", logPath, err)
+		}
+	}
+
+	stopDockerStack(a.activeStackName, a.activeSwarmHost)
+}
+
 // StopSimulation performs a clean shutdown of the simulated environment.
 // This is intended to be called when the user exits the simulation view.
 func (a *App) StopSimulation() {
@@ -325,10 +398,11 @@ func (a *App) StopSimulation() {
 	}
 
 	if a.activeStackName != "" {
-		// SWARM MODE: remove the Docker stack from the remote host.
-		stopDockerStack(a.activeStackName, a.activeSwarmHost)
+		// SWARM MODE: collect logs and remove stack
+		a.CleanSwarmNodes()
 		a.activeStackName = ""
 		a.activeSwarmHost = ""
+		a.activeSimulationName = ""
 	} else if a.activeComposePath != "" {
 		stopDockerCompose(a.activeComposePath)
 		a.activeComposePath = ""
