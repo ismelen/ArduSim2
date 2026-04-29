@@ -448,7 +448,7 @@ func (a *App) launchDockerStack(swarmComposePath, swarmHost, stackName string) e
 	}
 
 	// 2. Poll until all services in the stack are Running.
-	go a.pollSwarmStackReady(dockerEnv, stackName)
+	// go a.pollSwarmStackReady(dockerEnv, stackName)
 
 	return nil
 }

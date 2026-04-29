@@ -352,6 +352,7 @@ func (s *Subscriber) sendSubscribeRequest(conn *net.UDPConn) error {
 func (s *Subscriber) readLoop(ctx context.Context, conn *net.UDPConn, messageReceived chan any) {
 	buffer := make([]byte, udpBufferSize)
 	fmt.Printf("[netsim] Subscribed to telemetry + messages, reading from %s\n", conn.LocalAddr().String())
+	hasConnection := false
 	for {
 		bytesRead, _, err := conn.ReadFromUDP(buffer)
 		if err != nil {
@@ -362,7 +363,10 @@ func (s *Subscriber) readLoop(ctx context.Context, conn *net.UDPConn, messageRec
 			continue
 		}
 
-		messageReceived <- struct{}{}
+		if !hasConnection {
+			messageReceived <- struct{}{}
+			hasConnection = true
+		}
 
 		var msg NetSimMessage
 		if err := json.Unmarshal(buffer[:bytesRead], &msg); err != nil {
