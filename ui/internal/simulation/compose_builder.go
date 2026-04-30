@@ -166,7 +166,7 @@ func (b *composeBuilder) AddExternalComms(uavID, configFileName, logDir string, 
 	fmt.Fprintf(&b.services, `  external_comms_%s:
     image: external_comms
     build:
-      context: ../../auxiliaries/external_comms
+      context: ../../external_comms
       dockerfile: Dockerfile
     container_name: external_comms_%s
     depends_on:

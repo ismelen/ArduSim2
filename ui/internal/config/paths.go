@@ -13,7 +13,8 @@ type Paths struct {
 	// SimulationsDir is where per-run simulation directories are created.
 	SimulationsDir string
 	// ResourcesDir is where shared base config templates reside.
-	ResourcesDir string
+	ApplicationConfig, UavControllerConfig, ExternalCommsConfig string
+	Base string
 }
 
 // NewPaths resolves all paths relative to projectRoot (the working directory).
@@ -22,6 +23,9 @@ func NewPaths(projectRoot string) Paths {
 	return Paths{
 		AlgorithmsDir:  filepath.Join(base, "..", "algorithms"),
 		SimulationsDir: filepath.Join(base, "..", "simulations"),
-		ResourcesDir:   filepath.Join(base, "..", "resources"),
+		ApplicationConfig: filepath.Join(base, "..", "application", "config.json"),
+		UavControllerConfig: filepath.Join(base, "..", "uav_controller", "ardupilot4_5_3", "config.sitl.json"),
+		ExternalCommsConfig: filepath.Join(base, "..", "config.json"),
+		Base: base,
 	}
 }

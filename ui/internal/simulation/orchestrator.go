@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
+	"time"
 	"ui/internal/config"
 	"ui/internal/geo"
 	"ui/internal/simulation/formation"
-	"time"
 )
 
 // Orchestrator coordinates a full simulation run: creates the directory tree,
@@ -155,14 +155,14 @@ func (o *Orchestrator) appendUAV(uav UAV, paramFileName string, builder *compose
 	builder.AddCommunicationModule(uav.ID, commLogDir, config.VerboseLogging)
 
 	appLogDir := o.getServiceLogDir(uavLogRoot, "application")
-	appFileName, err := o.writeTemplateConfig("application_config", nil, writer)
+	appFileName, err := o.writeTemplateConfig("application_config", o.paths.ApplicationConfig, nil, writer)
 	if err != nil {
 		return err
 	}
 	builder.AddApplication(uav.ID, appFileName, appLogDir, config.VerboseLogging)
 
 	ucLogDir := o.getServiceLogDir(uavLogRoot, "uav_controller")
-	ucFileName, err := o.writeTemplateConfig("uav_controller_config", nil, writer)
+	ucFileName, err := o.writeTemplateConfig("uav_controller_config", o.paths.UavControllerConfig, nil, writer)
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func (o *Orchestrator) appendUAV(uav UAV, paramFileName string, builder *compose
 		"simulator_ip":   "network_simulator",
 		"simulator_port": 3000,
 	}
-	ecFileName, err := o.writeTemplateConfig("external_comms_config", ecOverrides, writer)
+	ecFileName, err := o.writeTemplateConfig("external_comms_config", o.paths.ExternalCommsConfig, ecOverrides, writer)
 	if err != nil {
 		return err
 	}
@@ -256,7 +256,7 @@ func (o *Orchestrator) getServiceLogDir(uavLogRoot, serviceName string) string {
 
 // generateUAVParams reads the base copter.parm and appends values from generalConfig, including per-UAV speed.
 func (o *Orchestrator) generateUAVParams(uavID string, speed float64, config GeneralConfig, resDir string) (string, error) {
-	baseParmPath := filepath.Join(o.paths.ResourcesDir, "..", "uav_controller", "ardupilot4_5_3", "ardupilot", "copter.parm")
+	baseParmPath := filepath.Join(o.paths.Base, "..", "uav_controller", "ardupilot4_5_3", "ardupilot", "copter.parm")
 	content, err := os.ReadFile(baseParmPath)
 	if err != nil {
 		return "", fmt.Errorf("read base parm: %w", err)
@@ -321,9 +321,7 @@ func (o *Orchestrator) loadSpeedProfile(path string) ([]float64, error) {
 
 // writeTemplateConfig loads a base JSON config from the resources directory,
 // applies any overrides on top of it, and delegates writing to the ResourceWriter.
-func (o *Orchestrator) writeTemplateConfig(baseName string, overrides map[string]interface{}, writer *ResourceWriter) (string, error) {
-	templatePath := filepath.Join(o.paths.ResourcesDir, baseName+".json")
-
+func (o *Orchestrator) writeTemplateConfig(baseName, templatePath string, overrides map[string]interface{}, writer *ResourceWriter) (string, error) {
 	cfg := make(map[string]interface{})
 	if rawData, err := os.ReadFile(templatePath); err == nil {
 		// Non-fatal: if the template is missing we start from an empty config.
@@ -382,13 +380,13 @@ func (o *Orchestrator) appendSwarmUAV(uav UAV, paramFileName string, builder *sw
 
 	builder.AddCommunicationModule(uav.ID, config.VerboseLogging)
 
-	appFileName, err := o.writeTemplateConfig("application_config", nil, writer)
+	appFileName, err := o.writeTemplateConfig("application_config", o.paths.ApplicationConfig, nil, writer)
 	if err != nil {
 		return err
 	}
 	builder.AddApplication(uav.ID, appFileName, config.VerboseLogging)
 
-	ucFileName, err := o.writeTemplateConfig("uav_controller_config", nil, writer)
+	ucFileName, err := o.writeTemplateConfig("uav_controller_config", o.paths.UavControllerConfig, nil, writer)
 	if err != nil {
 		return err
 	}
@@ -403,7 +401,7 @@ func (o *Orchestrator) appendSwarmUAV(uav UAV, paramFileName string, builder *sw
 		"simulator_ip":   "network_simulator",
 		"simulator_port": 3000,
 	}
-	ecFileName, err := o.writeTemplateConfig("external_comms_config", ecOverrides, writer)
+	ecFileName, err := o.writeTemplateConfig("external_comms_config", o.paths.ExternalCommsConfig, ecOverrides, writer)
 	if err != nil {
 		return err
 	}
