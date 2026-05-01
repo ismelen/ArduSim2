@@ -1,0 +1,47 @@
+package wails
+
+import (
+	"context"
+	"ui/ports"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
+)
+
+type WailsBridge struct {
+	ctx context.Context
+}
+
+func NewWailsBridge() *WailsBridge {
+	return &WailsBridge{}
+}
+
+func (b *WailsBridge) SetContext(ctx context.Context) {
+	b.ctx = ctx
+}
+
+func (b *WailsBridge) EmitEvent(name string, data ...interface{}) {
+	if b.ctx != nil {
+		runtime.EventsEmit(b.ctx, name, data...)
+	}
+}
+
+func (b *WailsBridge) OpenDirectoryDialog(ctx context.Context, title, defaultDir string) (string, error) {
+	return runtime.OpenDirectoryDialog(ctx, runtime.OpenDialogOptions{
+		DefaultDirectory: defaultDir,
+		Title:            title,
+	})
+}
+
+func (b *WailsBridge) OpenFileDialog(ctx context.Context, title string, filters []ports.FileFilter) (string, error) {
+	wailsFilters := make([]runtime.FileFilter, len(filters))
+	for i, f := range filters {
+		wailsFilters[i] = runtime.FileFilter{
+			DisplayName: f.DisplayName,
+			Pattern:     f.Pattern,
+		}
+	}
+	return runtime.OpenFileDialog(ctx, runtime.OpenDialogOptions{
+		Title:   title,
+		Filters: wailsFilters,
+	})
+}

@@ -1,0 +1,45 @@
+package domain
+
+import (
+	"regexp"
+	"strings"
+	"time"
+)
+
+// GeneralConfig contains simulation-wide parameters like wind and battery.
+type GeneralConfig struct {
+	SpeedProfilePath  string  `json:"speedProfilePath"`
+	LoggingEnabled    bool    `json:"loggingEnabled"`
+	BatteryRestricted bool    `json:"batteryRestricted"`
+	BatteryCapacity   int     `json:"batteryCapacity"`
+	VerboseLogging    bool    `json:"verboseLogging"`
+	StoreLocalData    bool    `json:"storeLocalData"`
+	WindEnabled       bool    `json:"windEnabled"`
+	WindDirection     float64 `json:"windDirection"`
+	WindSpeed         float64 `json:"windSpeed"`
+
+	SimulationName         string `json:"simulationName"`
+	OriginalSimulationName string `json:"originalSimulationName"`
+
+	// Ground Formation configuration
+	GroundFormation     string  `json:"groundFormation"` // LINEAR, MATRIX, CIRCLE, RANDOM
+	FormationCenterLat  float64 `json:"formationCenterLat"`
+	FormationCenterLon  float64 `json:"formationCenterLon"`
+	FormationSpacing    float64 `json:"formationSpacing"`
+	FormationCenterMode string  `json:"formationCenterMode"`
+
+	// Remote Docker API endpoint for Swarm deployments (format: "IP:PORT").
+	SwarmHost string `json:"swarmHost"`
+}
+
+// SanitizeSimulationName ensures the simulation name is filesystem-friendly.
+func (c *GeneralConfig) SanitizeSimulationName() {
+	name := strings.TrimSpace(c.SimulationName)
+	if name == "" {
+		name = time.Now().Format("20060102_150405")
+	} else {
+		reg := regexp.MustCompile(`[^a-zA-Z0-9_\-]+`)
+		name = reg.ReplaceAllString(name, "_")
+	}
+	c.SimulationName = name
+}

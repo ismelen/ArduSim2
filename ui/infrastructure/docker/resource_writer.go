@@ -1,4 +1,4 @@
-package simulation
+package docker
 
 import (
 	"crypto/sha256"

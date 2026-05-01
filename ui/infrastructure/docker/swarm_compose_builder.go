@@ -1,8 +1,9 @@
-package simulation
+package docker
 
 import (
 	"fmt"
 	"strings"
+	"ui/domain"
 )
 
 // swarmComposeBuilder assembles a Docker Stack (Swarm-compatible) YAML document.
@@ -152,7 +153,7 @@ func (b *swarmComposeBuilder) AddExternalComms(uavID, configFileName string, ver
 
 // AddAlgorithmService appends a user-deployed algorithm service for a UAV.
 // Extra volumes (e.g. KML files) are also promoted to Docker configs.
-func (b *swarmComposeBuilder) AddAlgorithmService(uavID string, svc DeployedService, configFileName string, extraVolumes []VolumeMount, verbose bool) {
+func (b *swarmComposeBuilder) AddAlgorithmService(uavID string, svc domain.DeployedService, configFileName string, extraVolumes []domain.VolumeMount, verbose bool) {
 	uavNet := uavNetworkName(uavID)
 	env := b.buildEnvBlock("    ", verbose)
 	configName := b.declareConfig(configFileName)

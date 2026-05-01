@@ -1,8 +1,6 @@
-package geo
+package util
 
-import (
-	"math"
-)
+import "math"
 
 const (
 	// EarthRadius is the mean radius of Earth in meters.

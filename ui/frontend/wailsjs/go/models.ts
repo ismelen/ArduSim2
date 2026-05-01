@@ -1,4 +1,4 @@
-export namespace simulation {
+export namespace domain {
 	
 	export class Coordinate {
 	    lat: number;

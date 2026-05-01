@@ -1,8 +1,9 @@
-package simulation
+package docker
 
 import (
 	"fmt"
 	"strings"
+	"ui/domain"
 )
 
 // composeBuilder assembles a Docker Compose YAML document incrementally.
@@ -183,7 +184,7 @@ func (b *composeBuilder) AddExternalComms(uavID, configFileName, logDir string, 
 }
 
 // AddAlgorithmService appends a user-deployed algorithm service for a UAV.
-func (b *composeBuilder) AddAlgorithmService(uavID string, svc DeployedService, configFileName string, extraVolumes []VolumeMount, logDir string, verbose bool) {
+func (b *composeBuilder) AddAlgorithmService(uavID string, svc domain.DeployedService, configFileName string, extraVolumes []domain.VolumeMount, logDir string, verbose bool) {
 	uavNet := uavNetworkName(uavID)
 
 	var env string
