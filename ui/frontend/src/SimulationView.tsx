@@ -98,7 +98,30 @@ const SplitButton: React.FC<SplitButtonProps> = ({
 const SimulationView: React.FC = () => {
     const { handleExitSimulation: exitSim, handleSendAlgorithmCommand, isExiting } = useConfig();
   const { uavs: fleetUavs } = useFleet();
-  const uavs = useTelemetry();
+  const uavs = useTelemetry((uavId, lat, lon) => {
+    if (!trailsRef.current[uavId]) {
+      trailsRef.current[uavId] = [];
+    }
+    // Only push if it's a valid coordinate (not 0,0)
+    if (lat !== 0 || lon !== 0) {
+      const coords = trailsRef.current[uavId];
+      const last = coords[coords.length - 1];
+      // Push if it's the first point or different from the last real point to keep history clean
+      if (!last || last[0] !== lon || last[1] !== lat) {
+        coords.push([lon, lat]);
+      }
+
+      // Auto-center on first valid coordinate (NOT 0,0)
+      if (!centeredRef.current && mapRef.current) {
+        mapRef.current.flyTo({
+          center: [lon, lat],
+          zoom: 16,
+          speed: 1.2
+        });
+        centeredRef.current = true;
+      }
+    }
+  });
   const [time, setTime] = useState(0);
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
   const [logs, setLogs] = useState<{ time: string, level: string, msg: string }[]>([]);
@@ -238,17 +261,7 @@ const SimulationView: React.FC = () => {
     if (!mapRef.current) return;
 
     uavList.forEach((uav) => {
-      // 1. Auto-center on first valid coordinate (NOT 0,0)
-      if (!centeredRef.current && (uav.lat !== 0 || uav.lon !== 0)) {
-        mapRef.current?.flyTo({
-          center: [uav.lon, uav.lat],
-          zoom: 16,
-          speed: 1.2
-        });
-        centeredRef.current = true;
-      }
-
-      // 2. Manage Markers
+      // 1. Manage Markers
       if (markersRef.current[uav.id]) {
         // Update existing marker
         const marker = markersRef.current[uav.id];
@@ -268,27 +281,16 @@ const SimulationView: React.FC = () => {
           .addTo(mapRef.current!);
         markersRef.current[uav.id] = marker;
       }
-
-      // 3. Manage Trails
-      if (!trailsRef.current[uav.id]) {
-        trailsRef.current[uav.id] = [];
-      }
-      
-      const lastPos = trailsRef.current[uav.id][trailsRef.current[uav.id].length - 1];
-      const dist = lastPos ? Math.sqrt(Math.pow(lastPos[0] - uav.lon, 2) + Math.pow(lastPos[1] - uav.lat, 2)) : Infinity;
-      // Push if coordinate moved > 0.000005 deg (~0.5m) to avoid too many points, but keep it high resolution
-      if (dist > 0.000005 && (uav.lon !== 0 || uav.lat !== 0)) {
-        trailsRef.current[uav.id].push([uav.lon, uav.lat]);
-      }
     });
 
-    // Always update GeoJSON source every frame so the tip of the trail perfectly perfectly anchors to the UAV
+    // 3. Manage Trails (GeoJSON layer)
+    // Always update GeoJSON source every frame so the tip of the trail perfectly anchors to the UAV
     const source = mapRef.current.getSource('uav-trails') as maplibregl.GeoJSONSource;
     if (source) {
       const features = Object.entries(trailsRef.current).map(([id, coords]) => {
         const uavState = uavList.find(u => u.id === id);
         const activeCoords = [...coords];
-        // Append live location to bridge the gap between >0.5m discrete points
+        // Append current interpolated location to bridge the gap between discrete telemetry points
         if (uavState && uavState.lon !== 0 && uavState.lat !== 0) {
           activeCoords.push([uavState.lon, uavState.lat]);
         }
@@ -542,37 +544,44 @@ const SimulationView: React.FC = () => {
               <div className="card-value mode-text">AWAITING UAVs</div>
             </div>
           )}
-          {uavList.map(uav => (
-            <div key={uav.id} className="telemetry-card compact-card">
-              <div className="card-label">UAV {uav.id} <span className={`status-dot ${uav.nrGpsOnline > 0 ? 'ready' : 'not-ready'}`}></span></div>
-              
-              <div className="compact-stats">
-                <div className="stat">
-                  <span className="material-symbols-outlined">flight_takeoff</span>
-                  <span>{uav.alt.toFixed(1)} <small>m</small></span>
+          {uavList.map(uav => {
+            const color = getColorForUav(uav.id);
+            return (
+              <div 
+                key={uav.id} 
+                className="telemetry-card compact-card"
+                style={{ '--uav-color': color } as React.CSSProperties}
+              >
+                <div className="card-label">UAV {uav.id} <span className={`status-dot ${uav.nrGpsOnline > 0 ? 'ready' : 'not-ready'}`}></span></div>
+                
+                <div className="compact-stats">
+                  <div className="stat">
+                    <span className="material-symbols-outlined">flight_takeoff</span>
+                    <span>{uav.alt.toFixed(1)} <small>m</small></span>
+                  </div>
+                  <div className="stat">
+                    <span className="material-symbols-outlined">speed</span>
+                    <span>{Math.sqrt(uav.vx**2 + uav.vy**2).toFixed(1)} <small>m/s</small></span>
+                  </div>
+                  <div className="stat">
+                    <span className="material-symbols-outlined">battery_charging_full</span>
+                    <span>{uav.battery}%</span>
+                  </div>
+                  <div className="stat">
+                    <span className="mode-text">{uav.flight_mode}</span>
+                  </div>
                 </div>
-                <div className="stat">
-                  <span className="material-symbols-outlined">speed</span>
-                  <span>{Math.sqrt(uav.vx**2 + uav.vy**2).toFixed(1)} <small>m/s</small></span>
-                </div>
-                <div className="stat">
-                  <span className="material-symbols-outlined">battery_charging_full</span>
-                  <span>{uav.battery}%</span>
-                </div>
-                <div className="stat">
-                  <span className="mode-text">{uav.flight_mode}</span>
-                </div>
-              </div>
 
-              <div className="compact-coords" style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', color: 'var(--on-surface-variant)', marginTop: '0.4rem', letterSpacing: '0.05em' }}>
-                <span style={{color: 'var(--on-surface)'}}>LAT</span> {uav.lat.toFixed(5)}° &bull; <span style={{color: 'var(--on-surface)'}}>LNG</span> {uav.lon.toFixed(5)}° &bull; <span style={{color: 'var(--primary)'}}>HDG</span> {uav.heading.toFixed(0)}°
+                <div className="compact-coords" style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', color: 'var(--on-surface-variant)', marginTop: '0.4rem', letterSpacing: '0.05em' }}>
+                  <span style={{color: 'var(--on-surface)'}}>LAT</span> {uav.lat.toFixed(5)}° &bull; <span style={{color: 'var(--on-surface)'}}>LNG</span> {uav.lon.toFixed(5)}° &bull; <span style={{color: 'var(--uav-color)'}}>HDG</span> {uav.heading.toFixed(0)}°
+                </div>
+                
+                <div className="progress-bar mini-bar">
+                  <div className="fill" style={{ width: `${uav.battery}%` }}></div>
+                </div>
               </div>
-              
-              <div className="progress-bar mini-bar">
-                <div className="fill" style={{ width: `${uav.battery}%` }}></div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="sidebar-footer">

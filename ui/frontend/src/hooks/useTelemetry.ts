@@ -5,12 +5,12 @@ import { EventsOn } from '../../wailsjs/runtime/runtime';
  * METERS_PER_DEGREE_LAT: Approximate meters per degree of latitude.
  * 111,319.5m is a standard constant for WGS84 at most latitudes.
  */
-const METERS_PER_DEGREE_LAT = 111319.5;
+// const METERS_PER_DEGREE_LAT = 111319.5;
 
 export interface TelemetryData {
     uav_id: string;
     payload: {
-        position: { lat: number; lon: number; alt: number; heading: number };
+        position: { lat: number; lon: number; alt: number; heading: number; relative_alt: number };
         speed: { vx: number; vy: number; vz: number };
         battery: number;
         status: string;
@@ -25,6 +25,7 @@ export interface UAVState {
     lat: number;
     lon: number;
     alt: number;
+    relativeAlt: number;
     heading: number;
     vx: number; // North (m/s)
     vy: number; // East (m/s)
@@ -36,24 +37,47 @@ export interface UAVState {
     nrGpsOnline: number;
 }
 
+interface InterpolationNode {
+    start: UAVState;
+    end: UAVState;
+    startTime: number;
+    duration: number;
+}
+
+/**
+ * Helper to interpolate between two angles correctly (handles 359 -> 0 jump)
+ */
+function lerpAngle(a: number, b: number, t: number) {
+    let diff = ((b - a + 180) % 360) - 180;
+    return a + diff * t;
+}
+
 /**
  * useTelemetry hook manages real-time UAV telemetry state.
- * It listens for 'telemetry' events from Wails and performs
- * dead-reckoning extrapolation at 60 FPS for smooth UI movement.
+ * It uses interpolation between the last two received points to provide smooth 60fps movement.
  */
-export function useTelemetry() {
-    const uavsRef = useRef<Record<string, UAVState>>({});
-    const [predictedUavs, setPredictedUavs] = useState<Record<string, UAVState>>({});
+export function useTelemetry(onNewRealPoint?: (uavId: string, lat: number, lon: number) => void) {
+    const nodesRef = useRef<Record<string, InterpolationNode>>({});
+    const lastPacketTimeRef = useRef<Record<string, number>>({});
+    const [interpolatedUavs, setInterpolatedUavs] = useState<Record<string, UAVState>>({});
+    const onNewRealPointRef = useRef(onNewRealPoint);
+
+    // Keep the callback ref updated to avoid re-subscribing to events if it changes
+    useEffect(() => {
+        onNewRealPointRef.current = onNewRealPoint;
+    }, [onNewRealPoint]);
 
     useEffect(() => {
-        // Subscribe to telemetry events from Go backend
         const unsubscribe = EventsOn('telemetry', (msg: TelemetryData) => {
             const now = performance.now();
+            const uavId = msg.uav_id;
+
             const newState: UAVState = {
-                id: msg.uav_id,
+                id: uavId,
                 lat: msg.payload.position.lat,
                 lon: msg.payload.position.lon,
                 alt: msg.payload.position.alt,
+                relativeAlt: msg.payload.position.relative_alt,
                 heading: msg.payload.position.heading,
                 vx: msg.payload.speed.vx,
                 vy: msg.payload.speed.vy,
@@ -64,13 +88,44 @@ export function useTelemetry() {
                 flight_mode: msg.payload.flight_mode,
                 nrGpsOnline: msg.payload.nr_gps_online,
             };
-            uavsRef.current[msg.uav_id] = newState;
+
+            // Notify about the new "point of truth" for the trail
+            if (onNewRealPointRef.current) {
+                onNewRealPointRef.current(uavId, newState.lat, newState.lon);
+            }
+
+            const lastNode = nodesRef.current[uavId];
+            const lastPacketTime = lastPacketTimeRef.current[uavId];
+            
+            // Estimate duration between packets for the next interpolation segment
+            const duration = lastPacketTime ? (now - lastPacketTime) : 1000; // Default to 1s if first packet
+            lastPacketTimeRef.current[uavId] = now;
+
+            const isFirstValidPacket = (!lastNode || (lastNode.end.lat === 0 && lastNode.end.lon === 0)) && (newState.lat !== 0 || newState.lon !== 0);
+
+            if (isFirstValidPacket || !lastNode) {
+                // First packet OR first non-zero packet: jump immediately (don't interpolate from 0,0)
+                nodesRef.current[uavId] = {
+                    start: newState,
+                    end: newState,
+                    startTime: now,
+                    duration: 100, // Minimal duration for the very first appearance
+                };
+            } else {
+                // We interpolate from the current end point (the "now" of the simulation) to the new point
+                nodesRef.current[uavId] = {
+                    start: lastNode.end,
+                    end: newState,
+                    startTime: now,
+                    duration: duration,
+                };
+            }
         });
 
         return () => {
             if (unsubscribe) unsubscribe();
         };
-    }, []);
+    }, []); // No dependencies, subscription handled via refs
 
     useEffect(() => {
         let animationFrameId: number;
@@ -79,27 +134,24 @@ export function useTelemetry() {
             const now = performance.now();
             const nextStates: Record<string, UAVState> = {};
 
-            Object.entries(uavsRef.current).forEach(([id, state]) => {
-                const dt = (now - state.lastUpdate) / 1000; // time in seconds since last UDP packet
+            Object.entries(nodesRef.current).forEach(([id, node]) => {
+                let t = (now - node.startTime) / node.duration;
+                if (t > 1) t = 1; // Cap at 1 if we are waiting for the next packet
 
-                // Prediction logic (Dead Reckoning)
-                // New Position = Received Position + (Velocity * dt)
-                
-                // 1. Latitude change (vx = North)
-                const dLat = (state.vx * dt) / METERS_PER_DEGREE_LAT;
-                
-                // 2. Longitude change (vy = East). Depends on latitude.
-                const latRad = (state.lat * Math.PI) / 180;
-                const dLon = (state.vy * dt) / (METERS_PER_DEGREE_LAT * Math.cos(latRad));
+                const { start, end } = node;
 
                 nextStates[id] = {
-                    ...state,
-                    lat: state.lat + dLat,
-                    lon: state.lon + dLon,
+                    ...end, // Base state from the target node
+                    lat: start.lat + (end.lat - start.lat) * t,
+                    lon: start.lon + (end.lon - start.lon) * t,
+                    alt: start.alt + (end.alt - start.alt) * t,
+                    relativeAlt: start.relativeAlt + (end.relativeAlt - start.relativeAlt) * t,
+                    heading: lerpAngle(start.heading, end.heading, t),
+                    // Velocities and other stats are just kept from the 'end' node for simplicity
                 };
             });
 
-            setPredictedUavs(nextStates);
+            setInterpolatedUavs(nextStates);
             animationFrameId = requestAnimationFrame(updatePositions);
         };
 
@@ -107,5 +159,5 @@ export function useTelemetry() {
         return () => cancelAnimationFrame(animationFrameId);
     }, []);
 
-    return predictedUavs;
+    return interpolatedUavs;
 }
