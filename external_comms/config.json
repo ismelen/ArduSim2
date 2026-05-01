@@ -1,8 +1,8 @@
 {
   "broker_ip": "communication_module",
   "broker_port": 3400,
-  "simulator_ip": "127.0.0.1",
-  "simulator_port": 6000,
+  "simulator_ip": "network_simulator",
+  "simulator_port": 3000,
 
   "sub_telemetry_topic": "uav/telemetry",
   "sub_messages_topic": "external/messages",

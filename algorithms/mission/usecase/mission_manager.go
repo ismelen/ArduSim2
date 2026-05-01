@@ -56,7 +56,17 @@ func (m *MissionManager) Initialize(configFile string) error {
 
 	m.relativeHomeSet = !m.config.RelativeMovement
 
-	return m.broker.Connect(m.config.BrokerIP, m.config.BrokerPort, m.config.SubscriptionTopic, m.config.TelemetryTopic)
+	for {
+		err := m.broker.Connect(m.config.BrokerIP, m.config.BrokerPort, m.config.SubscriptionTopic, m.config.TelemetryTopic)
+		if err != nil {
+			log.Printf(err.Error())
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		break
+	}
+
+	return nil
 }
 
 func (m *MissionManager) Run() {

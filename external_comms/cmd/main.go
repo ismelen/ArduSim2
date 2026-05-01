@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"external_comms/infrastructure"
 	"external_comms/usecase"
@@ -28,17 +29,27 @@ func main() {
 	broker := infrastructure.NewUDPBroker()
 	defer broker.Close()
 
-	if err := broker.Connect(config.BrokerIP, config.BrokerPort, []string{
-		config.SubTelemetryTopic,
-		config.SubMessagesTopic,
-	}); err != nil {
-		log.Fatalf("Failed to connect broker: %v", err)
-		panic(err)
+	for {
+		if err := broker.Connect(config.BrokerIP, config.BrokerPort, []string{
+			config.SubTelemetryTopic,
+			config.SubMessagesTopic,
+		}); err != nil {
+			log.Printf("Failed to connect broker: %v", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		break
 	}
 
-	netLink, err := infrastructure.NewUDPNetSimLink(config.NetSimIP, config.NetSimPort)
-	if err != nil {
-		log.Fatalf("Failed to connect NetSim: %v", err)
+	var netLink *infrastructure.UDPNetSimLink
+	for {
+		netLink, err = infrastructure.NewUDPNetSimLink(config.NetSimIP, config.NetSimPort)
+		if err != nil {
+			log.Fatalf("Failed to connect NetSim: %v", err)
+			time.Sleep(5 *time.Second)
+			continue
+		}
+		break
 	}
 	defer netLink.Close()
 

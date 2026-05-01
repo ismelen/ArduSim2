@@ -5,6 +5,7 @@ import (
 	"follow_me/domain"
 	"follow_me/ports"
 	"log"
+	"time"
 
 	"github.com/go-viper/mapstructure/v2"
 )
@@ -21,13 +22,18 @@ func (f *FollowMeBase) Run() error {
 }
 
 func (f *FollowMeBase) StartComms() error {
-	if err := f.Broker.Connect(
-		f.Cfg.BrokerIP,
-		f.Cfg.BrokerPort,
-		f.Cfg.TelemetryTopic,
-		f.Cfg.SubscriptionTopic,
-	); err != nil {
-		return err
+	for {
+		if err := f.Broker.Connect(
+			f.Cfg.BrokerIP,
+			f.Cfg.BrokerPort,
+			f.Cfg.TelemetryTopic,
+			f.Cfg.SubscriptionTopic,
+		); err != nil {
+			log.Printf(err.Error())
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		break
 	}
 
 	msgChan, err := f.Broker.Listen()

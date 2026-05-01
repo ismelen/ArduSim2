@@ -94,8 +94,6 @@ func (a *App) StartSimulation(uavs []simulation.UAV, generalConfig simulation.Ge
 	a.activeStackName = ""
 	a.activeSwarmHost = ""
 
-	log.Println(isLocal)
-	
 	if isLocal {
 		if err := a.launchDockerCompose(composePath); err != nil {
 			return err
@@ -339,7 +337,7 @@ func (a *App) CleanSwarmNodes() {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Printf("[CleanSwarmNodes] failed to list services: %v\nOutput: %s\n", err, string(out))
-		stopDockerStack(a.activeStackName, a.activeSwarmHost)
+		a.stopDockerStack(a.activeStackName, a.activeSwarmHost)
 		return
 	}
 
@@ -386,7 +384,7 @@ func (a *App) CleanSwarmNodes() {
 		}
 	}
 
-	stopDockerStack(a.activeStackName, a.activeSwarmHost)
+	a.stopDockerStack(a.activeStackName, a.activeSwarmHost)
 }
 
 // StopSimulation performs a clean shutdown of the simulated environment.
@@ -478,13 +476,26 @@ func stopDockerCompose(composePath string) {
 }
 
 // stopDockerStack removes a Swarm stack from the remote Docker host.
-func stopDockerStack(stackName, swarmHost string) {
+func (a *App) stopDockerStack(stackName, swarmHost string) {
 	cmd := exec.Command("docker", "stack", "rm", stackName)
-	cmd.Env = append(os.Environ(), "DOCKER_HOST=tcp://"+swarmHost)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Printf("[shutdown] docker stack rm failed: %v\n", err)
+	dockerEnv := os.Environ()
+	if !(strings.Contains(swarmHost, "localhost") || strings.Contains(swarmHost, "127.0.0.1")) {
+		dockerEnv = append(dockerEnv, "DOCKER_HOST=tcp://"+swarmHost)
+	}
+	cmd.Env = dockerEnv
+	stdout, _ := cmd.StdoutPipe()
+	stderr, _ := cmd.StderrPipe()
+	if err := cmd.Start(); err != nil {
+		fmt.Printf("[shutdown] docker stack rm failed for %s: %v\n", stackName, err)
+	}
+
+	scanner := simulation.NewLogScanner(stdout, stderr)
+	for scanner.Scan() {
+		runtime.EventsEmit(a.ctx, "simualtion:log", scanner.Text())
+	}
+
+	if err := cmd.Wait(); err != nil {
+		log.Println(err, cmd.Args)		
 	}
 }
 

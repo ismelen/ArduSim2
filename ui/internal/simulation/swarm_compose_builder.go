@@ -86,9 +86,9 @@ func (b *swarmComposeBuilder) AddApplication(uavID, configFileName string, verbo
     deploy:
       restart_policy:
         condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 120s
+        delay: "5s"
+        max_attempts: 20
+        window: "120s"
     networks:
       %s:
         aliases:
@@ -138,9 +138,9 @@ func (b *swarmComposeBuilder) AddExternalComms(uavID, configFileName string, ver
     deploy:
       restart_policy:
         condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 120s
+        delay: "5s"
+        max_attempts: 20
+        window: "120s"
     networks:
       %s:
         aliases:
@@ -174,9 +174,9 @@ func (b *swarmComposeBuilder) AddAlgorithmService(uavID string, svc DeployedServ
     deploy:
       restart_policy:
         condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 120s
+        delay: "5s"
+        max_attempts: 20
+        window: "120s"
 
 `, svc.ServiceId, uavID,
 		svc.ServiceId,

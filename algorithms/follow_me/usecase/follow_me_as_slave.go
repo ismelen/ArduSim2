@@ -87,8 +87,8 @@ func (f *FollowMeAsSlave) handleMasterTelemetry(payload any) error {
 		return fmt.Errorf("void master telemetry")
 	}
 
-	isMasterFlying := masterTel.RelativeAlt > 0.5
-	imFlying := f.tel.Position.RelativeAlt > 0.5
+	isMasterFlying := masterTel.RelativeAlt >= 0.5
+	imFlying := f.tel.Position.RelativeAlt >= 0.5
 
 	if !isMasterFlying {
 		if imFlying {

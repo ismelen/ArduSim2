@@ -36,7 +36,8 @@ func (f FollowMeMessage) FromTelemetry(t Telemetry) FollowMeMessage {
 }
 
 type CommandMessage struct {
-	Command string `mapstructure:"command"`
+	Command string `mapstructure:"command" json:"command"`
+	Source string `json:"source"`
 }
 
 // Telemetry represents the own position of a UAV

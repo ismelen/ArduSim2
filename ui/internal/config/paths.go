@@ -25,7 +25,7 @@ func NewPaths(projectRoot string) Paths {
 		SimulationsDir: filepath.Join(base, "..", "simulations"),
 		ApplicationConfig: filepath.Join(base, "..", "application", "config.json"),
 		UavControllerConfig: filepath.Join(base, "..", "uav_controller", "ardupilot4_5_3", "config.sitl.json"),
-		ExternalCommsConfig: filepath.Join(base, "..", "config.json"),
+		ExternalCommsConfig: filepath.Join(base, "..", "external_comms", "config.json"),
 		Base: base,
 	}
 }

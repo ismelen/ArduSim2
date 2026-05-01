@@ -31,19 +31,38 @@ func NewFollowMeAsMaster(cfg domain.Config, broker ports.CommunicationProvider) 
 }
 
 func (f *FollowMeAsMaster) HandleTelemetryTopic(payload any) {
+	if f.State == domain.IDLE { return }
+
 	var tel domain.Telemetry
 	if err := mapstructure.Decode(payload.(map[string]any), &tel); err != nil {
 		log.Printf("Error unmarshalling telemetry: %v", err)
 		return
 	}
-	f.lastTelemetry = &tel
 
-	log.Println(tel)
-
-	if f.State == domain.IDLE ||
-		tel.Position.RelativeAlt < 0.5 {
+	if !f.isLanding(&tel) {
+		log.Printf("landing")
+		f.lastTelemetry = &tel
 		return
 	}
+
+	f.State = domain.IDLE
+	f.Broker.Publish(f.Cfg.SuggestionsTopic, domain.Suggestion{
+		Endpoint: domain.ActionLand,
+	})
+	f.Broker.Publish(f.Cfg.BroadcastTopic, domain.CommandMessage{
+		Command: "finish",
+		Source: "followme",
+	})
+	f.chronosned.Stop()
+
+	f.lastTelemetry = &tel
+	f.sendTelemetry()
+}
+
+func (f *FollowMeAsMaster) isLanding(current *domain.Telemetry) bool {
+	if current.Position.RelativeAlt > 0.5 { return false }
+	if f.lastTelemetry == nil { return false }
+	return f.lastTelemetry.Position.RelativeAlt > current.Position.RelativeAlt
 }
 
 

@@ -215,6 +215,7 @@ func (s *Subscriber) Start(ctx context.Context) {
 			
 			if err := s.sendSubscribeRequest(conn); err != nil {
 				fmt.Printf("[netsim] subscription request failed: %v\n", err)
+				time.Sleep(5 *time.Second)
 				continue
 			}
 			return

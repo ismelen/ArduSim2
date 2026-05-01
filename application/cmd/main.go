@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"application/infrastructure"
 	"application/usecase"
@@ -35,19 +36,28 @@ func main() {
 	broker := infrastructure.NewUDPBroker()
 	defer broker.Close()
 
-	if err := broker.Connect(config.BrokerIP, config.BrokerPort, []string{
-		config.SuggestionsTopic,
-		config.GlobalCommands,
-		config.TelemetryTopic,
-	}); err != nil {
-		log.Fatalf("Failed to connect to Broker: %v", err)
-		panic(err)
+	for {
+		if err := broker.Connect(config.BrokerIP, config.BrokerPort, []string{
+			config.SuggestionsTopic,
+			config.GlobalCommands,
+			config.TelemetryTopic,
+		}); err != nil {
+			log.Printf("Failed to connect to Broker: %v", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		break
 	}
 
-	uavLink, err := infrastructure.NewDirectUAVLink(config.UAVControllerIP, config.UAVControllerPort, config.UAVTelemetryPort)
-	if err != nil {
-		log.Fatalf("Failed to establish direct UDP link to UAV: %v", err)
-		panic(err)
+	var uavLink *infrastructure.DirectUAVLink
+	for {
+		uavLink, err = infrastructure.NewDirectUAVLink(config.UAVControllerIP, config.UAVControllerPort, config.UAVTelemetryPort)
+		if err != nil {
+			log.Printf("Failed to establish direct UDP link to UAV: %v", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		break
 	}
 	defer uavLink.Close()
 
