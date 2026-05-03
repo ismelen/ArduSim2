@@ -19,10 +19,10 @@ export default function AddNewServiceDialog({
   onAccept,
 }: Props) {
   const services = useServices((s) => s.services);
-  const [selectedService, setSelectedService] = useState(
+  const [serviceIdx, setServiceIdx] = useState(
     services.findIndex((e) => e.id === serviceToEdit?.serviceId),
   );
-  const [currentDeployed, setCurrentDeployed] = useState<Record<string, any>>(
+  const [currentValues, setCurrentValues] = useState<Record<string, any>>(
     serviceToEdit?.config ?? {},
   );
 
@@ -50,20 +50,20 @@ export default function AddNewServiceDialog({
               {services.map((e, idx) => (
                 <ServiceCard
                   service={e}
-                  selected={idx === selectedService}
-                  onSelect={() => setSelectedService(idx)}
+                  selected={idx === serviceIdx}
+                  onSelect={() => setServiceIdx(idx)}
                 />
               ))}
             </div>
           </aside>
           <div className="flex-2/3 flex flex-col">
             <div className="bg-background flex-1 p-5 overflow-y-scroll">
-              {selectedService !== -1 ? (
+              {serviceIdx !== -1 ? (
                 <DynamicForm
-                  schemaRaw={services[selectedService].schemaRaw}
-                  values={currentDeployed}
+                  schemaRaw={services[serviceIdx].schemaRaw}
+                  values={currentValues}
                   onChange={(key, value) => {
-                    setCurrentDeployed((s) => {
+                    setCurrentValues((s) => {
                       s[key] = value;
                       return s;
                     });
@@ -87,15 +87,14 @@ export default function AddNewServiceDialog({
                     domain.DeployedService.createFrom({
                       instaceId: serviceToEdit?.instanceId ?? "",
                       serviceId:
-                        serviceToEdit?.serviceId ??
-                        services[selectedService].id,
+                        serviceToEdit?.serviceId ?? services[serviceIdx].id,
                       folderIcon:
                         serviceToEdit?.folderName ??
-                        services[selectedService].folderName,
+                        services[serviceIdx].folderName,
                       serviceTitle:
                         serviceToEdit?.serviceTitle ??
-                        services[selectedService].title,
-                      config: currentDeployed,
+                        services[serviceIdx].title,
+                      config: currentValues,
                     }),
                   )
                 }

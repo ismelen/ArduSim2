@@ -14,9 +14,7 @@ export default function FleetPage() {
   const deleteUav = useFleet((s) => s.deleteUav);
   const activeUavIdx = useFleet((s) => s.activeUavIdx);
 
-  const [showServiceDialog, setShowDialogSerivce] = useState<
-    number | undefined
-  >(undefined);
+  const [serviceIdx, setServiceIdx] = useState<number | undefined>(undefined);
 
   return (
     <div className="flex h-full">
@@ -37,37 +35,39 @@ export default function FleetPage() {
             type="filled"
             icon="add"
             label="Add Service"
-            onClick={() => setShowDialogSerivce(-1)}
+            onClick={() => setServiceIdx(-1)}
           />
         </span>
         {uavs[activeUavIdx].services.map((e, idx) => (
           <ServiceCard
+            key={idx}
             service={e}
             onDelete={() => deleteService(e)}
             onSelect={() => {
-              setShowDialogSerivce(idx);
+              setServiceIdx(idx);
             }}
           />
         ))}
       </div>
       <SwarmFormation />
-      {showServiceDialog !== undefined ? (
+      {serviceIdx !== undefined ? (
         <AddNewServiceDialog
           serviceToEdit={
-            showServiceDialog !== -1
-              ? uavs[activeUavIdx].services[showServiceDialog]
+            serviceIdx !== -1
+              ? uavs[activeUavIdx].services[serviceIdx]
               : undefined
           }
-          onExit={() => setShowDialogSerivce(undefined)}
+          onExit={() => setServiceIdx(undefined)}
           onAccept={(service) => {
-            if (!service) return setShowDialogSerivce(undefined);
+            console.log(service);
+            if (!service) return setServiceIdx(undefined);
 
-            if (showServiceDialog !== -1) {
+            if (serviceIdx === -1) {
               addService(service);
             } else {
-              updateService(showServiceDialog, service);
+              updateService(serviceIdx, service);
             }
-            setShowDialogSerivce(undefined);
+            setServiceIdx(undefined);
           }}
         />
       ) : null}
@@ -86,7 +86,6 @@ function ServiceCard({
 }) {
   return (
     <div
-      onClick={onSelect}
       className="border border-border rounded-md hoverable-gray shadow-sm
       flex justify-between items-center bg-white px-3 py-1.5 cursor-pointer"
     >

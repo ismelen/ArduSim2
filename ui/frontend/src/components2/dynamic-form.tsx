@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Checkbox from "./checkbox";
 import FilePickerField from "./file-picker-field";
 import FormField from "./form-field";
@@ -13,13 +13,19 @@ interface Props {
 
 export default function DynamicForm({ schemaRaw, values, onChange }: Props) {
   const [currentValues, setCurrentValues] = useState(values);
+  const schema: { properties: Record<string, any> } = JSON.parse(schemaRaw);
 
-  let schema: { properties: Record<string, any> };
-  try {
-    schema = JSON.parse(schemaRaw);
-  } catch {
-    return null;
-  }
+  useEffect(() => {
+    console.log(currentValues);
+    if (Object.entries(currentValues).length !== 0) return;
+    if (!schema.properties) return;
+
+    for (const [k, v] of Object.entries(schema.properties)) {
+      if (!v.default) continue;
+      onChange?.(k, v.default);
+    }
+  }, []);
+
 
   if (!schema.properties) return null;
 
@@ -38,6 +44,7 @@ export default function DynamicForm({ schemaRaw, values, onChange }: Props) {
         if (prop.enum) {
           return (
             <Select
+              key={key}
               initValue={currentValues[key] ?? prop.default}
               options={prop.enum.map((e: any) => ({ label: e, value: e }))}
               label={prop.title || key}
@@ -49,6 +56,7 @@ export default function DynamicForm({ schemaRaw, values, onChange }: Props) {
         if (prop.type === "string" && prop.format) {
           return (
             <FilePickerField
+              key={key}
               label={prop.title || key}
               initValue={currentValues[key] ?? prop.default}
               hint={`PATH/TO/FILE.${prop.format}`}
@@ -61,6 +69,7 @@ export default function DynamicForm({ schemaRaw, values, onChange }: Props) {
           return (
             <span className="flex gap-2">
               <Checkbox
+                key={key}
                 value={currentValues[key] ?? prop.default}
                 onChange={(e) => handleOnChange(key, e)}
               />
@@ -72,6 +81,7 @@ export default function DynamicForm({ schemaRaw, values, onChange }: Props) {
         const isNumeric = prop.type === "number" || prop.type === "integer";
         return (
           <FormField
+            key={key}
             type={isNumeric ? "number" : "text"}
             initValue={currentValues[key] ?? prop.default}
             label={prop.title || key}
