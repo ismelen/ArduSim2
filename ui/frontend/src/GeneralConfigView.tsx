@@ -1,30 +1,33 @@
-import React, { useRef } from 'react';
-import { Button } from './components/common/Button';
-import { Card } from './components/common/Card';
-import { Switch } from './components/common/FormField';
+import React, { useRef } from "react";
+import { Button } from "./components/common/Button";
+import { Card } from "./components/common/Card";
+import { Switch } from "./components/common/FormField";
 import {
   BarChartIcon,
   FolderIcon,
   SlidersIcon,
-  WindIcon
-} from './components/Icons';
-import { useConfig } from './hooks/useConfig';
-import { useFleet } from './hooks/useFleet';
-import { useServices } from './hooks/useServices';
-import { GetKmlFirstCoordinate } from '../wailsjs/go/main/App';
+  WindIcon,
+} from "./components/Icons";
+import { useConfig } from "./hooks/useConfig";
+import { useFleet } from "./hooks/useFleet";
+import { useServices } from "./hooks/useServices";
+import { GetKmlFirstCoordinate } from "../wailsjs/go/main/App";
 
 export const GeneralConfigView: React.FC = () => {
   const store = useConfig();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       store.setSpeedProfilePath(e.target.files[0].name);
     }
   };
 
-  const handleNumericChange = (value: string, setter: (val: number) => void) => {
-    if (value === '') {
+  const handleNumericChange = (
+    value: string,
+    setter: (val: number) => void,
+  ) => {
+    if (value === "") {
       setter(0);
     } else {
       const num = parseFloat(value);
@@ -34,7 +37,14 @@ export const GeneralConfigView: React.FC = () => {
 
   const handleIntegerKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Allow navigation/editing keys
-    const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'];
+    const allowedKeys = [
+      "Backspace",
+      "Delete",
+      "ArrowLeft",
+      "ArrowRight",
+      "Tab",
+      "Enter",
+    ];
     if (allowedKeys.includes(e.key)) return;
 
     // Block non-digit characters
@@ -45,10 +55,18 @@ export const GeneralConfigView: React.FC = () => {
 
   const handleDecimalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Allow navigation/editing keys
-    const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter', '.'];
+    const allowedKeys = [
+      "Backspace",
+      "Delete",
+      "ArrowLeft",
+      "ArrowRight",
+      "Tab",
+      "Enter",
+      ".",
+    ];
     if (allowedKeys.includes(e.key)) {
       // Prevent multiple decimals
-      if (e.key === '.' && e.currentTarget.value.includes('.')) {
+      if (e.key === "." && e.currentTarget.value.includes(".")) {
         e.preventDefault();
       }
       return;
@@ -60,23 +78,25 @@ export const GeneralConfigView: React.FC = () => {
     }
   };
 
-  const uavs = useFleet(s => s.uavs);
-  const availableServices = useServices(s => s.availableServices);
+  const uavs = useFleet((s) => s.uavs);
+  const availableServices = useServices((s) => s.availableServices);
 
   const attachedKmls = React.useMemo(() => {
     const kmls = new Set<string>();
-    uavs.forEach(uav => {
-      uav.services.forEach(svc => {
-        const schema = availableServices.find(s => s.id === svc.serviceId);
+    uavs.forEach((uav) => {
+      uav.services.forEach((svc) => {
+        const schema = availableServices.find((s) => s.id === svc.serviceId);
         if (schema?.schemaRaw) {
           try {
             const schemaObj = JSON.parse(schema.schemaRaw);
             if (schemaObj.properties) {
-              Object.entries<any>(schemaObj.properties).forEach(([key, prop]) => {
-                if (prop.format === 'kml' && svc.config[key]) {
-                  kmls.add(svc.config[key]);
-                }
-              });
+              Object.entries<any>(schemaObj.properties).forEach(
+                ([key, prop]) => {
+                  if (prop.format === "kml" && svc.config[key]) {
+                    kmls.add(svc.config[key]);
+                  }
+                },
+              );
             }
           } catch (e) {}
         }
@@ -87,7 +107,7 @@ export const GeneralConfigView: React.FC = () => {
 
   const handleCenterModeChange = async (mode: string) => {
     store.setFormationCenterMode(mode);
-    if (mode !== 'CUSTOM') {
+    if (mode !== "CUSTOM") {
       try {
         const coords = await GetKmlFirstCoordinate(mode);
         if (coords) {
@@ -111,28 +131,32 @@ export const GeneralConfigView: React.FC = () => {
 
       <div className="config-layout">
         <div className="config-column">
-          <Card 
-            title="SIMULATION PARAMETERS" 
+          <Card
+            title="SIMULATION PARAMETERS"
             headerIcon={<SlidersIcon />}
             className="config-card"
           >
             <div className="form-group">
               <label className="label-font">SPEED PROFILE (.DAT)</label>
               <div className="file-input-group">
-                <input 
-                  type="text" 
-                  placeholder="PATH/TO/SPEED_PROFILE.DAT" 
+                <input
+                  type="text"
+                  placeholder="PATH/TO/SPEED_PROFILE.DAT"
                   value={store.speedProfilePath}
                   readOnly
                 />
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  style={{ display: 'none' }} 
-                  accept=".dat" 
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: "none" }}
+                  accept=".dat"
                   onChange={handleFileChange}
                 />
-                <Button variant="icon" icon={<FolderIcon />} onClick={() => fileInputRef.current?.click()} />
+                <Button
+                  variant="icon"
+                  icon={<FolderIcon />}
+                  onClick={() => fileInputRef.current?.click()}
+                />
               </div>
             </div>
 
@@ -140,22 +164,32 @@ export const GeneralConfigView: React.FC = () => {
               <div className="battery-toggle">
                 <span className="label-font">RESTRICT BATTERY</span>
                 <label className="switch">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     checked={store.batteryRestricted}
-                    onChange={(e) => store.setBatteryRestricted(e.target.checked)}
+                    onChange={(e) =>
+                      store.setBatteryRestricted(e.target.checked)
+                    }
                   />
                   <span className="slider round"></span>
                 </label>
               </div>
 
-              <div className="unit-input" style={{ opacity: store.batteryRestricted ? 1 : 0.5 }}>
-                <input 
-                  type="number" 
+              <div
+                className="unit-input"
+                style={{ opacity: store.batteryRestricted ? 1 : 0.5 }}
+              >
+                <input
+                  type="number"
                   placeholder="0"
-                  value={store.batteryCapacity || ''}
+                  value={store.batteryCapacity || ""}
                   onKeyDown={handleIntegerKeyDown}
-                  onChange={(e) => handleNumericChange(e.target.value, store.setBatteryCapacity)}
+                  onChange={(e) =>
+                    handleNumericChange(
+                      e.target.value,
+                      store.setBatteryCapacity,
+                    )
+                  }
                   disabled={!store.batteryRestricted}
                   inputMode="numeric"
                   min="0"
@@ -164,8 +198,8 @@ export const GeneralConfigView: React.FC = () => {
               </div>
             </div>
 
-            <div style={{ marginTop: '2rem' }}>
-              <Switch 
+            <div style={{ marginTop: "2rem" }}>
+              <Switch
                 label="ArduCopter Logging"
                 sublabel="ENABLE INTERNAL TELEMETRY RECORDING"
                 checked={store.loggingEnabled}
@@ -174,19 +208,19 @@ export const GeneralConfigView: React.FC = () => {
             </div>
           </Card>
 
-          <Card 
-            title="GENERAL PARAMETERS" 
+          <Card
+            title="GENERAL PARAMETERS"
             headerIcon={<BarChartIcon />}
             className="config-card"
           >
             <div className="horizontal-toggles">
-              <Switch 
+              <Switch
                 label="Verbose Logging"
                 sublabel="RECORD FULL DEBUG STACK TRACES"
                 checked={store.verboseLogging}
                 onChange={store.setVerboseLogging}
               />
-              <Switch 
+              <Switch
                 label="Store Local Data"
                 sublabel="CACHE MISSION HISTORY LOCALLY"
                 checked={store.storeLocalData}
@@ -194,15 +228,22 @@ export const GeneralConfigView: React.FC = () => {
               />
             </div>
 
-            <div className="form-group" style={{ marginTop: '1.5rem' }}>
+            <div className="form-group" style={{ marginTop: "1.5rem" }}>
               <label className="label-font">SIMULATION NAME</label>
               <div className="unit-input">
-                <input 
-                  type="text" 
-                  placeholder="CUSTOM_SIM_NAME" 
+                <input
+                  type="text"
+                  placeholder="CUSTOM_SIM_NAME"
                   value={store.simulationName}
                   onChange={(e) => store.setSimulationName(e.target.value)}
-                  style={{ width: '100%', padding: '0.6rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--outline-variant)', color: 'var(--on-surface)', borderRadius: '4px' }}
+                  style={{
+                    width: "100%",
+                    padding: "0.6rem",
+                    background: "rgba(0,0,0,0.3)",
+                    border: "1px solid var(--outline-variant)",
+                    color: "var(--on-surface)",
+                    borderRadius: "4px",
+                  }}
                 />
               </div>
             </div>
@@ -210,15 +251,15 @@ export const GeneralConfigView: React.FC = () => {
         </div>
 
         <div className="config-column">
-          <Card 
-            title="WIND SYSTEM" 
+          <Card
+            title="WIND SYSTEM"
             subtitle="ENV_WIND_VECTOR"
             headerIcon={<WindIcon />}
             className="config-card wind-system-card"
             headerAction={
               <label className="switch">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   checked={store.windEnabled}
                   onChange={(e) => store.setWindEnabled(e.target.checked)}
                 />
@@ -236,23 +277,31 @@ export const GeneralConfigView: React.FC = () => {
                   <span className="marker w">W</span>
                 </div>
                 <div className="compass-face">
-                  <div 
-                    className="wind-needle" 
+                  <div
+                    className="wind-needle"
                     style={{ transform: `rotate(${store.windDirection}deg)` }}
                   ></div>
                 </div>
               </div>
 
-              <div className="wind-controls" style={{ opacity: store.windEnabled ? 1 : 0.5 }}>
+              <div
+                className="wind-controls"
+                style={{ opacity: store.windEnabled ? 1 : 0.5 }}
+              >
                 <div className="form-group">
                   <label className="label-font">DIRECTION</label>
                   <div className="unit-input">
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       placeholder="0"
-                      value={store.windDirection || ''}
+                      value={store.windDirection || ""}
                       onKeyDown={handleIntegerKeyDown}
-                      onChange={(e) => handleNumericChange(e.target.value, store.setWindDirection)}
+                      onChange={(e) =>
+                        handleNumericChange(
+                          e.target.value,
+                          store.setWindDirection,
+                        )
+                      }
                       disabled={!store.windEnabled}
                       inputMode="numeric"
                       min="0"
@@ -265,12 +314,14 @@ export const GeneralConfigView: React.FC = () => {
                 <div className="form-group">
                   <label className="label-font">WIND SPEED</label>
                   <div className="unit-input">
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       placeholder="0.0"
-                      value={store.windSpeed || ''}
+                      value={store.windSpeed || ""}
                       onKeyDown={handleDecimalKeyDown}
-                      onChange={(e) => handleNumericChange(e.target.value, store.setWindSpeed)}
+                      onChange={(e) =>
+                        handleNumericChange(e.target.value, store.setWindSpeed)
+                      }
                       disabled={!store.windEnabled}
                       inputMode="decimal"
                       step="0.1"
@@ -282,21 +333,24 @@ export const GeneralConfigView: React.FC = () => {
               </div>
             </div>
           </Card>
-          
-          <Card 
-            title="GROUND FORMATION" 
+
+          <Card
+            title="GROUND FORMATION"
             subtitle="INITIAL_DEPLOYMENT_LAYOUT"
             headerIcon={<SlidersIcon />}
             className="config-card"
           >
             <div className="form-group">
               <label className="label-font">FORMATION TYPE</label>
-              <div className="service-select-container" style={{ minWidth: '100%' }}>
-                <select 
+              <div
+                className="service-select-container"
+                style={{ minWidth: "100%" }}
+              >
+                <select
                   className="service-select"
                   value={store.groundFormation}
                   onChange={(e) => store.setGroundFormation(e.target.value)}
-                  style={{ width: '100%' }}
+                  style={{ width: "100%" }}
                 >
                   <option value="LINEAR">LINEAR</option>
                   <option value="MATRIX">MATRIX</option>
@@ -308,33 +362,46 @@ export const GeneralConfigView: React.FC = () => {
 
             <div className="form-group">
               <label className="label-font">FORMATION CENTER</label>
-              <div className="service-select-container" style={{ minWidth: '100%' }}>
-                <select 
+              <div
+                className="service-select-container"
+                style={{ minWidth: "100%" }}
+              >
+                <select
                   className="service-select"
                   value={store.formationCenterMode}
                   onChange={(e) => handleCenterModeChange(e.target.value)}
-                  style={{ width: '100%' }}
+                  style={{ width: "100%" }}
                 >
                   <option value="CUSTOM">CUSTOM COORDINATES</option>
-                  {attachedKmls.map(path => (
+                  {attachedKmls.map((path) => (
                     <option key={path} value={path}>
-                      FILE: {path.split('/').pop()}
+                      FILE: {path.split("/").pop()}
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            <div className="form-row" style={{ opacity: store.formationCenterMode === 'CUSTOM' ? 1 : 0.6 }}>
+            <div
+              className="form-row"
+              style={{
+                opacity: store.formationCenterMode === "CUSTOM" ? 1 : 0.6,
+              }}
+            >
               <div className="form-group">
                 <label className="label-font">CENTER LATITUDE</label>
                 <div className="unit-input">
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     placeholder="39.482594"
-                    value={store.formationCenterLat || ''}
+                    value={store.formationCenterLat || ""}
                     onKeyDown={handleDecimalKeyDown}
-                    onChange={(e) => handleNumericChange(e.target.value, store.setFormationCenterLat)}
+                    onChange={(e) =>
+                      handleNumericChange(
+                        e.target.value,
+                        store.setFormationCenterLat,
+                      )
+                    }
                     inputMode="decimal"
                     step="0.000001"
                   />
@@ -345,12 +412,17 @@ export const GeneralConfigView: React.FC = () => {
               <div className="form-group">
                 <label className="label-font">CENTER LONGITUDE</label>
                 <div className="unit-input">
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     placeholder="-0.346265"
-                    value={store.formationCenterLon || ''}
+                    value={store.formationCenterLon || ""}
                     onKeyDown={handleDecimalKeyDown}
-                    onChange={(e) => handleNumericChange(e.target.value, store.setFormationCenterLon)}
+                    onChange={(e) =>
+                      handleNumericChange(
+                        e.target.value,
+                        store.setFormationCenterLon,
+                      )
+                    }
                     inputMode="decimal"
                     step="0.000001"
                   />
@@ -362,12 +434,17 @@ export const GeneralConfigView: React.FC = () => {
             <div className="form-group">
               <label className="label-font">SPACING</label>
               <div className="unit-input">
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   placeholder="5.0"
-                  value={store.formationSpacing || ''}
+                  value={store.formationSpacing || ""}
                   onKeyDown={handleDecimalKeyDown}
-                  onChange={(e) => handleNumericChange(e.target.value, store.setFormationSpacing)}
+                  onChange={(e) =>
+                    handleNumericChange(
+                      e.target.value,
+                      store.setFormationSpacing,
+                    )
+                  }
                   inputMode="decimal"
                   step="0.1"
                   min="0"
@@ -381,5 +458,3 @@ export const GeneralConfigView: React.FC = () => {
     </main>
   );
 };
-
-

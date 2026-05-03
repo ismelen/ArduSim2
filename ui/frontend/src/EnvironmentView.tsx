@@ -1,20 +1,27 @@
-import React from 'react';
-import { NetworkIcon, TerminalIcon } from './components/Icons';
-import { useEnvironment } from './hooks/useEnvironment';
-import { Card } from './components/common/Card';
-import { Button } from './components/common/Button';
-import { FormField } from './components/common/FormField';
+import React from "react";
+import { NetworkIcon, TerminalIcon } from "./components/Icons";
+import { useEnvironment } from "./hooks/useEnvironment";
+import { Card } from "./components/common/Card";
+import { Button } from "./components/common/Button";
+import { FormField } from "./components/common/FormField";
 
 export const EnvironmentView: React.FC = () => {
-  const { activeMode, setActiveMode, masterIP, setMasterIP, masterPort, setMasterPort } = useEnvironment();
+  const {
+    activeMode,
+    setActiveMode,
+    masterIP,
+    setMasterIP,
+    masterPort,
+    setMasterPort,
+  } = useEnvironment();
 
   return (
     <main className="main-content">
       <div className="env-header">
         <h1 className="env-title display-font">Environment Setup</h1>
         <p className="env-subtitle">
-          Define the computational backbone for the mission profile. Select a deployment
-          architecture to initialize the UAV neural mesh.
+          Define the computational backbone for the mission profile. Select a
+          deployment architecture to initialize the UAV neural mesh.
         </p>
       </div>
 
@@ -23,15 +30,21 @@ export const EnvironmentView: React.FC = () => {
           title="LOCAL_NODE"
           subtitle="SINGLE_SIM_ARCHITECTURE"
           headerIcon={<TerminalIcon />}
-          active={activeMode === 'LOCAL'}
-          onClick={() => setActiveMode('LOCAL')}
+          active={activeMode === "LOCAL"}
+          onClick={() => setActiveMode("LOCAL")}
         >
           <p className="card-desc">
             Rapid deployment for single-unit testing. Orchestrate simulated
             flight cycles within a sandboxed local container environment.
           </p>
-          {activeMode !== 'LOCAL' && (
-            <Button variant="select" onClick={(e) => { e.stopPropagation(); setActiveMode('LOCAL'); }}>
+          {activeMode !== "LOCAL" && (
+            <Button
+              variant="select"
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveMode("LOCAL");
+              }}
+            >
               Select Mode →
             </Button>
           )}
@@ -41,10 +54,10 @@ export const EnvironmentView: React.FC = () => {
           title="SWARM_MESH"
           subtitle="DISTRIBUTED_ORCHESTRATOR"
           headerIcon={<NetworkIcon />}
-          active={activeMode === 'SWARM'}
-          onClick={() => setActiveMode('SWARM')}
+          active={activeMode === "SWARM"}
+          onClick={() => setActiveMode("SWARM")}
         >
-          {activeMode === 'SWARM' ? (
+          {activeMode === "SWARM" ? (
             <>
               <FormField label="Master Node IP">
                 <input
@@ -68,10 +81,16 @@ export const EnvironmentView: React.FC = () => {
           ) : (
             <>
               <p className="card-desc">
-                Distributed cluster orchestration for high-scale swarm deployment
-                across multiple physical or virtual nodes.
+                Distributed cluster orchestration for high-scale swarm
+                deployment across multiple physical or virtual nodes.
               </p>
-              <Button variant="select" onClick={(e) => { e.stopPropagation(); setActiveMode('SWARM'); }}>
+              <Button
+                variant="select"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveMode("SWARM");
+                }}
+              >
                 Select Mode →
               </Button>
             </>

@@ -1,6 +1,10 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
-export type TabView = 'ENVIRONMENT' | 'FLEET_CONFIG' | 'GENERAL_CONFIG' | 'ACTIVE_SIM';
+export type TabView =
+  | "ENVIRONMENT"
+  | "FLEET_CONFIG"
+  | "GENERAL_CONFIG"
+  | "ACTIVE_SIM";
 
 interface NavigationState {
   currentTab: TabView;
@@ -12,10 +16,12 @@ interface NavigationState {
 }
 
 export const useNavigation = create<NavigationState>((set, get) => ({
-  currentTab: 'ENVIRONMENT',
-  previousTab: 'ENVIRONMENT',
+  currentTab: "ENVIRONMENT",
+  previousTab: "ENVIRONMENT",
   isSimulating: false,
   setCurrentTab: (tab) => set({ currentTab: tab }),
-  startSimulation: () => set({ isSimulating: true, previousTab: get().currentTab }),
-  exitSimulation: () => set({ isSimulating: false, currentTab: get().previousTab }),
+  startSimulation: () =>
+    set({ isSimulating: true, previousTab: get().currentTab }),
+  exitSimulation: () =>
+    set({ isSimulating: false, currentTab: get().previousTab }),
 }));

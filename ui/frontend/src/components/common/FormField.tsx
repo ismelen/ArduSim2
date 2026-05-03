@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface FormFieldProps {
   label: string;
@@ -11,7 +11,7 @@ interface FormFieldProps {
 export const FormField: React.FC<FormFieldProps> = ({
   label,
   children,
-  className = '',
+  className = "",
   sublabel,
   icon,
 }) => {
@@ -47,8 +47,8 @@ export const Switch: React.FC<SwitchProps> = ({
         {sublabel && <span className="toggle-sublabel">{sublabel}</span>}
       </div>
       <label className="switch">
-        <input 
-          type="checkbox" 
+        <input
+          type="checkbox"
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}
         />

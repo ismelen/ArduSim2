@@ -18,21 +18,24 @@
 .map-placeholder {
   width: 100%;
   height: 100%;
-  background-image: 
-    radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.8) 100%),
-    url('https://api.mapbox.com/styles/v1/mapbox/dark-v10/static/-115.1398,36.1699,12/1200x800?access_token=pk.eyJ1IjoiZGV2ZWxvcGVyIiwiYSI6ImNrMmRw...'), /* Placeholder image if possible, or just dark pattern */
+  background-image:
+    radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.8) 100%),
+    url("https://api.mapbox.com/styles/v1/mapbox/dark-v10/static/-115.1398,36.1699,12/1200x800?access_token=pk.eyJ1IjoiZGV2ZWxvcGVyIiwiYSI6ImNrMmRw..."),
+    /* Placeholder image if possible, or just dark pattern */
     linear-gradient(45deg, #111 25%, transparent 25%),
     linear-gradient(-45deg, #111 25%, transparent 25%),
     linear-gradient(45deg, transparent 75%, #111 75%),
     linear-gradient(-45deg, transparent 75%, #111 75%);
-  background-size: 100% 100%, 50px 50px;
+  background-size:
+    100% 100%,
+    50px 50px;
   opacity: 0.8;
 }
 
 .map-grid-overlay {
   position: absolute;
   inset: 0;
-  background-image: 
+  background-image:
     linear-gradient(rgba(78, 222, 163, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(78, 222, 163, 0.05) 1px, transparent 1px);
   background-size: 60px 60px;
@@ -49,7 +52,7 @@
   box-shadow: 0 0 10px var(--primary);
 }
 .uav-ping::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: -4px;
   border: 1px solid var(--primary);
@@ -58,7 +61,8 @@
 }
 
 @keyframes ping {
-  75%, 100% {
+  75%,
+  100% {
     transform: scale(3);
     opacity: 0;
   }
@@ -100,7 +104,9 @@
   transition: color 0.2s;
 }
 
-.control-btn:hover { color: var(--on-surface); }
+.control-btn:hover {
+  color: var(--on-surface);
+}
 .control-btn.emergency {
   background: rgba(239, 68, 68, 0.15);
   border-radius: 4px;
@@ -219,7 +225,8 @@
   cursor: pointer;
 }
 
-.split-btn-main:hover:not(:disabled), .split-btn-arrow:hover:not(:disabled) {
+.split-btn-main:hover:not(:disabled),
+.split-btn-arrow:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.05);
 }
 
@@ -331,7 +338,7 @@
 }
 
 .telemetry-card {
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--outline-variant);
   border-left: 3px solid var(--uav-color, var(--primary));
   border-radius: var(--radius-sm);
@@ -349,7 +356,10 @@
   justify-content: space-between;
 }
 
-.card-label .material-symbols-outlined { font-size: 1rem; color: var(--primary); }
+.card-label .material-symbols-outlined {
+  font-size: 1rem;
+  color: var(--primary);
+}
 
 .card-value {
   font-family: var(--font-display);
@@ -360,11 +370,15 @@
   gap: 0.4rem;
 }
 
-.unit { font-size: 0.7rem; color: var(--on-surface-variant); letter-spacing: 0.05em; }
+.unit {
+  font-size: 0.7rem;
+  color: var(--on-surface-variant);
+  letter-spacing: 0.05em;
+}
 
 .progress-bar {
   height: 3px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   margin-top: 1rem;
   border-radius: 2px;
 }
@@ -545,7 +559,8 @@
   border-color: var(--primary);
   color: var(--primary);
 }
-.control-btn.outline-btn.not-ready, .control-btn.not-ready {
+.control-btn.outline-btn.not-ready,
+.control-btn.not-ready {
   opacity: 0.3;
   cursor: not-allowed;
 }
@@ -587,17 +602,25 @@
   font-size: 1.4rem;
 }
 @keyframes bannerFadeIn {
-  from { opacity: 0; transform: translateX(-50%) translateY(-12px); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
-.log-level.info { color: #3b82f6; }
-.log-level.msg  { color: #f59e0b; }
-
-
+.log-level.info {
+  color: #3b82f6;
+}
+.log-level.msg {
+  color: #f59e0b;
+}
 
 .log-content {
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
 
   font-size: 0.75rem; /* Slightly larger log text */
   display: flex;
@@ -615,11 +638,20 @@
   border-radius: 4px;
 }
 
-.log-entry { display: flex; gap: 0.75rem; white-space: nowrap; }
-.log-time { color: var(--on-surface-variant); }
-.log-level.ok { color: var(--primary); }
-.log-level.info { color: #3b82f6; }
-
+.log-entry {
+  display: flex;
+  gap: 0.75rem;
+  white-space: nowrap;
+}
+.log-time {
+  color: var(--on-surface-variant);
+}
+.log-level.ok {
+  color: var(--primary);
+}
+.log-level.info {
+  color: #3b82f6;
+}
 
 /* ─── EXITING OVERLAY ─── */
 .sim-exiting-overlay {
@@ -678,13 +710,21 @@
 }
 
 @keyframes overlayFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .uav-marker-container {
@@ -700,7 +740,7 @@
 }
 
 .uav-marker-wrapper svg {
-  filter: drop-shadow(0 0 4px rgba(0,0,0,0.5));
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.5));
 }
 
 .uav-popup {
@@ -716,7 +756,8 @@
 }
 
 /* Override Leaflet default popup styling for dark mode */
-.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
   background: rgba(19, 19, 19, 0.9) !important;
   color: white !important;
   backdrop-filter: blur(8px);

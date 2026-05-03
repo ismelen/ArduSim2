@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface CardProps {
   children?: React.ReactNode;
@@ -16,7 +16,7 @@ export const Card: React.FC<CardProps> = ({
   children,
   title,
   subtitle,
-  className = '',
+  className = "",
   headerAction,
   headerIcon,
   active,
@@ -24,8 +24,8 @@ export const Card: React.FC<CardProps> = ({
   footer,
 }) => {
   return (
-    <div 
-      className={`option-card ${active ? 'active-card' : ''} ${className}`}
+    <div
+      className={`option-card ${active ? "active-card" : ""} ${className}`}
       onClick={onClick}
     >
       {(title || headerIcon || headerAction) && (
@@ -33,16 +33,14 @@ export const Card: React.FC<CardProps> = ({
           <div className="card-title-group">
             {headerIcon && <div className="card-icon-badge">{headerIcon}</div>}
             <div className="card-text-group">
-               {title && <h3 className="card-title display-font">{title}</h3>}
-               {subtitle && <span className="arch-label">{subtitle}</span>}
+              {title && <h3 className="card-title display-font">{title}</h3>}
+              {subtitle && <span className="arch-label">{subtitle}</span>}
             </div>
           </div>
           {headerAction && <div className="header-action">{headerAction}</div>}
         </div>
       )}
-      <div className="card-body">
-        {children}
-      </div>
+      <div className="card-body">{children}</div>
       {footer && <div className="card-footer">{footer}</div>}
     </div>
   );

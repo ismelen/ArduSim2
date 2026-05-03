@@ -9,7 +9,6 @@
   cursor: pointer;
 }
 
-
 .uav-sphere-container {
   display: flex;
   flex-direction: column;
@@ -22,11 +21,16 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, var(--uav-color, var(--primary)) 0%, var(--uav-color, #10b981) 60%, #000 100%);
-  box-shadow: 
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--uav-color, var(--primary)) 0%,
+    var(--uav-color, #10b981) 60%,
+    #000 100%
+  );
+  box-shadow:
     0 0 15px var(--uav-color, rgba(78, 222, 163, 0.5)),
-    inset -4px -4px 10px rgba(0,0,0,0.6),
-    inset 2px 2px 8px rgba(255,255,255,0.2);
+    inset -4px -4px 10px rgba(0, 0, 0, 0.6),
+    inset 2px 2px 8px rgba(255, 255, 255, 0.2);
   position: relative;
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   transform-style: preserve-3d;
@@ -34,7 +38,7 @@
 
 /* Directional indicator on the ball */
 .uav-sphere::before {
-  content: '';
+  content: "";
   position: absolute;
   top: -4px;
   left: 50%;
@@ -52,7 +56,6 @@
   transform: scale(1.2);
   box-shadow: 0 0 25px var(--uav-color, var(--primary));
 }
-
 
 /* 2D Altitude Tag */
 .uav-altitude-tag {

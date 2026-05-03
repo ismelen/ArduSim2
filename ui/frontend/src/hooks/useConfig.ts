@@ -1,5 +1,12 @@
 import { create } from "zustand";
-import { StartSimulation, StopSimulation, LoadSimulationConfig, SendAlgorithmCommand, SaveSimulationConfig, DiscardCurrentRun } from "../../wailsjs/go/main/App";
+import {
+  StartSimulation,
+  StopSimulation,
+  LoadSimulationConfig,
+  SendAlgorithmCommand,
+  SaveSimulationConfig,
+  DiscardCurrentRun,
+} from "../../wailsjs/go/main/App";
 import { useEnvironment } from "./useEnvironment";
 import { useFleet } from "./useFleet";
 import { useNavigation } from "./useNavigation";
@@ -47,7 +54,10 @@ interface ConfigState extends GeneralConfigState {
   handleExitSimulation: () => Promise<void>;
   handleLoadSimulation: () => Promise<void>;
   handleSaveSimulation: () => Promise<void>;
-  handleSendAlgorithmCommand: (serviceId: string, command: string) => Promise<void>;
+  handleSendAlgorithmCommand: (
+    serviceId: string,
+    command: string,
+  ) => Promise<void>;
 }
 
 export const useConfig = create<ConfigState>((set, get) => ({
@@ -71,7 +81,8 @@ export const useConfig = create<ConfigState>((set, get) => ({
   isExiting: false,
 
   setSimulationName: (simulationName) => set({ simulationName }),
-  setOriginalSimulationName: (originalSimulationName) => set({ originalSimulationName }),
+  setOriginalSimulationName: (originalSimulationName) =>
+    set({ originalSimulationName }),
   setSpeedProfilePath: (speedProfilePath) => set({ speedProfilePath }),
   setLoggingEnabled: (loggingEnabled) => set({ loggingEnabled }),
   setBatteryRestricted: (batteryRestricted) => set({ batteryRestricted }),
@@ -105,24 +116,34 @@ export const useConfig = create<ConfigState>((set, get) => ({
       await StartSimulation(uavs as any, configWithSwarm, activeMode, isLocal);
     } catch (err) {
       console.error("Failed to start simulation:", err);
-      alert(`SIMULATION_ERROR: ${err instanceof Error ? err.message : String(err)}`);
+      alert(
+        `SIMULATION_ERROR: ${err instanceof Error ? err.message : String(err)}`,
+      );
       exitSimulation();
       throw err;
     }
   },
 
-
   handleExitSimulation: async () => {
     const { exitSimulation } = useNavigation.getState();
-    const keepLogs = confirm("¿Deseas guardar los logs y telemetría de esta simulación?");
-    
+    const keepLogs = confirm(
+      "¿Deseas guardar los logs y telemetría de esta simulación?",
+    );
+
     set({ isExiting: true });
-    
+
     try {
       await StopSimulation();
-      
+
       if (!keepLogs) {
-        const { handleSaveSimulation, handleStartSimulation, handleLoadSimulation, handleExitSimulation, handleSendAlgorithmCommand, ...config } = get();
+        const {
+          handleSaveSimulation,
+          handleStartSimulation,
+          handleLoadSimulation,
+          handleExitSimulation,
+          handleSendAlgorithmCommand,
+          ...config
+        } = get();
         await DiscardCurrentRun(config);
       }
 
@@ -142,11 +163,23 @@ export const useConfig = create<ConfigState>((set, get) => ({
 
       const { loadFleet } = useFleet.getState();
       const { setActiveMode } = useEnvironment.getState();
-      const { 
-        setSimulationName, setOriginalSimulationName, setSpeedProfilePath, setLoggingEnabled, setBatteryRestricted, 
-        setBatteryCapacity, setVerboseLogging, setStoreLocalData, 
-        setWindEnabled, setWindDirection, setWindSpeed,
-        setGroundFormation, setFormationCenterLat, setFormationCenterLon, setFormationSpacing, setFormationCenterMode
+      const {
+        setSimulationName,
+        setOriginalSimulationName,
+        setSpeedProfilePath,
+        setLoggingEnabled,
+        setBatteryRestricted,
+        setBatteryCapacity,
+        setVerboseLogging,
+        setStoreLocalData,
+        setWindEnabled,
+        setWindDirection,
+        setWindSpeed,
+        setGroundFormation,
+        setFormationCenterLat,
+        setFormationCenterLon,
+        setFormationSpacing,
+        setFormationCenterMode,
       } = get();
 
       // Load Fleet
@@ -155,14 +188,22 @@ export const useConfig = create<ConfigState>((set, get) => ({
       // Load Environment (including swarm host if present)
       setActiveMode(state.activeMode as any);
       if (state.generalConfig.swarmHost) {
-        const [ip, port] = state.generalConfig.swarmHost.split(':');
-        useEnvironment.getState().setMasterIP(ip ?? '');
-        useEnvironment.getState().setMasterPort(port ?? '2375');
+        const [ip, port] = state.generalConfig.swarmHost.split(":");
+        useEnvironment.getState().setMasterIP(ip ?? "");
+        useEnvironment.getState().setMasterPort(port ?? "2375");
       }
 
       // Load General Config
-      setSimulationName(state.generalConfig.simulationName || state.generalConfig.originalSimulationName || "");
-      setOriginalSimulationName(state.generalConfig.originalSimulationName || state.generalConfig.simulationName || "");
+      setSimulationName(
+        state.generalConfig.simulationName ||
+          state.generalConfig.originalSimulationName ||
+          "",
+      );
+      setOriginalSimulationName(
+        state.generalConfig.originalSimulationName ||
+          state.generalConfig.simulationName ||
+          "",
+      );
       setSpeedProfilePath(state.generalConfig.speedProfilePath);
       setLoggingEnabled(state.generalConfig.loggingEnabled);
       setBatteryRestricted(state.generalConfig.batteryRestricted);
@@ -173,11 +214,16 @@ export const useConfig = create<ConfigState>((set, get) => ({
       setWindDirection(state.generalConfig.windDirection);
       setWindSpeed(state.generalConfig.windSpeed);
       setGroundFormation(state.generalConfig.groundFormation || "LINEAR");
-      setFormationCenterLat(state.generalConfig.formationCenterLat || 39.482594);
-      setFormationCenterLon(state.generalConfig.formationCenterLon || -0.346265);
+      setFormationCenterLat(
+        state.generalConfig.formationCenterLat || 39.482594,
+      );
+      setFormationCenterLon(
+        state.generalConfig.formationCenterLon || -0.346265,
+      );
       setFormationSpacing(state.generalConfig.formationSpacing || 5.0);
-      setFormationCenterMode(state.generalConfig.formationCenterMode || "CUSTOM");
-
+      setFormationCenterMode(
+        state.generalConfig.formationCenterMode || "CUSTOM",
+      );
     } catch (err) {
       console.error("Failed to load simulation:", err);
       alert(`LOAD_ERROR: ${err instanceof Error ? err.message : String(err)}`);
@@ -188,7 +234,14 @@ export const useConfig = create<ConfigState>((set, get) => ({
   handleSaveSimulation: async () => {
     const { uavs } = useFleet.getState();
     const { activeMode } = useEnvironment.getState();
-    const { handleSaveSimulation, handleStartSimulation, handleLoadSimulation, handleExitSimulation, handleSendAlgorithmCommand, ...config } = get();
+    const {
+      handleSaveSimulation,
+      handleStartSimulation,
+      handleLoadSimulation,
+      handleExitSimulation,
+      handleSendAlgorithmCommand,
+      ...config
+    } = get();
     try {
       await SaveSimulationConfig(uavs as any, config, activeMode);
     } catch (err) {
@@ -203,7 +256,9 @@ export const useConfig = create<ConfigState>((set, get) => ({
       await SendAlgorithmCommand(serviceId, command);
     } catch (err) {
       console.error("Failed to send algorithm command:", err);
-      alert(`COMMAND_ERROR: ${err instanceof Error ? err.message : String(err)}`);
+      alert(
+        `COMMAND_ERROR: ${err instanceof Error ? err.message : String(err)}`,
+      );
       throw err;
     }
   },

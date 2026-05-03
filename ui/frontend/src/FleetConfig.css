@@ -222,8 +222,14 @@
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .box-header {
@@ -277,7 +283,6 @@
   padding: 1rem;
 }
 
-
 .config-footer {
   margin-top: 2rem;
   padding-top: 1.5rem;
@@ -305,7 +310,7 @@
 }
 
 .deployed-section-label::after {
-  content: '';
+  content: "";
   flex: 1;
   height: 1px;
   background-color: var(--outline-variant);

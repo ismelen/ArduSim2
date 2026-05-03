@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { GetAvailableServices } from '../../wailsjs/go/main/App';
+import { create } from "zustand";
+import { GetAvailableServices } from "../../wailsjs/go/main/App";
 
 interface ServicesState {
   availableServices: any[];
@@ -21,14 +21,16 @@ export const useServices = create<ServicesState>((set) => ({
   },
 }));
 
-export function buildDefaultValuesFromSchema(schemaRaw: string): Record<string, any> {
+export function buildDefaultValuesFromSchema(
+  schemaRaw: string,
+): Record<string, any> {
   try {
     const schema = JSON.parse(schemaRaw);
     if (!schema.properties) return {};
     return Object.fromEntries(
       Object.entries<any>(schema.properties).map(([key, prop]) => [
         key,
-        prop.default !== undefined ? prop.default : '',
+        prop.default !== undefined ? prop.default : "",
       ]),
     );
   } catch {
