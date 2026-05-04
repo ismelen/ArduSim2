@@ -1,6 +1,6 @@
 package ports
 
-import "ui/domain"
+import "ui/internal/domain"
 
 // ConfigRepository handles persistence of simulation data and service discovery.
 type ConfigRepository interface {

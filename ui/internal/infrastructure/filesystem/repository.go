@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"ui/domain"
+	"ui/internal/domain"
 )
 
 type FileRepository struct {

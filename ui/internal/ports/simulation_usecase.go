@@ -2,7 +2,7 @@ package ports
 
 import (
 	"context"
-	"ui/domain"
+	"ui/internal/domain"
 )
 
 // SimulationUseCase defines the business actions related to the simulation lifecycle.

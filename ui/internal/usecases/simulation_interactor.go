@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"ui/domain"
-	"ui/infrastructure/util"
-	"ui/ports"
+	"ui/internal/domain"
+	"ui/internal/infrastructure/util"
+	"ui/internal/ports"
 )
 
 type SimulationInteractor struct {

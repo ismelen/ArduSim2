@@ -1,8 +1,8 @@
 package usecases
 
 import (
-	"ui/domain"
-	"ui/ports"
+	"ui/internal/domain"
+	"ui/internal/ports"
 )
 
 type DiscoveryInteractor struct {

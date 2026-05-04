@@ -3,7 +3,7 @@ package docker
 import (
 	"fmt"
 	"strings"
-	"ui/domain"
+	"ui/internal/domain"
 )
 
 // composeBuilder assembles a Docker Compose YAML document incrementally.

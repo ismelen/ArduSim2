@@ -4,14 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
-
-	"ui/domain"
-	"ui/infrastructure/docker"
-	"ui/infrastructure/filesystem"
-	"ui/infrastructure/netsim"
-	"ui/infrastructure/wails"
-	"ui/ports"
-	"ui/usecases"
+	"ui/internal/domain"
+	"ui/internal/infrastructure/docker"
+	"ui/internal/infrastructure/filesystem"
+	"ui/internal/infrastructure/netsim"
+	"ui/internal/infrastructure/wails"
+	"ui/internal/ports"
+	"ui/internal/usecases"
 )
 
 // App is the Wails binding layer. It delegates operations to use cases.

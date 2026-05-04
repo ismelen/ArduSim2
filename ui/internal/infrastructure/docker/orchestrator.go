@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"ui/domain"
-	"ui/domain/formation"
-	"ui/infrastructure/util"
-	"ui/ports"
+	"ui/internal/domain"
+	"ui/internal/domain/formation"
+	"ui/internal/infrastructure/util"
+	"ui/internal/ports"
 )
 
 type DockerOrchestrator struct {

@@ -10,9 +10,10 @@ import (
 	"sync"
 	"time"
 
+	"ui/internal/domain"
+	"ui/internal/ports"
+
 	"github.com/go-viper/mapstructure/v2"
-	"ui/domain"
-	"ui/ports"
 )
 
 

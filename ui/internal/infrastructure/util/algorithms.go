@@ -1,6 +1,6 @@
 package util
 
-import "ui/domain"
+import "ui/internal/domain"
 
 // CollectAlgorithmIDs returns the unique algorithm service IDs across all UAVs.
 func CollectAlgorithmIDs(uavs []domain.UAV) []string {

@@ -2,7 +2,7 @@ package wails
 
 import (
 	"context"
-	"ui/ports"
+	"ui/internal/ports"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )

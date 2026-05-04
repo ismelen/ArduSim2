@@ -3,7 +3,7 @@ package docker
 import (
 	"fmt"
 	"strings"
-	"ui/domain"
+	"ui/internal/domain"
 )
 
 // swarmComposeBuilder assembles a Docker Stack (Swarm-compatible) YAML document.

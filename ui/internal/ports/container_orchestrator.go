@@ -1,6 +1,6 @@
 package ports
 
-import "ui/domain"
+import "ui/internal/domain"
 
 // ContainerOrchestrator handles the lifecycle of simulated containers.
 type ContainerOrchestrator interface {

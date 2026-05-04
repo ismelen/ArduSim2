@@ -1,6 +1,6 @@
 package ports
 
-import "ui/domain"
+import "ui/internal/domain"
 
 // DiscoveryUseCase defines the business actions for service discovery.
 type DiscoveryUseCase interface {
