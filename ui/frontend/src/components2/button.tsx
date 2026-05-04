@@ -6,6 +6,7 @@ interface Props {
   className?: string;
   icon?: string;
   onClick?: () => void;
+  enabled?: boolean;
 }
 
 export default function Button({
@@ -14,12 +15,14 @@ export default function Button({
   icon,
   onClick,
   className,
+  enabled = true,
 }: Props) {
   return (
     <button
+      disabled={!enabled}
       onClick={onClick}
       className={cn(
-        "cursor-pointer p-1.5 hoverable-gray flex flex-row items-center jusitfy-center rounded-md transition-colors duration-200",
+        "onDisable cursor-pointer p-1.5 hoverable-gray flex flex-row items-center jusitfy-center rounded-md transition-colors duration-200",
         {
           "text-onPrimary bg-primary hoverable-primary": type === "filled",
           "px-3 text-md font-semibold": label,

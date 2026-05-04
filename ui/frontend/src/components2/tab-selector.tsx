@@ -1,4 +1,6 @@
-import { useState, type ReactNode } from "react";
+/* eslint-disable react-hooks/exhaustive-deps */
+
+import { useEffect, useState, type ReactNode } from "react";
 import Button from "./button";
 
 interface TabOption {
@@ -9,11 +11,18 @@ interface TabOption {
 
 interface Props {
   options: TabOption[];
+  initValue?: string;
   onChange?(option: TabOption): void;
 }
 
-export default function TabSelector({ options, onChange }: Props) {
+export default function TabSelector({ options, initValue, onChange }: Props) {
   const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    if (!initValue) return;
+    const initIndex = options.findIndex((e) => e.value === initValue);
+    if (initIndex != -1) setIdx(initIndex);
+  }, [initValue]);
 
   return (
     <div>

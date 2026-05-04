@@ -5,12 +5,14 @@ import TabSelector from "../../../components2/tab-selector";
 import { useConfig } from "../../../hooks2/useConfig";
 
 export default function DeploymentCard() {
+  const activeMode = useConfig((s) => s.activeMode);
   const setActiveMode = useConfig((s) => s.setActieMode);
 
   return (
     <Card className="flex flex-col gap-2">
       <CardTitle label="Deployment Mode" icon="dns" />
       <TabSelector
+        initValue={activeMode}
         onChange={(e) => {
           setActiveMode(e.value);
         }}
@@ -41,13 +43,17 @@ function DockerSwarmForm() {
         label="Manager IP Address"
         hint="127.0.0.1"
         initValue={ip}
-        onChange={(e) => update((s) => ({ ...s, swarmHost: `${e}:${port}` }))}
+        onChange={(e) =>
+          update((s) => ({ ...s, swarmHost: `${e}:${port ?? ""}` }))
+        }
       />
       <FormField
         label="Swarm Port"
         hint="2375"
         initValue={port}
-        onChange={(e) => update((s) => ({ ...s, swarmHost: `${ip}:${e}` }))}
+        onChange={(e) =>
+          update((s) => ({ ...s, swarmHost: `${ip ?? ""}:${e}` }))
+        }
       />
     </div>
   );

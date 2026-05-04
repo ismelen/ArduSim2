@@ -17,11 +17,9 @@
   ],
   "properties": {
     "role": {
+      "title": "Role",
       "type": "string",
-      "enum": [
-        "master",
-        "slave"
-      ],
+      "enum": ["master", "slave"],
       "description": "Current role of the UAV in the Follow Me protocol. Must be set manually."
     },
     "broker_ip": {

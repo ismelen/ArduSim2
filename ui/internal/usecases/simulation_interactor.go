@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"ui/internal/domain"
+	"ui/internal/infrastructure/kml"
 	"ui/internal/infrastructure/util"
 	"ui/internal/ports"
 )
@@ -221,6 +222,5 @@ func (i *SimulationInteractor) SelectFile(ctx context.Context) (string, error) {
 }
 
 func (i *SimulationInteractor) GetKmlFirstCoordinate(path string) (*domain.Coordinate, error) {
-	// This could be domain logic or a helper.
-	return nil, nil // Implementation detail for later
+	return kml.GetFirstCoordinate(path)
 }

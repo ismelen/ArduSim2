@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { SelectFile } from "../../wailsjs/go/main/App";
 import Button from "./button";
 import FormField from "./form-field";
@@ -16,10 +15,7 @@ export default function FilePickerField({
   initValue,
   onChange,
 }: Props) {
-  const [value, setValue] = useState(initValue ?? "");
-
   const handleChange = (value: string) => {
-    setValue(value);
     onChange?.(value);
   };
 
@@ -27,7 +23,7 @@ export default function FilePickerField({
     <FormField
       hint={hint}
       label={label}
-      initValue={value}
+      initValue={initValue}
       onChange={handleChange}
       suffix={
         <Button

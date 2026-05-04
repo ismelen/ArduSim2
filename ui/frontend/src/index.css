@@ -1,13 +1,13 @@
 @import "tailwindcss";
-@import 'material-symbols';
+@import "material-symbols";
 
 @theme {
   --color-border: #c1c6d7;
   --color-primary: #0058bc;
-  --color-onPrimary: #FFFFFF;
+  --color-onPrimary: #ffffff;
   --color-gray: #f4f3f8;
   --color-dark-gray: #717786;
-  --color-background: #FAF9FE;
+  --color-background: #faf9fe;
 }
 
 .hoverable-gray:hover {
@@ -23,7 +23,7 @@
 }
 
 .placeholder::placeholder {
-  color: var(--color-dark-gray)
+  color: var(--color-dark-gray);
 }
 
 .text-field:focus {
@@ -31,13 +31,12 @@
   background-color: #f4f3f889;
 }
 
-
 /* index.css o App.css */
 .custom-checkbox {
   /* 1. Eliminamos el diseño del sistema */
   appearance: none;
   -webkit-appearance: none;
-  
+
   /* 2. Le damos forma de caja */
   width: 1.5rem;
   height: 1.5rem;
@@ -74,4 +73,10 @@
 
 .bg-blur {
   filter: blur(20px);
+}
+
+.onDisable:disabled {
+  opacity: 50%;
+  cursor: auto;
+  pointer-events: none;
 }

@@ -1,6 +1,5 @@
-import type { domain } from "../../../../wailsjs/go/models";
 import Button from "../../../components2/button";
-import { useFleet } from "../../../hooks2/useFleet";
+import { useFleet, type UAV } from "../../../hooks2/useFleet";
 import { cn } from "../../../utils2/cn";
 
 export default function UavsList() {
@@ -36,7 +35,7 @@ export default function UavsList() {
 }
 
 interface UavCardProps {
-  uav: domain.UAV;
+  uav: UAV;
   onClick?(): void;
   selected?: boolean;
 }

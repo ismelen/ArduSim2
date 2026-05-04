@@ -1,4 +1,12 @@
-import type { ReactNode } from "react";
+/* eslint-disable react-hooks/set-state-in-effect */
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from "react";
+import { debounce } from "../utils2/debouncer";
 
 interface Props {
   hint?: string;
@@ -25,6 +33,25 @@ export default function FormField({
   max,
   enabled = true,
 }: Props) {
+  const [localValue, setLocalValue] = useState(initValue ?? "");
+
+  useEffect(() => {
+    setLocalValue(initValue ?? "");
+  }, [initValue]);
+
+  const debouncedChange = useMemo(
+    () => debounce((value: string) => onChange?.(value), 500),
+    [onChange],
+  );
+
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    event.preventDefault();
+    const value = event.target.value;
+
+    setLocalValue(value);
+    debouncedChange(value);
+  };
+
   return (
     <div>
       <label className="text-dark-gray ">{label}</label>
@@ -37,13 +64,10 @@ export default function FormField({
            disabled:opacity-20 placeholder text-field"
           style={{}}
           placeholder={hint}
-          value={initValue}
+          value={localValue}
           min={min}
           max={max}
-          onChange={(e) => {
-            e.preventDefault();
-            onChange?.(e.target.value);
-          }}
+          onChange={handleChange}
         />
         {suffix ?? suffix}
       </span>

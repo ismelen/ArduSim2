@@ -1,37 +1,57 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from "zustand";
-import { domain } from "../../wailsjs/go/models";
+import { useSimulation } from "./useSimulation";
+
+export interface DeployedService {
+  instanceId: string;
+  serviceId: string;
+  folderName: string;
+  serviceTitle: string;
+  config: Record<string, any>;
+}
+
+export interface UAV {
+  id: string;
+  services: DeployedService[];
+}
 
 interface State {
-  uavs: domain.UAV[];
+  uavs: UAV[];
   activeUavIdx: number;
   addUavs(count: number): void;
   deleteUav(): void;
-  addService(service: domain.DeployedService): void;
-  deleteService(service: domain.DeployedService): void;
-  updateService(idx: number, service: domain.DeployedService): void;
-  loadFleet(uavs: domain.UAV[]): void;
+  addService(service: DeployedService): void;
+  deleteService(service: DeployedService): void;
+  updateService(idx: number, service: DeployedService): void;
+  loadFleet(uavs: UAV[]): void;
   setSelectedIdx(idx: number): void;
 }
 
 export const useFleet = create<State>((set, get) => ({
-  uavs: [domain.UAV.createFrom({ id: 0, services: [] })],
+  uavs: [{ id: "0", services: [] }],
   activeUavIdx: 0,
 
-  updateService(idx: number, service: domain.DeployedService) {
+  updateService(idx: number, service: DeployedService) {
     const uavs = get().uavs;
     const uav = uavs[get().activeUavIdx];
     uav.services[idx] = service;
     uavs[get().activeUavIdx] = uav;
 
     set({ uavs: [...uavs] });
+    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 
   setSelectedIdx(idx: number) {
     set({ activeUavIdx: idx });
   },
 
-  loadFleet(uavs: domain.UAV[]) {
-    set({ uavs });
+  loadFleet(uavs: UAV[]) {
+    if (uavs.length === 0) {
+      uavs = [{ id: "0", services: [] }];
+    }
+
+    set({ uavs: uavs });
+    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 
   addUavs(count: number) {
@@ -43,14 +63,13 @@ export const useFleet = create<State>((set, get) => ({
       lastId = Number(uavs[uavs.length - 1].id);
     }
     for (let i = lastId + 1; i <= lastId + count; i++) {
-      uavs.push(
-        domain.UAV.createFrom({
-          id: i.toString(),
-          services: [],
-        }),
-      );
+      uavs.push({
+        id: i.toString(),
+        services: [],
+      });
     }
     set({ uavs: [...uavs] });
+    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 
   deleteUav() {
@@ -62,7 +81,7 @@ export const useFleet = create<State>((set, get) => ({
 
     if (uavs.length === 0) {
       return set({
-        uavs: [domain.UAV.createFrom({ id: 0, services: [] })],
+        uavs: [{ id: "0", services: [] }],
         activeUavIdx: 0,
       });
     }
@@ -72,21 +91,24 @@ export const useFleet = create<State>((set, get) => ({
     }
 
     set({ uavs: [...uavs] });
+    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 
-  addService(service: domain.DeployedService) {
+  addService(service: DeployedService) {
     const uavs = get().uavs;
     uavs[get().activeUavIdx].services.push(service);
 
     set({ uavs });
+    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 
-  deleteService(service: domain.DeployedService) {
+  deleteService(service: DeployedService) {
     const uavs = get().uavs;
     uavs[get().activeUavIdx].services = uavs[
       get().activeUavIdx
     ].services.filter((e) => e.instanceId !== service.instanceId);
 
     set({ uavs: [...uavs] });
+    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 }));

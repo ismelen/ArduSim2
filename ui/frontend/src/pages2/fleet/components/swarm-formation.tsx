@@ -1,7 +1,13 @@
+import { useEffect, useMemo, useState } from "react";
 import CardTitle from "../../../components2/card-title";
 import FormField from "../../../components2/form-field";
 import { useConfig } from "../../../hooks2/useConfig";
+import { useFleet, type UAV } from "../../../hooks2/useFleet";
 import { cn } from "../../../utils2/cn";
+import { useServices } from "../../../hooks2/useServices";
+import Select from "../../../components2/select";
+import type { domain } from "../../../../wailsjs/go/models";
+import { GetKmlFirstCoordinate } from "../../../../wailsjs/go/main/App";
 
 const FORMATIONS = [
   {
@@ -23,9 +29,36 @@ const FORMATIONS = [
 ];
 
 export default function SwarmFormation() {
+  const [kmlCoords, setKmlCoords] = useState<domain.Coordinate | undefined>(
+    undefined,
+  );
+
   const { formationCenterLat, formationCenterLon, formationSpacing } =
     useConfig((s) => s.config);
   const update = useConfig((s) => s.update);
+  const uavs = useFleet((s) => s.uavs);
+  const services = useServices((s) => s.services);
+
+  const kmlFiles = useMemo<{ filename: string; path: string }[]>(
+    () => getKmlFiles(services, uavs),
+    [uavs, services],
+  );
+
+  useEffect(() => {
+    useServices.getState().loadServices();
+  }, []);
+
+  const handleSelectCoordsSrc = async (value: string) => {
+    if (value === "") {
+      setKmlCoords(undefined);
+      return;
+    }
+
+    const coords = await GetKmlFirstCoordinate(value);
+    console.log(value);
+    console.log(coords.lat, coords.lon);
+    setKmlCoords(coords);
+  };
 
   return (
     <aside className="border-l border-border min-w-70 max-w-90 flex-1/4 bg-white">
@@ -44,21 +77,30 @@ export default function SwarmFormation() {
             update((s) => ({ ...s, formationSpacing: Number(e) }))
           }
         />
+        <Select
+          options={kmlFiles
+            .map((e) => ({ label: e.filename, value: e.path }))
+            .concat({ label: "Custom", value: "" })}
+          label="Get coords from"
+          onChange={handleSelectCoordsSrc}
+        />
         <span className="flex gap-2">
           <FormField
-            initValue={`${formationCenterLat}`}
+            initValue={`${kmlCoords?.lat ?? formationCenterLat}`}
             type="number"
             min={0}
             label="Latitude (deg)"
+            enabled={kmlCoords === undefined}
             onChange={(e) =>
               update((s) => ({ ...s, formationCenterLat: Number(e) }))
             }
           />
           <FormField
-            initValue={`${formationCenterLon}`}
+            initValue={`${kmlCoords?.lon ?? formationCenterLon}`}
             type="number"
             min={0}
             label="Longitude (deg)"
+            enabled={kmlCoords === undefined}
             onChange={(e) =>
               update((s) => ({ ...s, formationCenterLon: Number(e) }))
             }
@@ -77,6 +119,7 @@ function FormationModeSelection() {
     <div className="grid grid-cols-2 grid-rows-2 gap-2">
       {FORMATIONS.map((e) => (
         <div
+          key={e.value}
           onClick={() =>
             update((s) => ({ ...s, formationCenterMode: e.value }))
           }
@@ -95,4 +138,29 @@ function FormationModeSelection() {
       ))}
     </div>
   );
+}
+
+function getKmlFiles(services: domain.ServiceType[], uavs: UAV[]) {
+  const kmlFiles: { filename: string; path: string }[] = [];
+
+  const servicesWithKmlFiles = services.filter((e) =>
+    e.schemaRaw.includes("format"),
+  );
+
+  for (const uav of uavs) {
+    const servicesToSearch = uav.services.filter((e) =>
+      servicesWithKmlFiles.find((v) => v.id === e.serviceId),
+    );
+    for (const serv of servicesToSearch) {
+      for (const prop of Object.values(serv.config)) {
+        if (typeof prop === "string" && prop.includes(".kml")) {
+          kmlFiles.push({
+            path: prop as string,
+            filename: (prop as string).split(/[/\\]/).pop() ?? "",
+          });
+        }
+      }
+    }
+  }
+  return kmlFiles;
 }

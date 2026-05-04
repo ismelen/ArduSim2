@@ -1,7 +1,7 @@
 import Button from "../../components2/button";
 import Page from "../../components2/page";
 import PageTitle from "../../components2/page-title";
-import { useConfig } from "../../hooks2/useConfig";
+import { useSimulation } from "../../hooks2/useSimulation";
 import BatteryAndLoggingCard from "./components/battery-and-logging-card";
 import DeploymentCard from "./components/deployment-card";
 import SimNameCard from "./components/sim-name-card";
@@ -9,7 +9,7 @@ import SpeedProfileCard from "./components/speed-profile-card";
 import WindCard from "./components/wind-card";
 
 export default function ConfigPage() {
-  const loadConfig = useConfig((s) => s.loadConfig);
+  const loadConfig = useSimulation((s) => s.loadConfig);
 
   return (
     <Page>

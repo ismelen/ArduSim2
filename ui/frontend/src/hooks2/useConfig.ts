@@ -1,9 +1,7 @@
-import hash from "object-hash";
 import { create } from "zustand";
-import { LoadSimulationConfig } from "../../wailsjs/go/main/App";
-import { useFleet } from "./useFleet";
+import { useSimulation } from "./useSimulation";
 
-interface Config {
+export interface GeneralConfig {
   speedProfilePath?: string;
   loggingEnabled?: boolean;
   batteryRestricted?: boolean;
@@ -24,13 +22,10 @@ interface Config {
 }
 
 interface State {
-  config: Config;
-  lastHash?: string;
-  currentHash?: string;
+  config: GeneralConfig;
   activeMode: string;
-  update(fn: (config: Config) => Config): void;
-  loadConfig(): Promise<void>;
-  saveConfig(): Promise<void>;
+  update(fn: (config: GeneralConfig) => GeneralConfig): void;
+  loadConfig(config: GeneralConfig, activeMode: string): void;
   setActieMode(value: string): void;
 }
 
@@ -38,31 +33,24 @@ export const useConfig = create<State>((set, get) => ({
   config: {},
   activeMode: "LOCAL",
 
-  update(fn: (config: Config) => Config) {
-    set((s) => ({ config: fn(s.config) }));
-    set((s) => ({ currentHash: hash(s.config) }));
+  update(fn: (config: GeneralConfig) => GeneralConfig) {
+    const newConfig = fn(get().config);
+    set({ config: newConfig });
+    useSimulation.getState().update((s) => ({
+      ...s,
+      generalConfig: newConfig,
+    }));
   },
 
-  async loadConfig() {
-    if (
-      get().lastHash &&
-      get().currentHash &&
-      get().lastHash !== get().currentHash
-    ) {
-      //TODO: await confirm dialog
-    }
-
-    const state = await LoadSimulationConfig();
-    useFleet.getState().loadFleet(state.uavs);
-    console.log(state.generalConfig.formationCenterMode);
-    set({ config: state.generalConfig, lastHash: hash(state.generalConfig) });
-  },
-
-  async saveConfig() {
-    set((s) => ({ lastHash: s.currentHash }));
+  loadConfig(config: GeneralConfig, activeMode: string) {
+    set({ config: config, activeMode: activeMode });
   },
 
   setActieMode(value: string) {
     set({ activeMode: value });
+    useSimulation.getState().update((s) => ({
+      ...s,
+      activeMode: value,
+    }));
   },
 }));
