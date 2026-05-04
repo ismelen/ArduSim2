@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { SelectableValue } from "./select";
 import { cn } from "../utils2/cn";
+import type { SelectableValue } from "./select";
 
 interface Props {
   label: string;
@@ -55,7 +55,7 @@ export default function SplitButton({
     >
       <button
         className="flex items-center pr-3 pl-1.5 py-1.5 gap-2
-        font-medium cursor-pointer border-r hover:bg-white/10"
+        font-medium cursor-pointer border-r hover:bg-cwhite/10"
         onClick={onClick}
         style={{
           borderColor: color ?? "var(--color-primary)",
@@ -66,7 +66,7 @@ export default function SplitButton({
         <label className="cursor-pointer">{label}</label>
       </button>
       <button
-        className="flex items-center hover:bg-white/10 cursor-pointer"
+        className="flex items-center hover:bg-cwhite/10 cursor-pointer"
         onClick={() => setIsOpen((s) => !s)}
         style={{
           color: color ?? "var(--color-primary)",
@@ -79,7 +79,7 @@ export default function SplitButton({
       {isOpen && (
         <div
           ref={dropdownRef}
-          className="absolute top-full left-0 rounded-md border border-border bg-white 
+          className="absolute top-full left-0 rounded-md border border-border bg-cwhite 
           flex flex-col gap-1 mt-1 w-full shadow-sm p-1"
         >
           {options.map((e) => (

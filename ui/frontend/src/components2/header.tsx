@@ -1,5 +1,6 @@
 import { TABS, useNavigation } from "../hooks2/useNavigation";
 import { useSimulation } from "../hooks2/useSimulation";
+import { useTheme } from "../hooks2/useTheme";
 import { cn } from "../utils2/cn";
 import Button from "./button";
 
@@ -16,8 +17,11 @@ export default function Header() {
   const saveConfig = useSimulation((s) => s.saveConfig);
   const newConfig = useSimulation((s) => s.newConfig);
 
+  const isNight = useTheme((s) => s.isNight);
+  const toggleTheme = useTheme((s) => s.toggleTheme);
+
   return (
-    <header className="border-b border-border flex gap-4 p-3 items-center bg-white sticky top-0">
+    <header className="border-b border-border flex gap-4 p-3 items-center bg-cwhite sticky top-0">
       <Button icon="note_add" onClick={newConfig} type="filled" />
       <h1 className="text-primary text-xl font-extrabold">ArduSim</h1>
       <span>
@@ -46,7 +50,7 @@ export default function Header() {
           enabled={lastConfig.hash !== lastHash}
         />
         <Button label="Start Simulation" type="filled" />
-        <Button icon="exit_to_app" />
+        <Button icon={isNight ? "bedtime" : "sunny"} onClick={toggleTheme} />
       </span>
     </header>
   );

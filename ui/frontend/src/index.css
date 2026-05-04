@@ -8,7 +8,23 @@
   --color-gray: #f4f3f8;
   --color-dark-gray: #717786;
   --color-background: #faf9fe;
+  --color-cwhite: #fff;
+  --color-cblack: #000;
+  --color-field-focus: #f4f3f889;
 }
+
+.dark {
+  --color-border: #202020;
+  --color-onPrimary: #dfdfdf;
+  --color-gray: #191B23;
+  --color-dark-gray: #8f8f8f;
+  --color-background: #10131A;
+  --color-cwhite: #0B0E15;
+  --color-cblack: #fff;
+  --color-field-focus: #090909;
+}
+
+
 
 .hoverable-gray:hover {
   background-color: var(--color-gray);
@@ -19,7 +35,7 @@
 }
 
 .hoverable-primary:hover {
-  background-color: #2d75c8;
+  background-color: var(--color-primary);
 }
 
 .placeholder::placeholder {
@@ -28,7 +44,7 @@
 
 .text-field:focus {
   outline-width: 0;
-  background-color: #f4f3f889;
+  background-color: var(--color-field-focus);
 }
 
 /* index.css o App.css */

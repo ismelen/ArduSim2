@@ -120,7 +120,7 @@ function ServiceCard({
     <div
       onClick={onSelect}
       className={cn(
-        `border border-border bg-white shadow-sm rounded-md px-3 py-1.5 
+        `border border-border bg-cwhite shadow-sm rounded-md px-3 py-1.5 
         cursor-pointer hoverable-gray`,
         {
           "bg-primary text-onPrimary hoverable-primary": selected,

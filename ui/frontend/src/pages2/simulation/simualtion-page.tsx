@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
-import SimulationControls from "./components/simulation-controls";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { useEffect, useRef } from "react";
 import { useMap } from "../../hooks2/useMap";
-import MapControls from "./components/map-controls";
 import LogDisplay from "./components/log-display";
+import MapControls from "./components/map-controls";
+import SimulationControls from "./components/simulation-controls";
 
 export default function SimulatinPage() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -23,7 +23,7 @@ export default function SimulatinPage() {
         <LogDisplay className="absolute bottom-2 left-2 right-2" />
       </div>
       <div
-        className="h-full bg-white w-1/3 max-w-70 border-l 
+        className="h-full bg-cwhite w-1/3 max-w-70 border-l 
       border-border shadow-sm overflow-y-auto"
       ></div>
     </main>

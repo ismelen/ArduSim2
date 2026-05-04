@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { GetKmlFirstCoordinate } from "../../../../wailsjs/go/main/App";
+import type { domain } from "../../../../wailsjs/go/models";
 import CardTitle from "../../../components2/card-title";
 import FormField from "../../../components2/form-field";
+import Select from "../../../components2/select";
 import { useConfig } from "../../../hooks2/useConfig";
 import { useFleet, type UAV } from "../../../hooks2/useFleet";
-import { cn } from "../../../utils2/cn";
 import { useServices } from "../../../hooks2/useServices";
-import Select from "../../../components2/select";
-import type { domain } from "../../../../wailsjs/go/models";
-import { GetKmlFirstCoordinate } from "../../../../wailsjs/go/main/App";
+import { cn } from "../../../utils2/cn";
 
 const FORMATIONS = [
   {
@@ -61,7 +61,7 @@ export default function SwarmFormation() {
   };
 
   return (
-    <aside className="border-l border-border min-w-70 max-w-90 flex-1/4 bg-white">
+    <aside className="border-l border-border min-w-70 max-w-90 flex-1/4 bg-cwhite">
       <span className="border-b border-border flex flex-row items-center justify-between px-3 py-3 bg-gray">
         <CardTitle label="Swarm Formation" icon="grid_3x3" />
       </span>
@@ -125,7 +125,7 @@ function FormationModeSelection() {
           }
           className={cn(
             `border border-border rounded-md p-3 overflow-clip justify-center
-              bg-white shadow-xs cursor-pointer hoverable-gray flex flex-col items-center `,
+              bg-cwhite shadow-xs cursor-pointer hoverable-gray flex flex-col items-center `,
             {
               "bg-primary text-onPrimary hoverable-primary":
                 e.value === formationCenterMode,

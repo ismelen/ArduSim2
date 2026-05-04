@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { cn } from "../../../utils2/cn";
 import Button from "../../../components2/button";
+import { cn } from "../../../utils2/cn";
 
 interface Props {
   className?: string;
@@ -12,7 +12,7 @@ export default function LogDisplay({ className }: Props) {
   return (
     <div
       className={cn(
-        `h-1/3 bg-white 
+        `h-1/3 bg-cwhite 
           z-50 rounded-md border-border border overflow-clip`,
         className,
         {

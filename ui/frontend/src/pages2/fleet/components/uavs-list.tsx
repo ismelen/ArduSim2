@@ -9,7 +9,7 @@ export default function UavsList() {
   const setSelectedIdx = useFleet((s) => s.setSelectedIdx);
 
   return (
-    <aside className="border-r border-border min-w-70 max-w-90 flex-1/4 bg-white">
+    <aside className="border-r border-border min-w-70 max-w-90 flex-1/4 bg-cwhite">
       <span className="border-b border-border flex flex-row items-center justify-between px-3 py-3 bg-gray">
         <h3 className="font-bold text-xl">Fleet</h3>
         <Button

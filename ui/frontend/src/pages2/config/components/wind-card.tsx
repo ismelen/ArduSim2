@@ -77,7 +77,7 @@ function CompassArrow({ direction }: { direction?: number }) {
       }}
     >
       <div className="bg-primary rounded-full w-1 flex-1 flex justify-center">
-        <div className="bg-white border border-border rounded-md w-2 h-6" />
+        <div className="bg-cwhite border border-border rounded-md w-2 h-6" />
       </div>
       <div className="bg-dark-gray rounded-full aspect-square w-2" />
       <div className="flex-1" />
