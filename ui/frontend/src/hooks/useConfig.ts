@@ -113,7 +113,7 @@ export const useConfig = create<ConfigState>((set, get) => ({
     startSimulation();
 
     try {
-      await StartSimulation(uavs as any, configWithSwarm, activeMode, isLocal);
+      await StartSimulation(uavs as any, configWithSwarm, isLocal);
     } catch (err) {
       console.error("Failed to start simulation:", err);
       alert(

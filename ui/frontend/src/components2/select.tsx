@@ -1,9 +1,14 @@
+export interface SelectableValue<T> {
+  value: T;
+  label: string;
+}
+
 interface Props<T> {
   label?: string;
   initValue?: T;
   onChange?(value?: T): void;
   enabled?: boolean;
-  options: { value: T; label: string }[];
+  options: SelectableValue<T>[];
 }
 
 export default function Select<T>({

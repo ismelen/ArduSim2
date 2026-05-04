@@ -38,7 +38,7 @@ func NewDockerOrchestrator(projectRoot string, ui ports.UIBridge) *DockerOrchest
 	}
 }
 
-func (o *DockerOrchestrator) Run(uavs []domain.UAV, config domain.GeneralConfig, mode string, isLocal bool, simDir string) (string, error) {
+func (o *DockerOrchestrator) Run(uavs []domain.UAV, config domain.GeneralConfig, isLocal bool, simDir string) (string, error) {
 	resDir := filepath.Join(simDir, "resources")
 	if err := os.MkdirAll(resDir, 0755); err != nil {
 		return "", fmt.Errorf("create simulation dirs: %w", err)
@@ -56,10 +56,10 @@ func (o *DockerOrchestrator) Run(uavs []domain.UAV, config domain.GeneralConfig,
 	f := formation.GetFormation(config.GroundFormation)
 	offsets := f.CalculateOffsets(len(uavs), config.FormationSpacing)
 
-	if mode == "SWARM" {
-		return o.buildSwarmCompose(uavs, config, speeds, offsets, resDir, simDir)
+	if isLocal {
+		return o.buildLocalCompose(uavs, config, speeds, offsets, resDir, simDir, runDir)
 	}
-	return o.buildLocalCompose(uavs, config, speeds, offsets, resDir, simDir, runDir)
+	return o.buildSwarmCompose(uavs, config, speeds, offsets, resDir, simDir)
 }
 
 func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.GeneralConfig, speeds []float64, offsets []formation.Offset, resDir, simDir, runDir string) (string, error) {

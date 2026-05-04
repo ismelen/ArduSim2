@@ -3,6 +3,7 @@ import hash from "object-hash";
 import {
   LoadSimulationConfig,
   SaveSimulationConfig,
+  StartSimulation,
 } from "../../wailsjs/go/main/App";
 import { useFleet, type UAV } from "./useFleet";
 import { useConfig, type GeneralConfig } from "./useConfig";
@@ -154,5 +155,18 @@ export const useSimulation = create<State>((set, get) => ({
       lastHash: "",
       skipNextUpdate: true,
     });
+  },
+
+  async startSimulation() {
+    const state = get();
+    if (state.lastConfig.hash !== "") state.saveConfig();
+
+    const config = state.lastConfig.value;
+
+    await StartSimulation(
+      config.uavs.map((e) => domain.UAV.createFrom(e)),
+      domain.GeneralConfig.createFrom(config.generalConfig),
+      config.activeMode === "LOCAL",
+    );
   },
 }));

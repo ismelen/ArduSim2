@@ -7,7 +7,7 @@ interface Props {
 
 export default function AppLayout({ children }: Props) {
   return (
-    <div className="bg-background h-screen overflow-y-scroll flex flex-col">
+    <div className="bg-background h-screen overflow-y-auto flex flex-col">
       <Header />
       <div className="flex-1">{children}</div>
     </div>

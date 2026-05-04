@@ -4,7 +4,7 @@ import "ui/internal/domain"
 
 // ContainerOrchestrator handles the lifecycle of simulated containers.
 type ContainerOrchestrator interface {
-	Run(uavs []domain.UAV, config domain.GeneralConfig, mode string, isLocal bool, simDir string) (string, error)
+	Run(uavs []domain.UAV, config domain.GeneralConfig, isLocal bool, simDir string) (string, error)
 	StartCompose(composePath string) error
 	StopCompose(composePath string) error
 	StartStack(composePath, swarmHost, stackName string) error

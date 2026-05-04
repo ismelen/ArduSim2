@@ -60,8 +60,8 @@ func (a *App) GetAvailableServices() []domain.ServiceType {
 	return a.discovery.GetAvailableServices()
 }
 
-func (a *App) StartSimulation(uavs []domain.UAV, config domain.GeneralConfig, mode string, isLocal bool) error {
-	return a.simulation.StartSimulation(a.ctx, uavs, config, mode, isLocal)
+func (a *App) StartSimulation(uavs []domain.UAV, config domain.GeneralConfig, isLocal bool) error {
+	return a.simulation.StartSimulation(a.ctx, uavs, config, isLocal)
 }
 
 func (a *App) StopSimulation() {

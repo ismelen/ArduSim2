@@ -44,11 +44,11 @@ func NewSimulationInteractor(
 	}
 }
 
-func (i *SimulationInteractor) StartSimulation(ctx context.Context, uavs []domain.UAV, config domain.GeneralConfig, mode string, isLocal bool) error {
+func (i *SimulationInteractor) StartSimulation(ctx context.Context, uavs []domain.UAV, config domain.GeneralConfig, isLocal bool) error {
 	config.SanitizeSimulationName()
 	simDir := filepath.Join(i.repo.GetSimulationsDir(), config.SimulationName)
 
-	composePath, err := i.orchestrator.Run(uavs, config, mode, isLocal, simDir)
+	composePath, err := i.orchestrator.Run(uavs, config, isLocal, simDir)
 	if err != nil {
 		return fmt.Errorf("prepare simulation: %w", err)
 	}
