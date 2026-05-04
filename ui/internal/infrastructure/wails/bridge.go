@@ -2,6 +2,7 @@ package wails
 
 import (
 	"context"
+	"os"
 	"ui/internal/ports"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -26,6 +27,10 @@ func (b *WailsBridge) EmitEvent(name string, data ...interface{}) {
 }
 
 func (b *WailsBridge) OpenDirectoryDialog(ctx context.Context, title, defaultDir string) (string, error) {
+	if info, err := os.Stat(defaultDir); err != nil || !info.IsDir() {
+		defaultDir = ""
+	}
+	
 	return runtime.OpenDirectoryDialog(ctx, runtime.OpenDialogOptions{
 		DefaultDirectory: defaultDir,
 		Title:            title,
