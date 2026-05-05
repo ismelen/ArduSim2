@@ -11,6 +11,7 @@ import {
 import { useFleet, type UAV } from "./useFleet";
 import { useConfig, type GeneralConfig } from "./useConfig";
 import { domain } from "../../wailsjs/go/models";
+import { useDialog } from "./useDialog";
 
 interface SimulationState {
   uavs: UAV[];
@@ -47,7 +48,7 @@ interface State {
   start(targets: string[]): void;
   pause(targets: string[]): void;
   stop(targets: string[]): void;
-  exit(): void;
+  exit(): Promise<boolean>;
 }
 
 export const useSimulation = create<State>((set, get) => ({
@@ -63,8 +64,6 @@ export const useSimulation = create<State>((set, get) => ({
 
   undo() {
     const state = get();
-
-    console.log("undos:", state.undos.length);
 
     const prevConfig = state.undos[state.undos.length - 1];
     const newUndos = state.undos.slice(0, -1);
@@ -119,8 +118,22 @@ export const useSimulation = create<State>((set, get) => ({
   },
 
   async loadConfig() {
-    if (get().lastHash && get().lastHash !== get().lastConfig.hash) {
-      //TODO: await confirm dialog
+    if (!get().lastHash || get().lastHash !== get().lastConfig.hash) {
+      const action = await useDialog.getState().show({
+        title: "Unsaved changes",
+        text: "There are unsaved changes. Loading a new configuration will result in the loss of these modifications",
+        buttons: [
+          { label: "Cancel" },
+          { label: "Accept", type: "outlined" },
+          { label: "Save & Accept", type: "filled" },
+        ],
+      });
+      switch (action) {
+        case 0:
+          return;
+        case 2:
+          await get().saveConfig();
+      }
     }
 
     const state = await LoadSimulationConfig();
@@ -153,7 +166,23 @@ export const useSimulation = create<State>((set, get) => ({
   },
 
   async newConfig() {
-    //TODO: await confirm dialog
+    if (!get().lastHash || get().lastHash !== get().lastConfig.hash) {
+      const action = await useDialog.getState().show({
+        title: "Unsaved changes",
+        text: "There are unsaved changes. Loading a new configuration will result in the loss of these modifications",
+        buttons: [
+          { label: "Cancel" },
+          { label: "Accept", type: "outlined" },
+          { label: "Save & Accept", type: "filled" },
+        ],
+      });
+      switch (action) {
+        case 0:
+          return;
+        case 2:
+          await get().saveConfig();
+      }
+    }
 
     const state = get();
     if (state.lastConfig.hash !== "") state.saveConfig();
@@ -168,8 +197,21 @@ export const useSimulation = create<State>((set, get) => ({
   },
 
   async startSimulation() {
-    //TODO: Await confirm dialog
-    // Already simulating? Not saved changes?
+    if (get().isSimulating) {
+      const action = await useDialog.getState().show({
+        title: "Simulation in progress",
+        text: "There is a simulation in progress. Starting a new simulation wil destroy current.",
+        buttons: [{ label: "Cancel" }, { label: "Accept", type: "filled" }],
+      });
+      switch (action) {
+        case 0:
+          return;
+        case 1: {
+          const exitSucces = await get().exit();
+          if (!exitSucces) return;
+        }
+      }
+    }
 
     const state = get();
     if (state.lastConfig.hash !== "") state.saveConfig();
@@ -200,10 +242,22 @@ export const useSimulation = create<State>((set, get) => ({
     }
   },
   async exit() {
-    // TODO: Await confirm dialog
-    // Save logs?
-    const keepLogs = false;
-
+    let keepLogs = true;
+    const action = await useDialog.getState().show({
+      title: "Are you sure?",
+      text: "The current simulation will be closed. Do you want to save logs?",
+      buttons: [
+        { label: "Cancel" },
+        { label: "Don't save", type: "outlined" },
+        { label: "Save logs", type: "filled" },
+      ],
+    });
+    switch (action) {
+      case 0:
+        return false;
+      case 1:
+        keepLogs = false;
+    }
     await StopSimulation();
     if (!keepLogs) {
       await DiscardCurrentRun(
@@ -212,6 +266,7 @@ export const useSimulation = create<State>((set, get) => ({
     }
 
     set({ isSimulating: false });
+    return true;
   },
 }));
 

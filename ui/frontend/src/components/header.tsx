@@ -50,7 +50,7 @@ export default function Header() {
           enabled={lastConfig.hash !== lastHash}
         />
         <Button label="Start Simulation" type="filled" />
-        <Button icon={isNight ? "bedtime" : "sunny"} onClick={toggleTheme} />
+        <Button icon={!isNight ? "bedtime" : "sunny"} onClick={toggleTheme} />
       </span>
     </header>
   );

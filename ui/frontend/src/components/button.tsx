@@ -1,9 +1,11 @@
+import type { CSSProperties } from "react";
 import { cn } from "../utils/cn";
 
 interface Props {
   label?: string;
   type?: "filled" | "outlined";
   className?: string;
+  style?: CSSProperties;
   icon?: string;
   onClick?: () => void;
   enabled?: boolean;
@@ -14,11 +16,13 @@ export default function Button({
   type,
   icon,
   onClick,
+  style,
   className,
   enabled = true,
 }: Props) {
   return (
     <button
+      style={style}
       disabled={!enabled}
       onClick={onClick}
       className={cn(
