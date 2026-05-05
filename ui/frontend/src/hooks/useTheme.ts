@@ -9,7 +9,7 @@ interface State {
 export const useTheme = create<State, [["zustand/persist", State]]>(
   persist(
     (set) => ({
-      isNight: true,
+      isNight: false,
       toggleTheme() {
         set((s) => ({ isNight: !s.isNight }));
       },

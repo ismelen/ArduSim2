@@ -1,22 +1,42 @@
+import { useShallow } from "zustand/shallow";
 import Card from "../../../components/card";
 import { getUavColor } from "../../../constants/uav-colors";
 import { useFleet } from "../../../hooks/useFleet";
+import { useSimulation } from "../../../hooks/useSimulation";
 import { useTelemetry, type TelemetryData } from "../../../hooks/useTelemetry";
 import { cn } from "../../../utils/cn";
+import { formatTime } from "../../../utils/format-time";
 
 export default function UavTelemetryDisplay() {
   const fleetUavs = useFleet((s) => s.uavs);
   const uavs = useTelemetry((s) => s.interpolatedUavs);
+  const [setupTime, simulationTime] = useSimulation(
+    useShallow((s) => [s.setupTime, s.simulationTime]),
+  );
 
   return (
     <div
       className="h-full bg-gray w-1/3 max-w-70 border-l 
-      border-border shadow-sm overflow-y-auto p-3"
+      border-border shadow-sm flex flex-col"
     >
-      {fleetUavs.map((e) => (
-        <TelemetryCard uav_id={e.id} data={uavs[e.id]} />
-      ))}
+      <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+        {fleetUavs.map((e) => (
+          <TelemetryCard uav_id={e.id} data={uavs[e.id]} />
+        ))}
+      </div>
+      <div className="flex flex-col gap-2 p-3">
+        <TimeCard time={setupTime} label="Setup" />
+        <TimeCard time={setupTime + simulationTime} label="Total" />
+      </div>
     </div>
+  );
+}
+
+function TimeCard({ time, label }: { time: number; label: string }) {
+  return (
+    <Card className="text-dark-gray font-medium flex gap-2 justify-between px-3 py-1.5">
+      {label} <p className="text-cblack font-normal">{formatTime(time)}</p>
+    </Card>
   );
 }
 

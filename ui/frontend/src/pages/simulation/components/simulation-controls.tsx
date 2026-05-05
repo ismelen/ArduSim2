@@ -29,7 +29,7 @@ export default function SimulationControls({ className }: Props) {
   return (
     <Card
       className={cn(
-        "p-1 flex gap-1 w-min overflow-visible",
+        "p-1 flex gap-1 w-min overflow-visible ",
         { "opacity-50": !allReady },
         className,
       )}

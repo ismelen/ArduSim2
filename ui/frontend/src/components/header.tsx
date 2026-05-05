@@ -21,7 +21,7 @@ export default function Header() {
   const toggleTheme = useTheme((s) => s.toggleTheme);
 
   return (
-    <header className="border-b border-border flex gap-4 p-3 items-center bg-cwhite sticky top-0">
+    <header className="border-b border-border flex gap-4 p-3 items-center bg-cwhite sticky top-0 z-50 h-15">
       <Button icon="note_add" onClick={newConfig} type="filled" />
       <h1 className="text-primary text-xl font-extrabold">ArduSim</h1>
       <span>

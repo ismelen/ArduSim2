@@ -12,6 +12,7 @@ import UavTelemetryDisplay from "./components/uav-telemetry-display";
 
 export default function SimulationPage() {
   const isSimulating = useSimulation((s) => s.isSimulating);
+  const simulationFinished = useSimulation((s) => s.simulationFinished);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [initMap, updateTrails, updateMarkers, recenter, followTarget] = useMap(
     useShallow((s) => [
@@ -22,7 +23,6 @@ export default function SimulationPage() {
       s.followTarget,
     ]),
   );
-
   const [uavs, setonNewRealPoint, subscribe, unsubscribe] = useTelemetry(
     useShallow((s) => [
       s.interpolatedUavs,
@@ -63,15 +63,13 @@ export default function SimulationPage() {
   }, [uavs, updateMarkers, followTarget, recenter, isSimulating]);
 
   return (
-    <main className="flex h-full">
-      <div ref={mapContainerRef} className="h-full relative flex-1">
+    <main className="flex" style={{ height: "calc(100vh - 60px)" }}>
+      <div ref={mapContainerRef} className="h-full relative flex-1 z-40">
         <MapControls className="absolute top-16 left-2 z-50" />
         <SimulationControls className="absolute top-2 left-2 z-50" />
         <LogDisplay
           className="absolute bottom-2 left-2 right-2"
-          onFinishReceived={() => {
-            //TODO
-          }}
+          onFinishReceived={simulationFinished}
         />
       </div>
       <UavTelemetryDisplay />
