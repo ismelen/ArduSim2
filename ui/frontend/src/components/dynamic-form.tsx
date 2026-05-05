@@ -24,8 +24,7 @@ export default function DynamicForm({ schemaRaw, values, onChange }: Props) {
       if (!v.default) continue;
       onChange?.(k, v.default);
     }
-  }, []);
-
+  }, [currentValues, onChange, schema.properties]);
 
   if (!schema.properties) return null;
 
@@ -38,7 +37,7 @@ export default function DynamicForm({ schemaRaw, values, onChange }: Props) {
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex-1 flex flex-col gap-2 overflow-y-auto">
       {Object.entries(schema.properties).map(([key, prop]) => {
         if (!prop.title) return null;
         if (prop.enum) {

@@ -31,22 +31,28 @@ export default function AddNewServiceDialog({
   }, []);
 
   return (
-    <div className="absolute inset-0 flex h-screen overflow-clip">
+    <div className="absolute inset-0 flex h-screen overflow-clip z-60">
       <div
         className="bg-black opacity-60 flex-1/4 cursor-pointer"
         onClick={onExit}
       />
-      <div className="bg-background flex-3/4 shadow-lg flex flex-col">
-        <span className="bg-gray border-b border-border p-3 flex justify-between items-center sticky top-0">
+      <div className="bg-background flex-3/4 shadow-lg flex flex-col h-screen">
+        <span className="bg-gray border-b border-border p-3 flex justify-between items-center sticky top-0 h-15">
           <CardTitle label="Add new service" icon="add_circle" />
           <Button icon="close" type="outlined" onClick={onExit} />
         </span>
-        <div className="flex flex-row flex-1 overflow-y-scroll">
-          <aside className="flex-1/3 h-full border-r border-border max-w-80 overflow-y-scroll">
+        <div className="bg-red-100 h-100 flex flex-col">
+          <div className="bg-blue-100 w-full flex-1">
+            {}
+          </div>
+          <div className="h-15 bg-amber-50 w-full" />
+        </div>
+        {/* <div className="flex flex-row flex-1 h-[calc(100vh-60px)]">
+          <aside className="flex-1/3 h-full border-r border-border max-w-80">
             <h4 className="text-lg font-bold p-3 bg-gray border-b border-border">
               Available Services
             </h4>
-            <div className="flex flex-col gap-2 px-2 pt-2 overflow-y-scroll">
+            <div className="flex flex-col gap-2 px-2 pt-2 overflow-y-auto">
               {services.map((e, idx) => (
                 <ServiceCard
                   service={e}
@@ -56,8 +62,8 @@ export default function AddNewServiceDialog({
               ))}
             </div>
           </aside>
-          <div className="flex-2/3 flex flex-col">
-            <div className="bg-background flex-1 p-5 overflow-y-scroll">
+          <div className="flex-2/3 flex flex-col  overflow-y-auto">
+            <div className="bg-background flex-1 p-5 overflow-clip">
               {serviceIdx !== -1 ? (
                 <DynamicForm
                   schemaRaw={services[serviceIdx].schemaRaw}
@@ -70,8 +76,9 @@ export default function AddNewServiceDialog({
                   }}
                 />
               ) : null}
+              <div className="bg-red-50/50 h-160" />
             </div>
-            <span className="flex justify-end gap-3 p-3 border-t border-border bg-gray">
+            <div className="flex justify-end gap-3 p-3 border-t border-border bg-gray h-15">
               <Button
                 label="Cancel"
                 type="outlined"
@@ -99,9 +106,9 @@ export default function AddNewServiceDialog({
                   )
                 }
               />
-            </span>
+            </div>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );
