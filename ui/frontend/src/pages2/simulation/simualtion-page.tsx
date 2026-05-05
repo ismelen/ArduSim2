@@ -18,8 +18,8 @@ export default function SimulatinPage() {
   return (
     <main className="flex h-full">
       <div ref={mapContainerRef} className="h-full relative flex-1">
-        <SimulationControls className="absolute top-2 left-2 z-50" />
         <MapControls className="absolute top-16 left-2 z-50" />
+        <SimulationControls className="absolute top-2 left-2 z-50" />
         <LogDisplay className="absolute bottom-2 left-2 right-2" />
       </div>
       <div

@@ -33,8 +33,12 @@ export default function SwarmFormation() {
     undefined,
   );
 
-  const { formationCenterLat, formationCenterLon, formationSpacing } =
-    useConfig((s) => s.config);
+  const {
+    formationCenterLat,
+    formationCenterLon,
+    formationSpacing,
+    formationCenterMode,
+  } = useConfig((s) => s.config);
   const update = useConfig((s) => s.update);
   const uavs = useFleet((s) => s.uavs);
   const services = useServices((s) => s.services);
@@ -51,13 +55,12 @@ export default function SwarmFormation() {
   const handleSelectCoordsSrc = async (value: string) => {
     if (value === "") {
       setKmlCoords(undefined);
-      return;
+    } else {
+      const coords = await GetKmlFirstCoordinate(value);
+      setKmlCoords(coords);
     }
 
-    const coords = await GetKmlFirstCoordinate(value);
-    console.log(value);
-    console.log(coords.lat, coords.lon);
-    setKmlCoords(coords);
+    update((s) => ({ ...s, formationCenterMode: value }));
   };
 
   return (
@@ -77,11 +80,13 @@ export default function SwarmFormation() {
             update((s) => ({ ...s, formationSpacing: Number(e) }))
           }
         />
-        <Select
-          options={kmlFiles
-            .map((e) => ({ label: e.filename, value: e.path }))
-            .concat({ label: "Custom", value: "" })}
+        <Select<string | undefined>
+          options={[
+            { label: "Custom", value: undefined },
+            ...kmlFiles.map((e) => ({ label: e.filename, value: e.path })),
+          ]}
           label="Get coords from"
+          initValue={formationCenterMode}
           onChange={handleSelectCoordsSrc}
         />
         <span className="flex gap-2">
@@ -112,7 +117,7 @@ export default function SwarmFormation() {
 }
 
 function FormationModeSelection() {
-  const { formationCenterMode } = useConfig((s) => s.config);
+  const { groundFormation } = useConfig((s) => s.config);
   const update = useConfig((s) => s.update);
 
   return (
@@ -120,15 +125,13 @@ function FormationModeSelection() {
       {FORMATIONS.map((e) => (
         <div
           key={e.value}
-          onClick={() =>
-            update((s) => ({ ...s, formationCenterMode: e.value }))
-          }
+          onClick={() => update((s) => ({ ...s, groundFormation: e.value }))}
           className={cn(
             `border border-border rounded-md p-3 overflow-clip justify-center
               bg-cwhite shadow-xs cursor-pointer hoverable-gray flex flex-col items-center `,
             {
               "bg-primary text-onPrimary hoverable-primary":
-                e.value === formationCenterMode,
+                e.value === groundFormation,
             },
           )}
         >
