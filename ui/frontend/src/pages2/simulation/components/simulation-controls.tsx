@@ -39,7 +39,7 @@ export default function SimulationControls({ className }: Props) {
       <SplitButton
         icon="stop"
         label="Stop"
-        color="#bd2323"
+        color="#a83e3e"
         options={availableServices}
         onClick={() => stop(availableServices.map((e) => e.value))}
         onSelectOption={(e) => stop([e])}

@@ -42,23 +42,22 @@ export default function SplitButton({
   return (
     <div
       className={cn(
-        `border rounded-md transition-colors 
-        duration-200 cursor-pointer w-min flex items-stretch relative`,
+        `border-2 rounded-md transition-colors 
+        duration-200 cursor-pointer w-min flex items-stretch relative hoverable-gray`,
         {
           "pointer-events-none opacity-50 cursor-auto": !enabled,
         },
       )}
       style={{
-        backgroundColor: `color-mix(in srgb, ${color ?? "var(--color-primary)"} 50%, transparent)`,
+        // backgroundColor: `color-mix(in srgb, ${color ?? "var(--color-primary)"} 50%, transparent)`,
         borderColor: color ?? "var(--color-primary)",
       }}
     >
       <button
         className="flex items-center pr-3 pl-1.5 py-1.5 gap-2
-        font-medium cursor-pointer border-r hover:bg-cwhite/10"
+        font-medium cursor-pointer hover:bg-cwhite/10"
         onClick={onClick}
         style={{
-          borderColor: color ?? "var(--color-primary)",
           color: color ?? "var(--color-primary)",
         }}
       >
@@ -66,10 +65,11 @@ export default function SplitButton({
         <label className="cursor-pointer">{label}</label>
       </button>
       <button
-        className="flex items-center hover:bg-cwhite/10 cursor-pointer"
+        className="flex items-center hover:bg-cwhite/10 cursor-pointer border-l-2"
         onClick={() => setIsOpen((s) => !s)}
         style={{
           color: color ?? "var(--color-primary)",
+          borderColor: color ?? "var(--color-primary)",
         }}
       >
         <span className="material-symbols-rounded">
