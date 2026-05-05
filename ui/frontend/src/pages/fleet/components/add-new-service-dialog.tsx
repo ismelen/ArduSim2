@@ -41,14 +41,8 @@ export default function AddNewServiceDialog({
           <CardTitle label="Add new service" icon="add_circle" />
           <Button icon="close" type="outlined" onClick={onExit} />
         </span>
-        <div className="bg-red-100 h-100 flex flex-col">
-          <div className="bg-blue-100 w-full flex-1">
-            {}
-          </div>
-          <div className="h-15 bg-amber-50 w-full" />
-        </div>
-        {/* <div className="flex flex-row flex-1 h-[calc(100vh-60px)]">
-          <aside className="flex-1/3 h-full border-r border-border max-w-80">
+        <div className="flex flex-row flex-1 overflow-hidden">
+          <aside className="flex-1/3 h-full border-r border-border max-w-80 flex flex-col">
             <h4 className="text-lg font-bold p-3 bg-gray border-b border-border">
               Available Services
             </h4>
@@ -62,23 +56,22 @@ export default function AddNewServiceDialog({
               ))}
             </div>
           </aside>
-          <div className="flex-2/3 flex flex-col  overflow-y-auto">
-            <div className="bg-background flex-1 p-5 overflow-clip">
+          <div className="flex-2/3 flex flex-col overflow-hidden">
+            <div className="bg-background flex-1 p-5 overflow-y-auto">
               {serviceIdx !== -1 ? (
                 <DynamicForm
                   schemaRaw={services[serviceIdx].schemaRaw}
                   values={currentValues}
                   onChange={(key, value) => {
-                    setCurrentValues((s) => {
-                      s[key] = value;
-                      return s;
-                    });
+                    setCurrentValues((s) => ({
+                      ...s,
+                      [key]: value,
+                    }));
                   }}
                 />
               ) : null}
-              <div className="bg-red-50/50 h-160" />
             </div>
-            <div className="flex justify-end gap-3 p-3 border-t border-border bg-gray h-15">
+            <div className="flex justify-end gap-3 p-3 border-t border-border bg-gray h-15 shrink-0">
               <Button
                 label="Cancel"
                 type="outlined"
@@ -108,7 +101,7 @@ export default function AddNewServiceDialog({
               />
             </div>
           </div>
-        </div> */}
+        </div>
       </div>
     </div>
   );
