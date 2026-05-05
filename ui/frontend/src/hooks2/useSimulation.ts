@@ -1,9 +1,12 @@
 import { create } from "zustand";
 import hash from "object-hash";
 import {
+  DiscardCurrentRun,
   LoadSimulationConfig,
   SaveSimulationConfig,
+  SendAlgorithmCommand,
   StartSimulation,
+  StopSimulation,
 } from "../../wailsjs/go/main/App";
 import { useFleet, type UAV } from "./useFleet";
 import { useConfig, type GeneralConfig } from "./useConfig";
@@ -32,6 +35,7 @@ interface State {
   redos: ValueHash[];
   lastHash?: string;
   skipNextUpdate: boolean;
+  isSimulating: boolean;
 
   undo(): void;
   redo(): void;
@@ -39,9 +43,15 @@ interface State {
   loadConfig(): Promise<void>;
   saveConfig(): Promise<void>;
   newConfig(): Promise<void>;
+
+  start(targets: string[]): void;
+  pause(targets: string[]): void;
+  stop(targets: string[]): void;
+  exit(): void;
 }
 
 export const useSimulation = create<State>((set, get) => ({
+  isSimulating: false,
   skipNextUpdate: false,
   lastConfig: {
     value: DEFAULT_SIMULATION_STATE,
@@ -158,6 +168,9 @@ export const useSimulation = create<State>((set, get) => ({
   },
 
   async startSimulation() {
+    //TODO: Await confirm dialog
+    // Already simulating? Not saved changes?
+
     const state = get();
     if (state.lastConfig.hash !== "") state.saveConfig();
 
@@ -168,5 +181,46 @@ export const useSimulation = create<State>((set, get) => ({
       domain.GeneralConfig.createFrom(config.generalConfig),
       config.activeMode === "LOCAL",
     );
+    set({ isSimulating: true });
+  },
+
+  async start(targets: string[]) {
+    for (const target of targets) {
+      handleSendAlgorithmCommand(target, "start");
+    }
+  },
+  async pause(targets: string[]) {
+    for (const target of targets) {
+      handleSendAlgorithmCommand(target, "pause");
+    }
+  },
+  async stop(targets: string[]) {
+    for (const target of targets) {
+      handleSendAlgorithmCommand(target, "stop");
+    }
+  },
+  async exit() {
+    // TODO: Await confirm dialog
+    // Save logs?
+    const keepLogs = false;
+
+    await StopSimulation();
+    if (!keepLogs) {
+      await DiscardCurrentRun(
+        domain.GeneralConfig.createFrom(get().lastConfig.value.generalConfig),
+      );
+    }
+
+    set({ isSimulating: false });
   },
 }));
+
+async function handleSendAlgorithmCommand(serviceId: string, command: string) {
+  try {
+    await SendAlgorithmCommand(serviceId, command);
+  } catch (err) {
+    console.error("Failed to send algorithm command:", err);
+    alert(`COMMAND_ERROR: ${err instanceof Error ? err.message : String(err)}`);
+    throw err;
+  }
+}

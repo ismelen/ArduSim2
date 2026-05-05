@@ -2,20 +2,36 @@ import Card from "../../../components2/card";
 import Button from "../../../components2/button";
 import { cn } from "../../../utils2/cn";
 import { useMap } from "../../../hooks2/useMap";
+import { useShallow } from "zustand/shallow";
 
 interface Props {
   className?: string;
 }
 
 export default function MapControls({ className }: Props) {
-  const toggleMode3D = useMap((s) => s.toggleMode3D);
-  const mode3D = useMap((s) => s.mode3D);
-  const toggleShowTrails = useMap((s) => s.toggleShowTrails);
-  const showTrails = useMap((s) => s.showTrails);
+  const [
+    toggleMode3D,
+    mode3D,
+    toggleShowTrails,
+    showTrails,
+    toggleFollowTarget,
+    followTarget,
+  ] = useMap(
+    useShallow((s) => [
+      s.toggleMode3D,
+      s.mode3D,
+      s.toggleShowTrails,
+      s.showTrails,
+      s.toggleFollowTarget,
+      s.followTarget,
+    ]),
+  );
 
   return (
     <Card className={cn("p-1 gap-1 flex", className)}>
       <Button
+        onClick={toggleFollowTarget}
+        type={followTarget ? "filled" : undefined}
         icon="center_focus_strong"
         className="aspect-square text-base p-2"
       />

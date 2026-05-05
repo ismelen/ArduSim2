@@ -16,18 +16,21 @@
 .dark {
   --color-border: #202020;
   --color-onPrimary: #dfdfdf;
-  --color-gray: #191B23;
+  --color-gray: #191b23;
   --color-dark-gray: #8f8f8f;
-  --color-background: #10131A;
-  --color-cwhite: #0B0E15;
+  --color-background: #10131a;
+  --color-cwhite: #0b0e15;
   --color-cblack: #fff;
   --color-field-focus: #090909;
 }
 
-
-
 .hoverable-gray:hover {
   background-color: var(--color-gray);
+}
+
+.hoverable-opacity:hover {
+  opacity: 80%;
+  box-shadow: 0 1px 3px 0 #000;
 }
 
 .hoverable-underline:hover {

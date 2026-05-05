@@ -1,0 +1,126 @@
+import Card from "../../../components2/card";
+import { getUavColor } from "../../../constants/uav-colors";
+import { useFleet } from "../../../hooks2/useFleet";
+import { useTelemetry, type TelemetryData } from "../../../hooks2/useTelemetry";
+import { cn } from "../../../utils2/cn";
+
+export default function UavTelemetryDisplay() {
+  const fleetUavs = useFleet((s) => s.uavs);
+  const uavs = useTelemetry((s) => s.interpolatedUavs);
+
+  return (
+    <div
+      className="h-full bg-gray w-1/3 max-w-70 border-l 
+      border-border shadow-sm overflow-y-auto p-3"
+    >
+      {fleetUavs.map((e) => (
+        <TelemetryCard uav_id={e.id} data={uavs[e.id]} />
+      ))}
+    </div>
+  );
+}
+
+interface TelemetryCardProps {
+  uav_id: string;
+  data?: TelemetryData;
+  onClick?(): void;
+}
+
+function TelemetryCard({ uav_id, data, onClick }: TelemetryCardProps) {
+  const p = data?.payload;
+
+  const color = getUavColor(Number(uav_id));
+  const speed = p
+    ? Math.sqrt(p.speed.vx ^ (2 + p.speed.vy) ^ (2 + p.speed.vz) ^ 2)
+    : 0;
+  return (
+    <div onClick={() => (p ? onClick?.() : null)}>
+      <Card
+        className={cn(
+          `flex flex-col gap-1.5 cursor-pointer hoverable-opacity transition-all duration-200`,
+          { "opacity-50 pointer-events-none": !p },
+        )}
+      >
+        <header className="flex gap-2 text-lg font-medium items-cente">
+          <span
+            className="material-symbols-rounded pt-0.5"
+            style={{ fontVariationSettings: "'FILL' 100", color: color }}
+          >
+            drone
+          </span>
+          <p>Uav {uav_id}</p>
+        </header>
+        <main className="flex flex-col gap-1.5">
+          <span className="flex gap-2">
+            <ParamCard
+              label="ALTITUDE"
+              value={p?.position.alt.toFixed(1) ?? "0"}
+              unit="m"
+            />
+            <ParamCard label="SPEED" value={speed.toFixed(1)} unit="m/s" />
+          </span>
+          <span className="flex gap-2">
+            <span className="flex-1 flex gap-2">
+              <ParamCard
+                label="LAT"
+                value={p?.position.lat.toFixed(1) ?? "0"}
+                unit="º"
+              />
+              <ParamCard
+                label="LON"
+                value={p?.position.lon.toFixed(1) ?? "0"}
+                unit="º"
+              />
+            </span>
+            <BatteryCard value={p?.battery ?? 0} color={color} />
+          </span>
+        </main>
+        <footer>
+          <p className="text-sm leading-4 mt-2 text-dark-gray">
+            {p?.flight_mode ?? ""}
+          </p>
+        </footer>
+      </Card>
+    </div>
+  );
+}
+
+function BatteryCard({ value, color }: { value: number; color: string }) {
+  return (
+    <div className="flex-1">
+      <p className="text-dark-gray font-medium text-sm">BATTERY</p>
+      <span className="flex gap-2 items-center">
+        <p className="leading-4">{value}%</p>
+        <div className="h-1 w-full bg-gray rounded-full overflow-clip">
+          <div
+            style={{
+              width: `${value}%`,
+              backgroundColor: color,
+              height: "100%",
+            }}
+          />
+        </div>
+      </span>
+    </div>
+  );
+}
+
+function ParamCard({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: string;
+  unit: string;
+}) {
+  return (
+    <div className="flex-1">
+      <p className="text-dark-gray font-medium text-sm">{label}</p>
+      <p className="leading-4">
+        {value}
+        <span className="text-dark-gray"> {unit}</span>
+      </p>
+    </div>
+  );
+}

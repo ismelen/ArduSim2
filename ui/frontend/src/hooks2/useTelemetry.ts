@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { lerpAngle } from "../utils2/lerp-angle";
+import { create } from "zustand";
 
 export interface TelemetryData {
   uav_id: string;
@@ -29,122 +29,103 @@ interface InterpolationNode {
   duration: number;
 }
 
-export function useTelemetry(
-  onNewRealPoint?: (uavId: string, lat: number, lon: number) => void,
-) {
-  const nodesRef = useRef<Record<string, InterpolationNode>>({});
-  const lastPacketTimeRef = useRef<Record<string, number>>({});
-  const [interpolatedUavs, setInterpolatedUavs] = useState<
-    Record<string, TelemetryData>
-  >({});
-  const onNewRealPointRef = useRef(onNewRealPoint);
+interface State {
+  interpolatedUavs: Record<string, TelemetryData>;
+  subscribe(): void;
+  unsuscribe(): void;
+  setOnNewRealPoint(
+    fn: (uavId: string, lat: number, lon: number) => void,
+  ): void;
+}
 
-  // Keep the callback ref updated to avoid re-subscribing to events if it changes
-  useEffect(() => {
-    onNewRealPointRef.current = onNewRealPoint;
-  }, [onNewRealPoint]);
+export const useTelemetry = create<State>((set) => {
+  const nodes: Record<string, InterpolationNode> = {};
+  const lastPacketTimes: Record<string, number> = {};
+  let animationFrameId: number | null = null;
+  let unsuscribeTelemetry: (() => void) | undefined;
+  let subscribed = false;
+  let onNewRealPoint:
+    | ((uavId: string, lat: number, lon: number) => void)
+    | undefined;
 
-  useEffect(() => {
-    const unsubscribe = EventsOn("telemetry", (data: TelemetryData) => {
-      const now = performance.now();
-      const uavId = data.uav_id;
-      data.last_update = now;
+  const updatePositions = () => {
+    const now = performance.now();
+    const nextStates: Record<string, TelemetryData> = {};
 
-      // Notify about the new "point of truth" for the trail
-      if (onNewRealPointRef.current) {
-        onNewRealPointRef.current(
-          uavId,
-          data.payload.position.lat,
-          data.payload.position.lon,
-        );
-      }
+    Object.entries(nodes).forEach(([id, node]) => {
+      let t = (now - node.startTime) / node.duration;
+      if (t > 1) t = 1; // Cap at 1 if we are waiting for the next packet
 
-      const lastNode = nodesRef.current[uavId];
-      const lastPacketTime = lastPacketTimeRef.current[uavId];
+      const { start, end } = node;
+      const iPos = start.payload.position;
+      const fPos = end.payload.position;
 
-      // Estimate duration between packets for the next interpolation segment
-      const duration = lastPacketTime ? now - lastPacketTime : 1000; // Default to 1s if first packet
-      lastPacketTimeRef.current[uavId] = now;
-
-      const isFirstValidPacket =
-        (!lastNode ||
-          (lastNode.end.payload.position.lat === 0 &&
-            lastNode.end.payload.position.lon === 0)) &&
-        (data.payload.position.lat !== 0 || data.payload.position.lon !== 0);
-
-      if (isFirstValidPacket || !lastNode) {
-        // First packet OR first non-zero packet: jump immediately (don't interpolate from 0,0)
-        nodesRef.current[uavId] = {
-          start: data,
-          end: data,
-          startTime: now,
-          duration: 100, // Minimal duration for the very first appearance
-        };
-      } else {
-        // We interpolate from the current end point (the "now" of the simulation) to the new point
-        nodesRef.current[uavId] = {
-          start: lastNode.end,
-          end: data,
-          startTime: now,
-          duration: duration,
-        };
-      }
+      nextStates[id] = {
+        ...end,
+        payload: {
+          ...end.payload,
+          position: {
+            lat: iPos.lat + (fPos.lat - iPos.lat) * t,
+            lon: iPos.lon + (fPos.lon - iPos.lon) * t,
+            alt: iPos.alt + (fPos.alt - iPos.alt) * t,
+            relative_alt:
+              iPos.relative_alt + (fPos.relative_alt - iPos.relative_alt) * t,
+            heading: lerpAngle(iPos.heading, fPos.heading, t),
+          },
+        },
+      };
     });
 
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, []); // No dependencies, subscription handled via refs
-
-  useEffect(() => {
-    let animationFrameId: number;
-
-    const updatePositions = () => {
-      const now = performance.now();
-      const nextStates: Record<string, TelemetryData> = {};
-
-      Object.entries(nodesRef.current).forEach(([id, node]) => {
-        let t = (now - node.startTime) / node.duration;
-        if (t > 1) t = 1; // Cap at 1 if we are waiting for the next packet
-
-        const { start, end } = node;
-
-        nextStates[id] = {
-          ...end,
-          payload: {
-            ...end.payload,
-            position: {
-              lat:
-                start.payload.position.lat +
-                (end.payload.position.lat - start.payload.position.lat) * t,
-              lon:
-                start.payload.position.lon +
-                (end.payload.position.lon - start.payload.position.lon) * t,
-              alt:
-                start.payload.position.alt +
-                (end.payload.position.alt - start.payload.position.alt) * t,
-              relative_alt:
-                start.payload.position.relative_alt +
-                (end.payload.position.relative_alt -
-                  start.payload.position.relative_alt) *
-                  t,
-              heading: lerpAngle(
-                start.payload.position.heading,
-                end.payload.position.heading,
-                t,
-              ),
-            },
-          },
-        };
-      });
-
-      setInterpolatedUavs(nextStates);
-      animationFrameId = requestAnimationFrame(updatePositions);
-    };
-
+    set({ interpolatedUavs: nextStates });
     animationFrameId = requestAnimationFrame(updatePositions);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, []);
+  };
 
-  return interpolatedUavs;
-}
+  return {
+    interpolatedUavs: {},
+
+    setOnNewRealPoint(fn) {
+      onNewRealPoint = fn;
+    },
+
+    subscribe() {
+      if (subscribed) return;
+      subscribed = true;
+
+      unsuscribeTelemetry = EventsOn("telemetry", (data: TelemetryData) => {
+        const now = performance.now();
+        const uavId = data.uav_id;
+        const pos = data.payload.position;
+        data.last_update = now;
+
+        onNewRealPoint?.(uavId, pos.lat, pos.lon);
+
+        const lastNode = nodes[uavId];
+        const lastPacketTime = lastPacketTimes[uavId];
+        const duration = lastPacketTime ? now - lastPacketTime : 1000;
+        lastPacketTimes[uavId] = now;
+
+        if (data.payload.nr_gps_online > 0) {
+          nodes[uavId] = {
+            start: lastNode?.end ?? data,
+            end: data,
+            startTime: now,
+            duration: duration,
+          };
+        }
+
+        animationFrameId = requestAnimationFrame(updatePositions);
+      });
+    },
+
+    unsuscribe() {
+      unsuscribeTelemetry?.();
+      unsuscribeTelemetry = undefined;
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+      for (const key in nodes) delete nodes[key];
+      for (const key in lastPacketTimes) delete lastPacketTimes[key];
+      set({ interpolatedUavs: {} });
+      subscribed = false;
+    },
+  };
+});
