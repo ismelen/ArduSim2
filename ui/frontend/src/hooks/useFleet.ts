@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from "zustand";
-import { useServices, buildDefaultValuesFromSchema } from "./useServices";
+import { useSimulation } from "./useSimulation";
 
 export interface DeployedService {
   instanceId: string;
@@ -14,211 +15,100 @@ export interface UAV {
   services: DeployedService[];
 }
 
-interface FleetState {
+interface State {
   uavs: UAV[];
-  activeUavId: string;
-  setActiveUavId: (id: string) => void;
-  addUavs: (count: number) => void;
-  deleteUav: (id: string) => void;
-  deployService: (
-    uavId: string,
-    service: Omit<DeployedService, "instanceId">,
-    editingId: string | null,
-  ) => void;
-  deleteService: (uavId: string, instanceId: string) => void;
-  deployToAll: (service: Omit<DeployedService, "instanceId">) => void;
-  syncAll: () => void;
-  clearAll: () => void;
-  loadFleet: (uavs: UAV[]) => void;
-
-  // Interactive Configuration State (Moved from useFleetConfig hook)
-  selectedServiceId: string;
-  formValues: Record<string, any>;
-  editingInstanceId: string | null;
-  showDeployBox: boolean;
-
-  setSelectedServiceId: (id: string) => void;
-  setFormValues: (values: Record<string, any> | ((prev: any) => any)) => void;
-  setShowDeployBox: (show: boolean) => void;
-  resetDeployForm: () => void;
-  startEditing: (svc: any) => void;
-  handleDeploy: () => void;
-  handleDeployToAll: () => void;
+  activeUavIdx: number;
+  addUavs(count: number): void;
+  deleteUav(): void;
+  addService(service: DeployedService): void;
+  deleteService(service: DeployedService): void;
+  updateService(idx: number, service: DeployedService): void;
+  loadFleet(uavs: UAV[]): void;
+  setSelectedIdx(idx: number): void;
 }
 
-const makeId = () => Math.random().toString(36).substring(7);
-
-export const useFleet = create<FleetState>((set, get) => ({
+export const useFleet = create<State>((set, get) => ({
   uavs: [{ id: "1", services: [] }],
+  activeUavIdx: 0,
 
-  activeUavId: "1",
+  updateService(idx: number, service: DeployedService) {
+    const uavs = get().uavs;
+    const uav = uavs[get().activeUavIdx];
+    uav.services[idx] = service;
+    uavs[get().activeUavIdx] = uav;
 
-  selectedServiceId: "",
-  formValues: {},
-  editingInstanceId: null,
-  showDeployBox: false,
-
-  setActiveUavId: (id) => set({ activeUavId: id }),
-
-  addUavs: (count) =>
-    set((state) => {
-      const next = [...state.uavs];
-      for (let i = 0; i < count; i++) {
-        const maxId = Math.max(0, ...next.map((u) => parseInt(u.id) || 0));
-        next.push({ id: (maxId + 1).toString(), services: [] });
-      }
-      return { uavs: next };
-    }),
-
-  deleteUav: (id) =>
-    set((state) => {
-      const uavs = state.uavs.filter((u) => u.id !== id);
-      const activeUavId =
-        state.activeUavId === id ? (uavs[0]?.id ?? "") : state.activeUavId;
-      return { uavs, activeUavId };
-    }),
-
-  deployService: (uavId, service, editingId) =>
-    set((state) => ({
-      uavs: state.uavs.map((u) => {
-        if (u.id !== uavId) return u;
-        const services = [...u.services];
-        if (editingId) {
-          const idx = services.findIndex((s) => s.instanceId === editingId);
-          if (idx !== -1) services[idx] = { instanceId: editingId, ...service };
-        } else {
-          services.push({ instanceId: makeId(), ...service });
-        }
-        return { ...u, services };
-      }),
-    })),
-
-  deleteService: (uavId, instanceId) =>
-    set((state) => ({
-      uavs: state.uavs.map((u) =>
-        u.id !== uavId
-          ? u
-          : {
-              ...u,
-              services: u.services.filter((s) => s.instanceId !== instanceId),
-            },
-      ),
-    })),
-
-  deployToAll: (service) =>
-    set((state) => ({
-      uavs: state.uavs.map((u) => ({
-        ...u,
-        services: [...u.services, { instanceId: makeId(), ...service }],
-      })),
-    })),
-
-  syncAll: () => {
-    const { uavs, activeUavId } = get();
-    const source = uavs.find((u) => u.id === activeUavId)?.services ?? [];
-    if (source.length === 0) return;
-    set({
-      uavs: uavs.map((u) => ({
-        ...u,
-        services: source.map((s) => ({ ...s, instanceId: makeId() })),
-      })),
-    });
+    set({ uavs: [...uavs] });
+    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 
-  clearAll: () =>
-    set((state) => ({
-      uavs: state.uavs.map((u) => ({ ...u, services: [] })),
-    })),
+  setSelectedIdx(idx: number) {
+    set({ activeUavIdx: idx });
+  },
 
-  loadFleet: (uavs) => set({ uavs, activeUavId: uavs[0]?.id ?? "" }),
-
-  // Configuration Actions
-  setSelectedServiceId: (id) => {
-    const { editingInstanceId } = get();
-    set({ selectedServiceId: id });
-    if (!editingInstanceId) {
-      const { availableServices } = useServices.getState();
-      const svc = availableServices.find((s) => s.id === id);
-      if (svc?.schemaRaw)
-        set({ formValues: buildDefaultValuesFromSchema(svc.schemaRaw) });
+  loadFleet(uavs: UAV[]) {
+    if (uavs.length === 0) {
+      uavs = [{ id: "0", services: [] }];
     }
+
+    set({ uavs: uavs });
+    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 
-  setFormValues: (values) => {
-    if (typeof values === "function") {
-      set((state) => ({ formValues: values(state.formValues) }));
+  addUavs(count: number) {
+    const uavs = get().uavs;
+    let lastId: number;
+    if (uavs.length === 0) {
+      lastId = 0;
     } else {
-      set({ formValues: values });
+      lastId = Number(uavs[uavs.length - 1].id);
     }
+    for (let i = lastId + 1; i <= lastId + count; i++) {
+      uavs.push({
+        id: i.toString(),
+        services: [],
+      });
+    }
+    set({ uavs: [...uavs] });
+    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 
-  setShowDeployBox: (show) =>
-    set({ showDeployBox: show, editingInstanceId: null }),
+  deleteUav() {
+    let uavs = get().uavs;
+    uavs = [
+      ...uavs.slice(0, get().activeUavIdx),
+      ...uavs.slice(get().activeUavIdx + 1),
+    ];
 
-  resetDeployForm: () => {
-    const { availableServices } = useServices.getState();
-    const { selectedServiceId } = get();
-    set({ editingInstanceId: null, showDeployBox: false });
-    const svc = availableServices.find((s) => s.id === selectedServiceId);
-    if (svc?.schemaRaw)
-      set({ formValues: buildDefaultValuesFromSchema(svc.schemaRaw) });
+    if (uavs.length === 0) {
+      return set({
+        uavs: [{ id: "0", services: [] }],
+        activeUavIdx: 0,
+      });
+    }
+
+    if (get().activeUavIdx !== 0) {
+      set((s) => ({ activeUavIdx: s.activeUavIdx - 1 }));
+    }
+
+    set({ uavs: [...uavs] });
+    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 
-  startEditing: (svc) => {
-    set({
-      showDeployBox: false,
-      selectedServiceId: svc.serviceId,
-      formValues: svc.config,
-      editingInstanceId: svc.instanceId,
-    });
+  addService(service: DeployedService) {
+    const uavs = get().uavs;
+    uavs[get().activeUavIdx].services.push(service);
+
+    set({ uavs });
+    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 
-  handleDeploy: () => {
-    const {
-      selectedServiceId,
-      formValues,
-      editingInstanceId,
-      activeUavId,
-      deployService,
-      resetDeployForm,
-    } = get();
-    const { availableServices } = useServices.getState();
-    const selectedSvc = availableServices.find(
-      (s) => s.id === selectedServiceId,
-    );
-    if (!selectedServiceId) return;
+  deleteService(service: DeployedService) {
+    const uavs = get().uavs;
+    uavs[get().activeUavIdx].services = uavs[
+      get().activeUavIdx
+    ].services.filter((e) => e.instanceId !== service.instanceId);
 
-    deployService(
-      activeUavId,
-      {
-        serviceId: selectedServiceId,
-        folderName: selectedSvc?.folderName ?? selectedServiceId,
-        serviceTitle: selectedSvc?.title ?? selectedServiceId,
-        config: { ...formValues },
-      },
-      editingInstanceId,
-    );
-    resetDeployForm();
-  },
-
-  handleDeployToAll: () => {
-    const { selectedServiceId, formValues, deployToAll, resetDeployForm } =
-      get();
-    const { availableServices } = useServices.getState();
-    const selectedSvc = availableServices.find(
-      (s) => s.id === selectedServiceId,
-    );
-    if (!selectedServiceId) return;
-
-    deployToAll({
-      serviceId: selectedServiceId,
-      folderName: selectedSvc?.folderName ?? selectedServiceId,
-      serviceTitle: selectedSvc?.title ?? selectedServiceId,
-      config: { ...formValues },
-    });
-    resetDeployForm();
+    set({ uavs: [...uavs] });
+    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 }));
-
-export const uavDisplayName = (id: string): string =>
-  `UAV-${id.padStart(2, "0")}`;

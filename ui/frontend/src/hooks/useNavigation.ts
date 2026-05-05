@@ -1,27 +1,40 @@
+import { type ElementType } from "react";
 import { create } from "zustand";
+import ConfigPage from "../pages/config/config-page";
+import FleetPage from "../pages/fleet/fleet-page";
+import LogsPage from "../pages/logs-page";
+import SimulationPage from "../pages/simulation/simulation-page";
 
-export type TabView =
-  | "ENVIRONMENT"
-  | "FLEET_CONFIG"
-  | "GENERAL_CONFIG"
-  | "ACTIVE_SIM";
-
-interface NavigationState {
-  currentTab: TabView;
-  previousTab: TabView;
-  isSimulating: boolean;
-  setCurrentTab: (tab: TabView) => void;
-  startSimulation: () => void;
-  exitSimulation: () => void;
+interface Tab {
+  label: string;
+  page: ElementType;
 }
 
-export const useNavigation = create<NavigationState>((set, get) => ({
-  currentTab: "ENVIRONMENT",
-  previousTab: "ENVIRONMENT",
-  isSimulating: false,
-  setCurrentTab: (tab) => set({ currentTab: tab }),
-  startSimulation: () =>
-    set({ isSimulating: true, previousTab: get().currentTab }),
-  exitSimulation: () =>
-    set({ isSimulating: false, currentTab: get().previousTab }),
+export const TABS: Tab[] = [
+  {
+    label: "Config",
+    page: ConfigPage,
+  },
+  {
+    label: "Fleet",
+    page: FleetPage,
+  },
+  {
+    label: "Simulation",
+    page: SimulationPage,
+  },
+  {
+    label: "Logs",
+    page: LogsPage,
+  },
+];
+
+export const useNavigation = create<{
+  current: Tab;
+  navigateTo(label: Tab): void;
+}>((set) => ({
+  current: TABS[0],
+  navigateTo(tab: Tab) {
+    set({ current: tab });
+  },
 }));

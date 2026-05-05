@@ -1,39 +1,18 @@
 import { create } from "zustand";
 import { GetAvailableServices } from "../../wailsjs/go/main/App";
+import type { domain } from "../../wailsjs/go/models";
 
-interface ServicesState {
-  availableServices: any[];
-  loading: boolean;
-  fetchServices: () => Promise<void>;
+interface State {
+  services: domain.ServiceType[];
+  loadServices(): Promise<void>;
 }
 
-export const useServices = create<ServicesState>((set) => ({
-  availableServices: [],
-  loading: false,
-  fetchServices: async () => {
-    set({ loading: true });
-    try {
-      const res = await GetAvailableServices();
-      if (res) set({ availableServices: res });
-    } finally {
-      set({ loading: false });
-    }
+export const useServices = create<State>((set, get) => ({
+  services: [],
+  async loadServices() {
+    if (get().services.length !== 0) return;
+
+    const services = await GetAvailableServices();
+    set({ services });
   },
 }));
-
-export function buildDefaultValuesFromSchema(
-  schemaRaw: string,
-): Record<string, any> {
-  try {
-    const schema = JSON.parse(schemaRaw);
-    if (!schema.properties) return {};
-    return Object.fromEntries(
-      Object.entries<any>(schema.properties).map(([key, prop]) => [
-        key,
-        prop.default !== undefined ? prop.default : "",
-      ]),
-    );
-  } catch {
-    return {};
-  }
-}
