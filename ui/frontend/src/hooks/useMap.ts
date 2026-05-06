@@ -33,7 +33,7 @@ interface State {
 export const useMap = create<State>((set, get) => ({
   showTrails: true,
   showBuildings: true,
-  showTerrain: true,
+  showTerrain: false,
 
   mode2D: false,
   uavTrails: {
@@ -175,7 +175,7 @@ export const useMap = create<State>((set, get) => ({
       tileSize: 256,
       maxzoom: 14, // Zoom máximo del proveedor de datos
     });
-    map.setTerrain({ source: "terrain-source", exaggeration: 1.5 });
+    map.setTerrain(null);
 
     map.addLayer({
       id: "3d-buildings",
