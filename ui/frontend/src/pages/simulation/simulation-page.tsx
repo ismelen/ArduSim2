@@ -36,6 +36,7 @@ export default function SimulationPage() {
     toggleFollowTarget,
     setMode2D,
     mode2D,
+    showTrails,
   ] = useMap(
     useShallow((s) => [
       s.init,
@@ -47,6 +48,7 @@ export default function SimulationPage() {
       s.toggleFollowTarget,
       s.setMode2D,
       s.mode2D,
+      s.showTrails,
     ]),
   );
   const [interpolatedUavs, setonNewRealPoint, subscribe, unsubscribe] =
@@ -163,19 +165,20 @@ export default function SimulationPage() {
           controller={true}
           effects={[lightingEffect]}
           layers={[
-            new PathLayer({
-              id: "uav-path-layer",
-              data: Object.values(uavTrails),
-              getPath: (d: any) => d.path,
-              getColor: (d: any) => d.color,
-              widthMinPixels: 2,
-              widthUnits: "meters",
-              getWidth: 0.25,
-              jointRounded: true,
-              capRounded: true,
-              billboard: true,
-              opacity: 0.5,
-            }),
+            showTrails &&
+              new PathLayer({
+                id: "uav-path-layer",
+                data: Object.values(uavTrails),
+                getPath: (d: any) => d.path,
+                getColor: (d: any) => d.color,
+                widthMinPixels: 2,
+                widthUnits: "meters",
+                getWidth: 0.25,
+                jointRounded: true,
+                capRounded: true,
+                billboard: true,
+                opacity: 0.5,
+              }),
 
             new SimpleMeshLayer({
               id: "uav-mesh-layer",

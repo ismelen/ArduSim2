@@ -17,6 +17,8 @@ export default function MapControls({ className }: Props) {
     uavMarkers,
     mode2D,
     setMode2D,
+    showBuildings,
+    showTerrain,
   ] = useMap(
     useShallow((s) => [
       s.toggleShowTrails,
@@ -26,6 +28,8 @@ export default function MapControls({ className }: Props) {
       s.uavMarkers,
       s.mode2D,
       s.setMode2D,
+      s.showBuildings,
+      s.showTerrain,
     ]),
   );
 
@@ -50,6 +54,18 @@ export default function MapControls({ className }: Props) {
         type={mode2D ? "filled" : undefined}
         onClick={() => setMode2D(true)}
         label="2D"
+        className="aspect-square text-base p-2 "
+      />
+      <Button
+        type={showBuildings ? "filled" : undefined}
+        onClick={useMap.getState().toggleBuildings}
+        icon="account_balance"
+        className="aspect-square text-base p-2 "
+      />
+      <Button
+        type={showTerrain ? "filled" : undefined}
+        onClick={useMap.getState().toggleTerrain}
+        icon="landscape"
         className="aspect-square text-base p-2 "
       />
     </Card>

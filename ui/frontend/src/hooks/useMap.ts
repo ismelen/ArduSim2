@@ -5,6 +5,12 @@ import type { TelemetryData } from "./useTelemetry";
 import { getRgbUavColor } from "../constants/uav-colors";
 
 interface State {
+  showTerrain: boolean;
+  showBuildings: boolean;
+
+  toggleTerrain: () => void;
+  toggleBuildings: () => void;
+
   showTrails: boolean;
   followTarget?: string;
   map: maplibregl.Map | null;
@@ -25,6 +31,10 @@ interface State {
 }
 
 export const useMap = create<State>((set, get) => ({
+  showTrails: true,
+  showBuildings: true,
+  showTerrain: true,
+
   mode2D: false,
   uavTrails: {
     "1": {
@@ -60,8 +70,34 @@ export const useMap = create<State>((set, get) => ({
       color: [...getRgbUavColor(2)],
     },
   },
-  showTrails: true,
   map: null,
+
+  toggleShowTrails: () => set((s) => ({ showTrails: !s.showTrails })),
+
+  toggleTerrain: () => {
+    const { map, showTerrain } = get();
+    const next = !showTerrain;
+    if (map) {
+      // Si el próximo estado es ocultar, pasamos null a setTerrain
+      map.setTerrain(
+        next ? { source: "terrain-source", exaggeration: 1.5 } : null,
+      );
+    }
+    set({ showTerrain: next });
+  },
+
+  toggleBuildings: () => {
+    const { map, showBuildings } = get();
+    const next = !showBuildings;
+    if (map && map.getLayer("3d-buildings")) {
+      map.setLayoutProperty(
+        "3d-buildings",
+        "visibility",
+        next ? "visible" : "none",
+      );
+    }
+    set({ showBuildings: next });
+  },
 
   setMode2D(value?: boolean) {
     if (value === false) {
@@ -125,17 +161,6 @@ export const useMap = create<State>((set, get) => ({
     }
 
     set({ uavTrails: { ...uavTrails } });
-  },
-
-  toggleShowTrails() {
-    const { map, showTrails } = get();
-    set((s) => ({ showTrails: !s.showTrails }));
-
-    map?.setLayoutProperty(
-      "uav-trails-layer",
-      "visibility",
-      showTrails ? "visible" : "none",
-    );
   },
 
   init(event: any) {

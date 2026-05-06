@@ -26,7 +26,7 @@ export default function UavTelemetryDisplay() {
           <TelemetryCard
             key={i}
             uav_id={e.id}
-            data={uavs[e.id]}
+            data={uavs()[e.id]}
             onClick={() => toggleFollowTarget(e.id)}
           />
         ))}
