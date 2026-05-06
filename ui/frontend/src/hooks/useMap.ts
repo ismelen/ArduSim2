@@ -6,17 +6,18 @@ import { getRgbUavColor } from "../constants/uav-colors";
 
 interface State {
   showTrails: boolean;
-  followTarget: boolean;
+  followTarget?: string;
   map: maplibregl.Map | null;
   uavTrails: Record<string, { id: string; path: number[][]; color: number[] }>;
   uavMarkers: Record<
     string,
     { id: string; position: number[]; color: number[] }
   >;
+  mode2D: boolean;
+  setMode2D(value?: boolean): void;
 
   toggleShowTrails(): void;
-  recenter(lat: number, lon: number): void;
-  toggleFollowTarget(): void;
+  toggleFollowTarget(value?: string): void;
   updateTrails(uavId: string, lat: number, lon: number, alt: number): void;
   updateMarkers(uavs: TelemetryData[]): void;
 
@@ -24,6 +25,7 @@ interface State {
 }
 
 export const useMap = create<State>((set, get) => ({
+  mode2D: false,
   uavTrails: {
     "1": {
       id: "1",
@@ -33,22 +35,43 @@ export const useMap = create<State>((set, get) => ({
         [-0.348228, 39.482645, 15],
         [-0.346228, 39.483645, 15],
       ],
-      color: [16, 185, 129],
+      color: [...getRgbUavColor(1)],
+    },
+    "2": {
+      id: "2",
+      path: [
+        [-0.347228, 39.483645, 0],
+        [-0.347228, 39.483645, 10],
+        [-0.345228, 39.484645, 15],
+        [-0.343228, 39.485645, 15],
+      ],
+      color: [...getRgbUavColor(2)],
     },
   },
   uavMarkers: {
     "1": {
       id: "1",
-      position: [-0.346228, 39.483645, 15],
-      color: [249, 115, 22],
+      position: [-0.346228, 39.483645, 15, 120],
+      color: [...getRgbUavColor(1)],
+    },
+    "2": {
+      id: "2",
+      position: [-0.343228, 39.485645, 15, 90],
+      color: [...getRgbUavColor(2)],
     },
   },
   showTrails: true,
-  followTarget: true,
   map: null,
 
-  toggleFollowTarget() {
-    set((s) => ({ followTarget: !s.followTarget }));
+  setMode2D(value?: boolean) {
+    if (value === false) {
+      get().map?.setPitch(0);
+    }
+    set((s) => ({ mode2D: value ?? s.mode2D }));
+  },
+
+  toggleFollowTarget(value?: string) {
+    set({ followTarget: value });
   },
 
   updateMarkers(uavs: TelemetryData[]) {
@@ -106,14 +129,6 @@ export const useMap = create<State>((set, get) => ({
     set({ uavTrails: { ...uavTrails } });
   },
 
-  recenter(lat: number, lon: number) {
-    get().map?.flyTo({
-      center: [lon, lat],
-      zoom: 17,
-      speed: 1.5,
-    });
-  },
-
   toggleShowTrails() {
     const { map, showTrails } = get();
     set((s) => ({ showTrails: !s.showTrails }));
@@ -128,7 +143,6 @@ export const useMap = create<State>((set, get) => ({
   init(event: any) {
     const map = event.target;
 
-    console.log("asdf");
     map.addSource("terrain-source", {
       type: "raster-dem",
       tiles: [

@@ -9,21 +9,34 @@ interface Props {
 }
 
 export default function MapControls({ className }: Props) {
-  const [toggleShowTrails, showTrails, toggleFollowTarget, followTarget] =
-    useMap(
-      useShallow((s) => [
-        s.toggleShowTrails,
-        s.showTrails,
-        s.toggleFollowTarget,
-        s.followTarget,
-      ]),
-    );
+  const [
+    toggleShowTrails,
+    showTrails,
+    toggleFollowTarget,
+    followTarget,
+    uavMarkers,
+    mode2D,
+    setMode2D,
+  ] = useMap(
+    useShallow((s) => [
+      s.toggleShowTrails,
+      s.showTrails,
+      s.toggleFollowTarget,
+      s.followTarget,
+      s.uavMarkers,
+      s.mode2D,
+      s.setMode2D,
+    ]),
+  );
 
   return (
     <Card className={cn("p-1 gap-1 flex", className)}>
       <Button
-        onClick={toggleFollowTarget}
-        type={followTarget ? "filled" : undefined}
+        onClick={() => {
+          const id = Object.values(uavMarkers)[0].id;
+          toggleFollowTarget(id);
+        }}
+        type={followTarget !== undefined ? "filled" : undefined}
         icon="center_focus_strong"
         className="aspect-square text-base p-2"
       />
@@ -32,6 +45,12 @@ export default function MapControls({ className }: Props) {
         onClick={toggleShowTrails}
         icon="route"
         className="aspect-square text-base p-2"
+      />
+      <Button
+        type={mode2D ? "filled" : undefined}
+        onClick={() => setMode2D(true)}
+        label="2D"
+        className="aspect-square text-base p-2 "
       />
     </Card>
   );

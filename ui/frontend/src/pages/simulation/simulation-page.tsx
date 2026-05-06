@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useCallback, useEffect, useState } from "react";
@@ -7,13 +8,20 @@ import { useShallow } from "zustand/shallow";
 import "../../MapLibre.css";
 import { useSimulation } from "../../hooks/useSimulation";
 import UavTelemetryDisplay from "./components/uav-telemetry-display";
-import { ScatterplotLayer, PathLayer } from "@deck.gl/layers";
+import { PathLayer } from "@deck.gl/layers";
 import { Map } from "react-map-gl/maplibre";
 import DeckGL from "@deck.gl/react";
 import maplibregl from "maplibre-gl";
 import MapControls from "./components/map-controls";
 import SimulationControls from "./components/simulation-controls";
 import LogDisplay from "./components/log-display";
+import { SimpleMeshLayer } from "@deck.gl/mesh-layers";
+import {
+  LightingEffect,
+  AmbientLight,
+  _SunLight as SunLight,
+} from "@deck.gl/core";
+import { OBJLoader } from "@loaders.gl/obj";
 
 export default function SimulationPage() {
   const isSimulating = useSimulation((s) => s.isSimulating);
@@ -22,19 +30,23 @@ export default function SimulationPage() {
     initMap,
     updateTrails,
     updateMarkers,
-    recenter,
     followTarget,
     uavTrails,
     uavMarkers,
+    toggleFollowTarget,
+    setMode2D,
+    mode2D,
   ] = useMap(
     useShallow((s) => [
       s.init,
       s.updateTrails,
       s.updateMarkers,
-      s.recenter,
       s.followTarget,
       s.uavTrails,
       s.uavMarkers,
+      s.toggleFollowTarget,
+      s.setMode2D,
+      s.mode2D,
     ]),
   );
   const [uavs, setonNewRealPoint, subscribe, unsubscribe] = useTelemetry(
@@ -49,10 +61,10 @@ export default function SimulationPage() {
     longitude: -0.349228,
     latitude: 39.481645,
     zoom: 13,
+    maxZoom: 30,
     pitch: 0,
     maxPitch: 85,
     bearing: 0,
-    // transitionDuration: 200,
   });
 
   const init = useCallback((e: any) => initMap(e), [initMap]);
@@ -73,16 +85,60 @@ export default function SimulationPage() {
     if (!isSimulating) return;
     const uavList = Object.values(uavs);
     updateMarkers(uavList);
+  }, [uavs, updateMarkers, isSimulating]);
+
+  useEffect(() => {
     if (!followTarget) return;
-    if (uavList.length === 0) return;
 
-    const pos = uavs[0].payload.position;
-    recenter(pos.lat, pos.lon);
-  }, [uavs, updateMarkers, followTarget, recenter, isSimulating]);
+    const pos = uavMarkers[followTarget]?.position;
+    if (!pos) return;
 
-  const onViewStateChange = useCallback(({ viewState }: any) => {
-    setViewState(viewState);
-  }, []);
+    setViewState((s) => ({
+      ...s,
+      longitude: pos[0],
+      latitude: pos[1],
+      zoom: 18,
+    }));
+  }, [uavMarkers, followTarget]);
+
+  useEffect(() => {
+    if (!mode2D) return;
+    setViewState((s) => ({ ...s, pitch: 0 }));
+  }, [mode2D, setViewState]);
+
+  const ambientLight = new AmbientLight({
+    color: [255, 255, 255],
+    intensity: 1.5, // Bajamos la intensidad
+  });
+  const sunLight = new SunLight({
+    color: [255, 255, 255],
+    intensity: 2,
+    timestamp: 0,
+  });
+  const lightingEffect = new LightingEffect({ ambientLight, sunLight });
+
+  const onViewStateChange = useCallback(
+    ({ viewState, interactionState }: any) => {
+      if (viewState.pitch > 0) setMode2D(false);
+
+      if (followTarget) {
+        if (interactionState.isPanning && !interactionState.isZooming) {
+          toggleFollowTarget(undefined);
+          setViewState(viewState);
+          return;
+        }
+        setViewState((s) => ({
+          ...viewState,
+          longitude: s.longitude,
+          latitude: s.latitude,
+        }));
+        return;
+      }
+
+      setViewState(viewState);
+    },
+    [toggleFollowTarget, followTarget, setMode2D],
+  );
 
   return (
     <main className="flex" style={{ height: "calc(100vh - 60px)" }}>
@@ -92,28 +148,33 @@ export default function SimulationPage() {
           viewState={viewState}
           onViewStateChange={onViewStateChange}
           controller={true}
+          effects={[lightingEffect]}
           layers={[
-            // Capa de trails
             new PathLayer({
               id: "uav-path-layer",
               data: Object.values(uavTrails),
-              getPath: (d) => d.path,
-              getColor: (d) => d.color,
+              getPath: (d: any) => d.path,
+              getColor: (d: any) => d.color,
               widthMinPixels: 2,
               widthUnits: "meters",
-              getWidth: 2,
+              getWidth: 0.25,
+              jointRounded: true,
+              capRounded: true,
               billboard: true,
+              opacity: 0.5,
             }),
 
-            // Capa de los puntos
-            new ScatterplotLayer({
-              id: "uav-point-layer",
+            new SimpleMeshLayer({
+              id: "uav-mesh-layer",
               data: Object.values(uavMarkers),
-              getPosition: (d) => d.position,
-              getFillColor: (d) => d.color,
-              getRadius: 1,
-              radiusMinPixels: 2,
-              billboard: true,
+              mesh: "/uav1.obj",
+              loaders: [OBJLoader],
+              getPosition: (d: any) => d.position.slice(0, 3),
+              getColor: (d: any) => d.color,
+              getScale: [10, 10, 10],
+              getOrientation: (d: any) => [0, -d.position[3] || 0, 90],
+              _lighting: "phong",
+              autoHighlight: true,
             }),
           ]}
         >

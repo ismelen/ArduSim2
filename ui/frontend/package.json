@@ -11,7 +11,11 @@
   },
   "dependencies": {
     "@deck.gl/layers": "^9.3.2",
+    "@deck.gl/mesh-layers": "^9.3.2",
     "@deck.gl/react": "^9.3.2",
+    "@loaders.gl/obj": "^4.4.1",
+    "@luma.gl/engine": "^9.3.3",
+    "@luma.gl/shadertools": "^9.3.3",
     "@tailwindcss/vite": "^4.2.4",
     "@types/mapbox-gl": "^3.4.1",
     "clsx": "^2.1.1",

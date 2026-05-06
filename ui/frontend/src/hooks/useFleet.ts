@@ -30,11 +30,11 @@ interface State {
 export const useFleet = create<State>((set, get) => ({
   uavs: [
     { id: "1", services: [] },
-    { id: "1", services: [] },
-    { id: "1", services: [] },
-    { id: "1", services: [] },
-    { id: "1", services: [] },
-    { id: "1", services: [] },
+    { id: "2", services: [] },
+    { id: "3", services: [] },
+    { id: "4", services: [] },
+    { id: "5", services: [] },
+    { id: "6", services: [] },
   ],
   activeUavIdx: 0,
 
