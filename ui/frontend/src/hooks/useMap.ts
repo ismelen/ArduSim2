@@ -89,9 +89,7 @@ export const useMap = create<State>((set, get) => ({
         };
       }
 
-      marker.position = [pos.lat, pos.lon, pos.alt];
-
-      //TODO: heading and altitude
+      marker.position = [pos.lat, pos.lon, pos.alt, pos.heading];
     }
 
     const uavTrails = get().uavTrails;
@@ -105,7 +103,7 @@ export const useMap = create<State>((set, get) => ({
       }
     });
 
-    set({ uavTrails: { ...uavTrails } });
+    set({ uavTrails: { ...uavTrails }, uavMarkers: { ...markers } });
   },
 
   updateTrails(uavId: string, lat: number, lon: number, alt: number) {
@@ -188,6 +186,15 @@ export const useMap = create<State>((set, get) => ({
 
     map.setMaxPitch(85);
     map.setMinPitch(0);
+
+    map.addControl(
+      new maplibregl.NavigationControl({
+        visualizePitch: true,
+        visualizeRoll: true,
+        showZoom: false,
+        showCompass: true,
+      }),
+    );
 
     set({ map: map });
 

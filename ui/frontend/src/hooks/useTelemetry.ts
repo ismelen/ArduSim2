@@ -1,5 +1,4 @@
 import { EventsOn } from "../../wailsjs/runtime/runtime";
-import { lerpAngle } from "../utils/lerp-angle";
 import { create } from "zustand";
 
 export interface TelemetryData {
@@ -22,7 +21,7 @@ export interface TelemetryData {
   last_update: number;
 }
 
-interface InterpolationNode {
+export interface InterpolationNode {
   start: TelemetryData;
   end: TelemetryData;
   startTime: number;
@@ -30,7 +29,7 @@ interface InterpolationNode {
 }
 
 interface State {
-  interpolatedUavs: Record<string, TelemetryData>;
+  interpolatedUavs: () => Record<string, TelemetryData>;
   subscribe(): void;
   unsuscribe(): void;
   setOnNewRealPoint(
@@ -38,50 +37,27 @@ interface State {
   ): void;
 }
 
-export const useTelemetry = create<State>((set) => {
-  const nodes: Record<string, InterpolationNode> = {};
-  const lastPacketTimes: Record<string, number> = {};
-  let animationFrameId: number | null = null;
+export const useTelemetry = create<State>(() => {
+  const rawData = { current: {} as Record<string, TelemetryData> };
+  const worker = new Worker(
+    new URL("../workers/telemetry-worker.ts", import.meta.url),
+    { type: "module" },
+  );
+
+  worker.onmessage = (e) => {
+    if (e.data.type === "TICK") {
+      rawData.current = e.data.interpolated;
+    }
+  };
+
   let unsuscribeTelemetry: (() => void) | undefined;
   let subscribed = false;
   let onNewRealPoint:
     | ((uavId: string, lat: number, lon: number, alt: number) => void)
     | undefined;
 
-  const updatePositions = () => {
-    const now = performance.now();
-    const nextStates: Record<string, TelemetryData> = {};
-
-    Object.entries(nodes).forEach(([id, node]) => {
-      let t = (now - node.startTime) / node.duration;
-      if (t > 1) t = 1; // Cap at 1 if we are waiting for the next packet
-
-      const { start, end } = node;
-      const iPos = start.payload.position;
-      const fPos = end.payload.position;
-
-      nextStates[id] = {
-        ...end,
-        payload: {
-          ...end.payload,
-          position: {
-            lat: iPos.lat + (fPos.lat - iPos.lat) * t,
-            lon: iPos.lon + (fPos.lon - iPos.lon) * t,
-            alt: iPos.alt + (fPos.alt - iPos.alt) * t,
-            relative_alt:
-              iPos.relative_alt + (fPos.relative_alt - iPos.relative_alt) * t,
-            heading: lerpAngle(iPos.heading, fPos.heading, t),
-          },
-        },
-      };
-    });
-
-    set({ interpolatedUavs: nextStates });
-    animationFrameId = requestAnimationFrame(updatePositions);
-  };
-
   return {
-    interpolatedUavs: {},
+    interpolatedUavs: () => rawData.current,
 
     setOnNewRealPoint(fn) {
       onNewRealPoint = fn;
@@ -92,40 +68,28 @@ export const useTelemetry = create<State>((set) => {
       subscribed = true;
 
       unsuscribeTelemetry = EventsOn("telemetry", (data: TelemetryData) => {
+        worker.postMessage({
+          type: "NES_DATA",
+          uavId: data.uav_id,
+          data,
+          now: performance.now(),
+          duration: 1000,
+        });
         const now = performance.now();
         const uavId = data.uav_id;
         const pos = data.payload.position;
         data.last_update = now;
 
         onNewRealPoint?.(uavId, pos.lat, pos.lon, pos.alt);
-
-        const lastNode = nodes[uavId];
-        const lastPacketTime = lastPacketTimes[uavId];
-        const duration = lastPacketTime ? now - lastPacketTime : 1000;
-        lastPacketTimes[uavId] = now;
-
-        if (data.payload.nr_gps_online > 0) {
-          nodes[uavId] = {
-            start: lastNode?.end ?? data,
-            end: data,
-            startTime: now,
-            duration: duration,
-          };
-        }
-
-        animationFrameId = requestAnimationFrame(updatePositions);
       });
     },
 
     unsuscribe() {
       unsuscribeTelemetry?.();
       unsuscribeTelemetry = undefined;
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
-
-      for (const key in nodes) delete nodes[key];
-      for (const key in lastPacketTimes) delete lastPacketTimes[key];
-      set({ interpolatedUavs: {} });
+      rawData.current = {};
       subscribed = false;
+      worker.terminate();
     },
   };
 });

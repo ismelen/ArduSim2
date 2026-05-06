@@ -49,14 +49,15 @@ export default function SimulationPage() {
       s.mode2D,
     ]),
   );
-  const [uavs, setonNewRealPoint, subscribe, unsubscribe] = useTelemetry(
-    useShallow((s) => [
-      s.interpolatedUavs,
-      s.setOnNewRealPoint,
-      s.subscribe,
-      s.unsuscribe,
-    ]),
-  );
+  const [interpolatedUavs, setonNewRealPoint, subscribe, unsubscribe] =
+    useTelemetry(
+      useShallow((s) => [
+        s.interpolatedUavs,
+        s.setOnNewRealPoint,
+        s.subscribe,
+        s.unsuscribe,
+      ]),
+    );
   const [viewState, setViewState] = useState({
     longitude: -0.349228,
     latitude: 39.481645,
@@ -70,6 +71,18 @@ export default function SimulationPage() {
   const init = useCallback((e: any) => initMap(e), [initMap]);
 
   useEffect(() => {
+    const frame = () => {
+      const uavList = Object.values(interpolatedUavs());
+      updateMarkers(uavList);
+
+      requestAnimationFrame(frame);
+    };
+
+    const id = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(id);
+  }, [interpolatedUavs, updateMarkers]);
+
+  useEffect(() => {
     if (!isSimulating) return;
     subscribe();
     return () => {
@@ -81,11 +94,11 @@ export default function SimulationPage() {
     setonNewRealPoint(updateTrails);
   }, [setonNewRealPoint, updateTrails]);
 
-  useEffect(() => {
-    if (!isSimulating) return;
-    const uavList = Object.values(uavs);
-    updateMarkers(uavList);
-  }, [uavs, updateMarkers, isSimulating]);
+  // useEffect(() => {
+  //   if (!isSimulating) return;
+  //   const uavList = Object.values(uavs);
+  //   updateMarkers(uavList);
+  // }, [uavs, updateMarkers, isSimulating]);
 
   useEffect(() => {
     if (!followTarget) return;
@@ -99,7 +112,7 @@ export default function SimulationPage() {
       latitude: pos[1],
       zoom: 18,
     }));
-  }, [uavMarkers, followTarget]);
+  }, [followTarget]);
 
   useEffect(() => {
     if (!mode2D) return;
