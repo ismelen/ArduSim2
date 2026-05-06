@@ -56,8 +56,8 @@ interface State {
 }
 
 export const useSimulation = create<State>((set, get) => {
-  let setupIntervalId: number | undefined;
-  let simulationIntervalId: number | undefined;
+  let setupIntervalId: NodeJS.Timeout | undefined;
+  let simulationIntervalId: NodeJS.Timeout | undefined;
 
   return {
     setupTime: 0,

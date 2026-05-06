@@ -34,7 +34,7 @@ interface State {
   subscribe(): void;
   unsuscribe(): void;
   setOnNewRealPoint(
-    fn: (uavId: string, lat: number, lon: number) => void,
+    fn: (uavId: string, lat: number, lon: number, alt: number) => void,
   ): void;
 }
 
@@ -45,7 +45,7 @@ export const useTelemetry = create<State>((set) => {
   let unsuscribeTelemetry: (() => void) | undefined;
   let subscribed = false;
   let onNewRealPoint:
-    | ((uavId: string, lat: number, lon: number) => void)
+    | ((uavId: string, lat: number, lon: number, alt: number) => void)
     | undefined;
 
   const updatePositions = () => {
@@ -97,7 +97,7 @@ export const useTelemetry = create<State>((set) => {
         const pos = data.payload.position;
         data.last_update = now;
 
-        onNewRealPoint?.(uavId, pos.lat, pos.lon);
+        onNewRealPoint?.(uavId, pos.lat, pos.lon, pos.alt);
 
         const lastNode = nodes[uavId];
         const lastPacketTime = lastPacketTimes[uavId];

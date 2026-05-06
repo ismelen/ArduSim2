@@ -20,8 +20,8 @@ export default function UavTelemetryDisplay() {
       border-border shadow-sm flex flex-col"
     >
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
-        {fleetUavs.map((e) => (
-          <TelemetryCard uav_id={e.id} data={uavs[e.id]} />
+        {fleetUavs.map((e, i) => (
+          <TelemetryCard key={i} uav_id={e.id} data={uavs[e.id]} />
         ))}
       </div>
       <div className="flex flex-col gap-2 p-3">

@@ -29,6 +29,7 @@ export default function TabSelector({ options, initValue, onChange }: Props) {
       <span className="flex gap-1 border border-border rounded-sm p-1">
         {options.map((e, i) => (
           <Button
+            key={`selector${i}`}
             label={e.label}
             className="flex-1 items-center justify-center"
             type={idx === i ? "filled" : undefined}
