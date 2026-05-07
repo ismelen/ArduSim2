@@ -15,4 +15,7 @@ type SimulationUseCase interface {
 	DiscardCurrentRun(config domain.GeneralConfig) error
 	SelectFile(ctx context.Context) (string, error)
 	GetKmlFirstCoordinate(path string) (*domain.Coordinate, error)
+	LoadLogEntry(runDir string) (map[string]any, error)
+	LoadLogEntries(ctx context.Context) ([]string, error)
+	LoadFile(path string) (string, error)
 }

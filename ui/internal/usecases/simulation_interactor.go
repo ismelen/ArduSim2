@@ -3,7 +3,9 @@ package usecases
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -155,6 +157,81 @@ func (i *SimulationInteractor) SendAlgorithmCommand(serviceId string, command st
 		}
 	}
 	return nil
+}
+
+func (i *SimulationInteractor) LoadLogEntry(runDir string) (map[string]any, error) {
+	simulationLogs := map[string]any{}
+	logPaths, err := i.repo.GetFiles(runDir, ".log")
+	if err != nil {
+		return nil, err
+	}
+
+	for _, logPath := range logPaths {
+		var dirNames []string
+
+		dir := logPath
+		for {
+			dir = filepath.Dir(dir)
+			if dir == runDir { break }
+			dirNames = append(dirNames, filepath.Base(dir))
+		}
+		slices.Reverse(dirNames)
+		
+		simulationLogs = insertOnMap(simulationLogs, filepath.Base(logPath), dirNames...)
+	}
+
+	return simulationLogs, nil
+}
+
+func insertOnMap(m map[string]any, fileName string, keys ...string) map[string]any {
+	current := m
+
+	for _, key := range keys {
+		if next, ok := current[key]; ok {
+			if nextMap, ok := next.(map[string]any); ok {
+				current = nextMap
+			}
+		} else {
+			newLevel := make(map[string]any)
+			current[key] = newLevel
+			current = newLevel
+		}
+	}
+
+	if files, ok := current["_files"]; ok {
+		if slice, ok := files.([]string); ok {
+			current["_files"] = append(slice, fileName)
+		}
+	} else {
+		current["_files"] = []string{fileName}
+	}
+
+	return m
+}
+
+func (i *SimulationInteractor) LoadLogEntries(ctx context.Context) ([]string, error) {
+	selectedDir, err := i.ui.OpenDirectoryDialog(ctx, "Select Simulation Directory", i.repo.GetSimulationsDir())
+	if err != nil || selectedDir == "" {
+		return nil, err
+	}
+
+	runsDir := filepath.Join(selectedDir, "runs")
+	dirs, err := os.ReadDir(runsDir)
+	if err != nil {
+		return nil, err
+	}
+
+	paths := []string{}
+	for _, dir := range dirs {
+		if(!dir.IsDir()) { continue }
+		paths = append(paths, filepath.Join(runsDir, dir.Name()))
+	}
+	return paths, err
+}
+
+func (i *SimulationInteractor) LoadFile(path string) (string, error) {
+	bytes, err := os.ReadFile(path)
+	return string(bytes), err
 }
 
 func (i *SimulationInteractor) LoadSimulationConfig(ctx context.Context) (*domain.SimulationState, error) {

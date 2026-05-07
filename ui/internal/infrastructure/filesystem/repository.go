@@ -75,6 +75,39 @@ func (r *FileRepository) SaveSimulation(simDir string, state domain.SimulationSt
 	return os.WriteFile(statePath, data, 0644)
 }
 
+func (r *FileRepository) GetFiles(srcDir string, ext string) ([]string, error) {
+	paths := []string{}
+	children, err := os.ReadDir(srcDir)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, child := range children {
+		path := filepath.Join(srcDir, child.Name())
+		if !child.IsDir() {
+			paths = append(paths, path)
+			continue
+		}
+		
+		childPaths, err := r.GetFiles(path, ext)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, childPaths...)
+	}
+
+	return paths, nil
+}
+
+func (r *FileRepository) ReadFile(filePath string) (string, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
+}
+
 func (r *FileRepository) LoadSimulation(stateFile string) (*domain.SimulationState, error) {
 	data, err := os.ReadFile(stateFile)
 	if err != nil {

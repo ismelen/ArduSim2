@@ -8,4 +8,6 @@ type ConfigRepository interface {
 	SaveSimulation(simDir string, state domain.SimulationState) error
 	LoadSimulation(stateFile string) (*domain.SimulationState, error)
 	GetSimulationsDir() string
+	ReadFile(filePath string) (string, error)
+	GetFiles(srcDir string, ext string) ([]string, error)
 }
