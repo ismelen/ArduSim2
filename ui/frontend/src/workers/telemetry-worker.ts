@@ -21,6 +21,7 @@ self.onmessage = (e) => {
       end: data,
       startTime: now,
       duration: newDuration,
+      trailEmited: false,
     };
   }
 };
@@ -33,10 +34,20 @@ const update = () => {
     const node = nodes[id];
     let t = (now - node.startTime) / node.duration;
     if (t > 1) t = 1;
-
+    
     const iPos = node.start.payload.position;
     const fPos = node.end.payload.position;
-
+    
+    if (!node.trailEmited) {
+      node.trailEmited = true;
+      self.postMessage({
+        type: "POINT_REACHED",
+        id,
+        lat: iPos.lat,
+        lon: iPos.lon,
+        alt: iPos.alt,
+      });
+    }
     interpolated[id] = {
       ...node.end,
       payload: {

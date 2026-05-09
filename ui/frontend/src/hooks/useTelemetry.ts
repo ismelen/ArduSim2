@@ -26,6 +26,7 @@ export interface InterpolationNode {
   end: TelemetryData;
   startTime: number;
   duration: number;
+  trailEmited: boolean;
 }
 
 interface State {
@@ -48,6 +49,9 @@ export const useTelemetry = create<State>((_, get) => {
   worker.onmessage = (e) => {
     if (e.data.type === "TICK") {
       rawData.current = e.data.interpolated;
+    }
+    if (e.data.type == "POINT_REACHED") {
+      onNewRealPoint?.(e.data.id, e.data.lat, e.data.lon, e.data.alt);
     }
   };
 
@@ -77,11 +81,7 @@ export const useTelemetry = create<State>((_, get) => {
           duration: 1000,
         });
         const now = performance.now();
-        const uavId = data.uav_id;
-        const pos = data.payload.position;
         data.last_update = now;
-
-        onNewRealPoint?.(uavId, pos.lat, pos.lon, pos.alt);
       });
     },
 
