@@ -13,6 +13,7 @@ export default function FleetPage() {
   const updateService = useFleet((s) => s.updateService);
   const deleteUav = useFleet((s) => s.deleteUav);
   const activeUavIdx = useFleet((s) => s.activeUavIdx);
+  const syncAll = useFleet((s) => s.syncAll);
 
   const [serviceIdx, setServiceIdx] = useState<number | undefined>(undefined);
 
@@ -23,7 +24,7 @@ export default function FleetPage() {
         <span className="flex justify-between items-center">
           <h3 className="font-bold text-4xl">Uav {uavs[activeUavIdx].id}</h3>
           <span className="flex gap-2">
-            <Button icon="sync" type="outlined" />
+            <Button icon="sync" type="outlined" onClick={syncAll} />
             <Button icon="delete" type="outlined" onClick={deleteUav} />
           </span>
         </span>

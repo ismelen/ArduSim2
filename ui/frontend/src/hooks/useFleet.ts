@@ -25,6 +25,7 @@ interface State {
   updateService(idx: number, service: DeployedService): void;
   loadFleet(uavs: UAV[]): void;
   setSelectedIdx(idx: number): void;
+  syncAll(): void;
 }
 
 export const useFleet = create<State>((set, get) => ({
@@ -110,5 +111,18 @@ export const useFleet = create<State>((set, get) => ({
 
     set({ uavs: [...uavs] });
     useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
+  },
+
+  syncAll() {
+    const state = get();
+    const idx = state.activeUavIdx;
+    const uavs = state.uavs;
+    const services = uavs[idx].services;
+
+    for (const uav of uavs) {
+      uav.services = [...services];
+    }
+
+    set({ uavs: [...uavs] });
   },
 }));

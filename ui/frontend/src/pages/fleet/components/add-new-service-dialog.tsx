@@ -51,7 +51,10 @@ export default function AddNewServiceDialog({
                 <ServiceCard
                   service={e}
                   selected={idx === serviceIdx}
-                  onSelect={() => setServiceIdx(idx)}
+                  onSelect={() => {
+                    setServiceIdx(idx);
+                    setCurrentValues({});
+                  }}
                 />
               ))}
             </div>
@@ -82,13 +85,14 @@ export default function AddNewServiceDialog({
                 label="Accept"
                 type="filled"
                 className="px-5 py-2"
-                onClick={() =>
+                onClick={() => {
+                  console.log("hola");
                   onAccept?.(
                     domain.DeployedService.createFrom({
                       instaceId: serviceToEdit?.instanceId ?? "",
                       serviceId:
                         serviceToEdit?.serviceId ?? services[serviceIdx].id,
-                      folderIcon:
+                      folderName:
                         serviceToEdit?.folderName ??
                         services[serviceIdx].folderName,
                       serviceTitle:
@@ -96,8 +100,8 @@ export default function AddNewServiceDialog({
                         services[serviceIdx].title,
                       config: currentValues,
                     }),
-                  )
-                }
+                  );
+                }}
               />
             </div>
           </div>

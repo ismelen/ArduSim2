@@ -47,12 +47,12 @@ func (b *composeBuilder) AddNetworkSimulator(logDir string, verbose bool) {
       - air
 
 `, env, vols)
-	b.addNetwork("air")
+	b.addNetwork("air", "10.9.0.0/24")
 }
 
 // AddUAVNetwork registers the per-UAV bridge network.
-func (b *composeBuilder) AddUAVNetwork(uavID string) {
-	b.addNetwork(uavNetworkName(uavID))
+func (b *composeBuilder) AddUAVNetwork(uavID string, subnet string) {
+	b.addNetwork(uavNetworkName(uavID), subnet)
 }
 
 // AddCommunicationModule appends the communication_module service for a UAV.
@@ -239,8 +239,12 @@ func (b *composeBuilder) Build() string {
 // addNetwork appends a bridge network definition if not already present.
 // Multiple calls with the same name are intentionally idempotent — the YAML
 // key would duplicate, so callers are responsible for calling once per name.
-func (b *composeBuilder) addNetwork(name string) {
-	fmt.Fprintf(&b.networks, "  %s:\n    driver: bridge\n", name)
+func (b *composeBuilder) addNetwork(name string, subnet string) {
+	if subnet != "" {
+		fmt.Fprintf(&b.networks, "  %s:\n    driver: bridge\n    ipam:\n      config:\n        - subnet: %s\n", name, subnet)
+	} else {
+		fmt.Fprintf(&b.networks, "  %s:\n    driver: bridge\n", name)
+	}
 }
 
 func uavNetworkName(uavID string) string {

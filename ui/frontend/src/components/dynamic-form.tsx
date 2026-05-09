@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Checkbox from "./checkbox";
 import FilePickerField from "./file-picker-field";
 import FormField from "./form-field";
@@ -13,18 +13,19 @@ interface Props {
 
 export default function DynamicForm({ schemaRaw, values, onChange }: Props) {
   const [currentValues, setCurrentValues] = useState(values);
-  const schema: { properties: Record<string, any> } = JSON.parse(schemaRaw);
+  const schema: { properties: Record<string, any> } = useMemo(
+    () => JSON.parse(schemaRaw),
+    [schemaRaw],
+  );
 
   useEffect(() => {
-    console.log(currentValues);
-    if (Object.entries(currentValues).length !== 0) return;
     if (!schema.properties) return;
 
     for (const [k, v] of Object.entries(schema.properties)) {
       if (!v.default) continue;
       onChange?.(k, v.default);
     }
-  }, [currentValues, onChange, schema.properties]);
+  }, [schema, onChange]);
 
   if (!schema.properties) return null;
 

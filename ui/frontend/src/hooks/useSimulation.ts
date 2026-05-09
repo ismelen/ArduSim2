@@ -175,6 +175,7 @@ export const useSimulation = create<State>((set, get) => {
 
     async saveConfig() {
       const state = get().lastConfig;
+      console.log(state.value.uavs);
       await SaveSimulationConfig(
         state.value.uavs.map((e) => domain.UAV.createFrom(e)),
         domain.GeneralConfig.createFrom(state.value.generalConfig),
@@ -214,6 +215,9 @@ export const useSimulation = create<State>((set, get) => {
         lastHash: "",
         skipNextUpdate: true,
       });
+      const { uavs, generalConfig, activeMode } = DEFAULT_SIMULATION_STATE;
+      useFleet.getState().loadFleet(uavs);
+      useConfig.getState().loadConfig(generalConfig, activeMode);
     },
 
     setupFinished() {

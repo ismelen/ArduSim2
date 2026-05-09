@@ -65,6 +65,7 @@ func (o *DockerOrchestrator) Run(uavs []domain.UAV, config domain.GeneralConfig,
 func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.GeneralConfig, speeds []float64, offsets []formation.Offset, resDir, simDir, runDir string) (string, error) {
 	writer := NewResourceWriter(resDir)
 	builder := newComposeBuilder()
+	pool := newSubnetPool()
 
 	var nsLogDir string
 	if runDir != "" {
@@ -80,13 +81,15 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 		}
 
 		paramFile, _ := o.generateUAVParams(uav.ID, uavSpeed, config, resDir)
-		o.appendUAV(uav, paramFile, builder, writer, config, offsets[i], runDir)
+		o.appendUAV(uav, paramFile, builder, writer, config, offsets[i], runDir, pool)
 	}
 
 	composePath := filepath.Join(simDir, "docker-compose.yaml")
 	_ = os.WriteFile(composePath, []byte(builder.Build()), 0644)
 	return composePath, nil
 }
+
+//TODO: Recenter permanente, al salir y volver al tab de simulation se resetean valores y logs
 
 func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.GeneralConfig, speeds []float64, offsets []formation.Offset, resDir, simDir string) (string, error) {
 	writer := NewResourceWriter(resDir)
@@ -109,7 +112,6 @@ func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.
 	return composePath, nil
 }
 
-// ... helpers (appendUAV, appendSwarmUAV, etc) should be ported here ...
 
 func (o *DockerOrchestrator) StartCompose(composePath string) error {
 	checkCmd := exec.Command("docker", "info")
@@ -117,7 +119,7 @@ func (o *DockerOrchestrator) StartCompose(composePath string) error {
 		return fmt.Errorf("DOCKER_NOT_RUNNING")
 	}
 
-	cmd := exec.Command("docker", "compose", "up", "--build", "-d")
+	cmd := exec.Command("docker", "compose", "up", /*"--build",*/ "-d")
 	cmd.Dir = filepath.Dir(composePath)
 
 	stdout, _ := cmd.StdoutPipe()
@@ -188,7 +190,7 @@ func (o *DockerOrchestrator) isLocalhost(host string) bool {
 
 // Ported helpers from ui/internal/simulation/orchestrator.go
 
-func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName string, builder *composeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset, runDir string) {
+func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName string, builder *composeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset, runDir string, pool *subnetPool) {
 	uavNum, _ := strconv.Atoi(uav.ID)
 	var uavLogRoot string
 	if runDir != "" {
@@ -196,7 +198,9 @@ func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName string, bui
 		_ = os.MkdirAll(uavLogRoot, 0755)
 	}
 
-	builder.AddUAVNetwork(uav.ID)
+	nContainers := 4 + len(uav.Services)
+	subnet := pool.Next(nContainers)
+	builder.AddUAVNetwork(uav.ID, subnet)
 	builder.AddCommunicationModule(uav.ID, o.getServiceLogDir(uavLogRoot, "communication_module"), config.VerboseLogging)
 
 	appFile, _ := o.writeTemplateConfig("application_config", o.applicationConfig, nil, writer)
