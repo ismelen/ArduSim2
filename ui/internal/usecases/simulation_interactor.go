@@ -86,8 +86,6 @@ func (i *SimulationInteractor) StartSimulation(ctx context.Context, uavs []domai
 				}
 			}
 		})
-
-		go i.subscriber.Start(ctx)
 	} else {
 		// SWARM MODE
 		stackName := "Ardusim2-" + config.SimulationName
@@ -106,9 +104,8 @@ func (i *SimulationInteractor) StartSimulation(ctx context.Context, uavs []domai
 			uavIDs[idx] = uav.ID
 		}
 		i.subscriber.SetExpectedFleet(uavIDs)
-
-		go i.subscriber.Start(ctx)
 	}
+	go i.subscriber.Start(ctx)
 
 	return nil
 }

@@ -157,7 +157,7 @@ export default function SimulationPage() {
 
   return (
     <main className="flex" style={{ height: "calc(100vh - 60px)" }}>
-      <div className="h-full relative flex-1 z-40">
+      <div className="h-full relative flex-1 z-30">
         <DeckGL
           style={{ zIndex: "1" }}
           viewState={viewState}

@@ -1,13 +1,13 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import { useShallow } from "zustand/shallow";
+import Button from "../../../components/button";
 import Card from "../../../components/card";
+import type { SelectableValue } from "../../../components/select";
 import SplitButton from "../../../components/split-button";
 import { useFleet, type UAV } from "../../../hooks/useFleet";
-import Button from "../../../components/button";
-import type { SelectableValue } from "../../../components/select";
-import { cn } from "../../../utils/cn";
 import { useSimulation } from "../../../hooks/useSimulation";
-import { useShallow } from "zustand/shallow";
 import { useTelemetry } from "../../../hooks/useTelemetry";
+import { cn } from "../../../utils/cn";
 
 interface Props {
   className?: string;
@@ -15,7 +15,7 @@ interface Props {
 
 export default function SimulationControls({ className }: Props) {
   const fleetUavs = useFleet((s) => s.uavs);
-  const uavs = useTelemetry((s) => s.interpolatedUavs);
+  const uavs = useTelemetry((s) => s.interpolatedUavs());
   const availableServices = useMemo(
     () => getAvailabeServices(fleetUavs),
     [fleetUavs],
@@ -25,47 +25,42 @@ export default function SimulationControls({ className }: Props) {
   );
 
   const allReady = Object.keys(uavs).length === fleetUavs.length;
+  useEffect(() => {
+    if (!allReady) return;
+    useSimulation.getState().setupFinished();
+  }, [allReady]);
 
   return (
-    <Card
-      className={cn(
-        "p-1 flex gap-1 w-min overflow-visible ",
-        { "opacity-50": !allReady },
-        className,
-      )}
-    >
-      <SplitButton
-        icon="play_arrow"
-        label="Start"
-        enabled={allReady}
-        options={availableServices}
-        onClick={() => start(availableServices.map((e) => e.value))}
-        onSelectOption={(e) => start([e])}
-      />
-      <SplitButton
-        icon="pause"
-        label="Pause"
-        color="#4d4949"
-        enabled={allReady}
-        options={availableServices}
-        onClick={() => pause(availableServices.map((e) => e.value))}
-        onSelectOption={(e) => pause([e])}
-      />
-      <SplitButton
-        icon="stop"
-        label="Stop"
-        enabled={allReady}
-        color="#a83e3e"
-        options={availableServices}
-        onClick={() => stop(availableServices.map((e) => e.value))}
-        onSelectOption={(e) => stop([e])}
-      />
-      <Button
-        icon="exit_to_app"
-        label="Exit"
-        onClick={exit}
-        enabled={allReady}
-      />
+    <Card className={cn("p-1 flex gap-1 w-min overflow-visible ", className)}>
+      <span className={cn("flex gap-1", { "opacity-50": !allReady })}>
+        <SplitButton
+          icon="play_arrow"
+          label="Start"
+          enabled={allReady}
+          options={availableServices}
+          onClick={() => start(availableServices.map((e) => e.value))}
+          onSelectOption={(e) => start([e])}
+        />
+        <SplitButton
+          icon="pause"
+          label="Pause"
+          color="#4d4949"
+          enabled={allReady}
+          options={availableServices}
+          onClick={() => pause(availableServices.map((e) => e.value))}
+          onSelectOption={(e) => pause([e])}
+        />
+        <SplitButton
+          icon="stop"
+          label="Stop"
+          enabled={allReady}
+          color="#a83e3e"
+          options={availableServices}
+          onClick={() => stop(availableServices.map((e) => e.value))}
+          onSelectOption={(e) => stop([e])}
+        />
+      </span>
+      <Button icon="exit_to_app" label="Exit" onClick={exit} />
     </Card>
   );
 }
@@ -75,7 +70,7 @@ function getAvailabeServices(uavs: UAV[]): SelectableValue<string>[] {
 
   for (const uav of uavs) {
     for (const serv of uav.services) {
-      services[serv.instanceId] = serv.serviceTitle;
+      services[serv.serviceId] = serv.serviceTitle;
     }
   }
 

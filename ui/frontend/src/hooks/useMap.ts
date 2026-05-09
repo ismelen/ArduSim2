@@ -28,6 +28,7 @@ interface State {
   updateMarkers(uavs: TelemetryData[]): void;
 
   init(event: any): void;
+  reset(): void;
 }
 
 export const useMap = create<State>((set, get) => ({
@@ -82,18 +83,19 @@ export const useMap = create<State>((set, get) => ({
     const markers = get().uavMarkers;
 
     for (const [idx, uav] of uavs.entries()) {
-      const marker = markers[uav.uav_id];
+      let marker = markers[uav.uav_id];
       const pos = uav.payload.position;
 
       if (!marker) {
-        markers[uav.uav_id] = {
+        marker = {
           color: getRgbUavColor(idx),
           id: uav.uav_id,
           position: [],
         };
+        markers[uav.uav_id] = marker;
       }
 
-      marker.position = [pos.lat, pos.lon, pos.alt, pos.heading];
+      marker.position = [pos.lon, pos.lat, pos.alt, pos.heading];
     }
 
     const uavTrails = get().uavTrails;
@@ -103,7 +105,7 @@ export const useMap = create<State>((set, get) => ({
       const pos = uav?.payload.position;
 
       if (pos && pos.lon !== 0 && pos.lat !== 0 && pos.alt !== 0) {
-        trail.path.push([pos.lat, pos.lon, pos.alt]);
+        trail.path.push([pos.lon, pos.lat, pos.alt]);
       }
     });
 
@@ -112,7 +114,6 @@ export const useMap = create<State>((set, get) => ({
 
   updateTrails(uavId: string, lat: number, lon: number, alt: number) {
     const uavTrails = get().uavTrails;
-
     if (!uavTrails[uavId]) {
       uavTrails[uavId] = {
         id: uavId,
@@ -120,14 +121,11 @@ export const useMap = create<State>((set, get) => ({
         path: [],
       };
     }
-
     const { path } = uavTrails[uavId];
     const last = path[path.length - 1];
-
-    if (!last || last[0] !== lat || last[1] !== lon || last[2] != alt) {
-      path.push([lat, lon, alt]);
+    if (!last || last[0] !== lon || last[1] !== lat || last[2] != alt) {
+      path.push([lon, lat, alt]);
     }
-
     set({ uavTrails: { ...uavTrails } });
   },
 
@@ -199,5 +197,9 @@ export const useMap = create<State>((set, get) => ({
       map.remove();
       set({ map: null });
     };
+  },
+
+  reset() {
+    set({ uavMarkers: {}, uavTrails: {} });
   },
 }));

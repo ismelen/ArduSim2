@@ -1,5 +1,5 @@
-import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { create } from "zustand";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 
 export interface TelemetryData {
   uav_id: string;
@@ -35,9 +35,10 @@ interface State {
   setOnNewRealPoint(
     fn: (uavId: string, lat: number, lon: number, alt: number) => void,
   ): void;
+  reset(): void;
 }
 
-export const useTelemetry = create<State>(() => {
+export const useTelemetry = create<State>((_, get) => {
   const rawData = { current: {} as Record<string, TelemetryData> };
   const worker = new Worker(
     new URL("../workers/telemetry-worker.ts", import.meta.url),
@@ -69,7 +70,7 @@ export const useTelemetry = create<State>(() => {
 
       unsuscribeTelemetry = EventsOn("telemetry", (data: TelemetryData) => {
         worker.postMessage({
-          type: "NES_DATA",
+          type: "NEW_DATA",
           uavId: data.uav_id,
           data,
           now: performance.now(),
@@ -90,6 +91,10 @@ export const useTelemetry = create<State>(() => {
       rawData.current = {};
       subscribed = false;
       worker.terminate();
+    },
+
+    reset() {
+      get().unsuscribe();
     },
   };
 });

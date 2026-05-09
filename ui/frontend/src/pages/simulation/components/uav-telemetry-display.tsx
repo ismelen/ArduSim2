@@ -2,11 +2,11 @@ import { useShallow } from "zustand/shallow";
 import Card from "../../../components/card";
 import { getUavColor } from "../../../constants/uav-colors";
 import { useFleet } from "../../../hooks/useFleet";
+import { useMap } from "../../../hooks/useMap";
 import { useSimulation } from "../../../hooks/useSimulation";
 import { useTelemetry, type TelemetryData } from "../../../hooks/useTelemetry";
 import { cn } from "../../../utils/cn";
 import { formatTime } from "../../../utils/format-time";
-import { useMap } from "../../../hooks/useMap";
 
 export default function UavTelemetryDisplay() {
   const fleetUavs = useFleet((s) => s.uavs);
@@ -54,27 +54,7 @@ interface TelemetryCardProps {
 }
 
 function TelemetryCard({ uav_id, data, onClick }: TelemetryCardProps) {
-  const p = data?.payload ?? {
-    nr_gps_online: 2,
-    position: {
-      heading: 1,
-      alt: 0.06,
-      relative_alt: -0.04,
-      lon: -0.3462649,
-      lat: 39.4825939,
-    },
-    type: "MAV_TYPE_QUADROTOR",
-    battery: 100,
-    version: "4.5.3",
-    time_boot_ms: 127069,
-    speed: {
-      vx: -0.01,
-      vy: 0.01,
-      vz: 0,
-    },
-    status: "OK",
-    flight_mode: "STABILIZE Custom mode; Stabilize; Manual input; ",
-  };
+  const p = data?.payload;
   const color = getUavColor(Number(uav_id));
   const speed = p
     ? Math.sqrt(p.speed.vx ^ (2 + p.speed.vy) ^ (2 + p.speed.vz) ^ 2)

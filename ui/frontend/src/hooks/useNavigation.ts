@@ -32,9 +32,16 @@ export const TABS: Tab[] = [
 export const useNavigation = create<{
   current: Tab;
   navigateTo(label: Tab): void;
+  navigateToPath(path: string): void;
 }>((set) => ({
   current: TABS[0],
   navigateTo(tab: Tab) {
     set({ current: tab });
+  },
+
+  navigateToPath(path: string) {
+    const newTab = TABS.find((e) => e.label === path);
+    if (!newTab) return;
+    set({ current: newTab });
   },
 }));

@@ -1,8 +1,8 @@
-import Card from "../../../components/card";
-import Button from "../../../components/button";
-import { cn } from "../../../utils/cn";
-import { useMap } from "../../../hooks/useMap";
 import { useShallow } from "zustand/shallow";
+import Button from "../../../components/button";
+import Card from "../../../components/card";
+import { useMap } from "../../../hooks/useMap";
+import { cn } from "../../../utils/cn";
 
 interface Props {
   className?: string;
@@ -42,31 +42,31 @@ export default function MapControls({ className }: Props) {
         }}
         type={followTarget !== undefined ? "filled" : undefined}
         icon="center_focus_strong"
-        className="aspect-square text-base p-2"
+        className="size-10 text-base p-2"
       />
       <Button
         type={showTrails ? "filled" : undefined}
         onClick={toggleShowTrails}
         icon="route"
-        className="aspect-square text-base p-2"
+        className="size-10 text-base p-2"
       />
       <Button
         type={mode2D ? "filled" : undefined}
         onClick={() => setMode2D(true)}
         label="2D"
-        className="aspect-square text-base p-2 "
+        className="size-10 text-base p-2 "
       />
       <Button
         type={showBuildings ? "filled" : undefined}
         onClick={useMap.getState().toggleBuildings}
         icon="account_balance"
-        className="aspect-square text-base p-2 "
+        className="size-10 text-base p-2 "
       />
       <Button
         type={showTerrain ? "filled" : undefined}
         onClick={useMap.getState().toggleTerrain}
         icon="landscape"
-        className="aspect-square text-base p-2 "
+        className="size-10 text-base p-2 "
       />
     </Card>
   );

@@ -43,7 +43,7 @@ interface Props {
 }
 
 export default function LogDisplay({ className, onFinishReceived }: Props) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -82,14 +82,15 @@ export default function LogDisplay({ className, onFinishReceived }: Props) {
   }, [onFinishReceived]);
 
   useEffect(() => {
+    if (!isOpen) return;
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
+  }, [logs, isOpen]);
 
   return (
     <div
       className={cn(
-        `h-1/3 bg-cwhite 
-          z-50 rounded-md border-border border overflow-clip`,
+        `h-1/3 bg-cwhite
+          z-50 rounded-md border-border border overflow-y-auto`,
         className,
         {
           "h-min": !isOpen,
@@ -100,7 +101,7 @@ export default function LogDisplay({ className, onFinishReceived }: Props) {
         onClick={() => setIsOpen((s) => !s)}
         className={cn(
           `bg-gray border-b border-border flex items-center 
-          justify-between p-1 pl-3 cursor-pointer`,
+          justify-between p-1 pl-3 cursor-pointer sticky top-0`,
           { "border-transparent": !isOpen },
         )}
       >
@@ -108,22 +109,20 @@ export default function LogDisplay({ className, onFinishReceived }: Props) {
         <Button icon={isOpen ? "keyboard_arrow_down" : "keyboard_arrow_up"} />
       </span>
       {isOpen && (
-        <>
-          <div className="overflow-y-auto h-full">
-            {logs.map((log, i) => {
-              return (
-                <div key={i} className="flex flex-row gap-2 text-dark-gray">
-                  <span className="text-gray">{log.time}</span>
-                  <span className={cn("text-lg", log.levelClass)}>
-                    {log.level}
-                  </span>
-                  {log.msg}
-                </div>
-              );
-            })}
-          </div>
+        <div className="h-full overlow-y-auto">
+          {logs.map((log, i) => {
+            return (
+              <div key={i} className="flex flex-row gap-2 text-dark-gray px-2">
+                <span className="text-cblack">{log.time}</span>
+                <span className={cn("text-lg", log.levelClass)}>
+                  {log.level}
+                </span>
+                {log.msg}
+              </div>
+            );
+          })}
           <div ref={logEndRef} />
-        </>
+        </div>
       )}
     </div>
   );

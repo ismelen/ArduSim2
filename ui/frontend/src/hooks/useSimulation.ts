@@ -12,6 +12,9 @@ import { domain } from "../../wailsjs/go/models";
 import { useConfig, type GeneralConfig } from "./useConfig";
 import { useDialog } from "./useDialog";
 import { useFleet, type UAV } from "./useFleet";
+import { useMap } from "./useMap";
+import { useNavigation } from "./useNavigation";
+import { useTelemetry } from "./useTelemetry";
 
 interface SimulationState {
   uavs: UAV[];
@@ -250,6 +253,7 @@ export const useSimulation = create<State>((set, get) => {
         set((s) => ({ setupTime: s.setupTime + 1 }));
       }, 1000);
 
+      useNavigation.getState().navigateToPath("Simulation");
       await StartSimulation(
         config.uavs.map((e) => domain.UAV.createFrom(e)),
         domain.GeneralConfig.createFrom(config.generalConfig),
@@ -304,6 +308,8 @@ export const useSimulation = create<State>((set, get) => {
 
       get().simulationFinished();
       set({ isSimulating: false, simulationTime: 0, setupTime: 0 });
+      useTelemetry.getState().reset();
+      useMap.getState().reset();
 
       return true;
     },

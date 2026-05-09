@@ -21,8 +21,8 @@ type NetsimSubscriber struct {
 	mu           sync.Mutex
 	ui           ports.UIBridge
 	expectedUAVs int
-	receivedUAVs int
-	finishedUAVs int
+	receivedUAVs map[string]bool
+	finishedUAVs map[string]bool
 	onFinish     func()
 	ready        bool
 	finished     bool
@@ -49,8 +49,8 @@ func (s *NetsimSubscriber) SetExpectedFleet(uavIDs []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.expectedUAVs = len(uavIDs)
-	s.receivedUAVs = 0
-	s.finishedUAVs = 0
+	s.receivedUAVs = make(map[string]bool)
+	s.finishedUAVs = make(map[string]bool)
 	s.ready = false
 	s.finished = false
 }
@@ -150,24 +150,33 @@ func (s *NetsimSubscriber) Start(ctx context.Context) {
 			continue
 		}
 
-		if msg.Topic == "telemetry" {
+		switch msg.Topic {
+		case "telemetry":
 			var t domain.TelemetryData
 			_ = mapstructure.Decode(msg.Payload, &t)
+			if t.NrGpsOnline == 0 { continue }
+			
 			s.ui.EmitEvent("telemetry", map[string]interface{}{
 				"uav_id":  msg.UavID,
 				"payload": t,
 			})
 
 			s.mu.Lock()
-			if !s.ready && t.NrGpsOnline > 0 {
-				s.receivedUAVs++
-				if s.receivedUAVs == s.expectedUAVs {
+			if !s.ready {
+				s.receivedUAVs[msg.UavID] = true
+				keys := make([]string, 0, len(s.receivedUAVs))
+				for k := range s.receivedUAVs {
+					keys = append(keys, k)
+				}
+				if len(keys) == s.expectedUAVs {
 					s.ready = true
-					fmt.Println("[netsim] all UAVs ready")
+					s.ui.EmitEvent("netsim:message", map[string]string{
+						"label": "All Ready",
+					})
 				}
 			}
 			s.mu.Unlock()
-		} else if msg.Topic == "messages" {
+		case "messages":
 			s.handleMessagesPacket(msg)
 		}
 	}
@@ -206,8 +215,6 @@ func (s *NetsimSubscriber) handleMessagesPacket(msg struct {
 
 	s.ui.EmitEvent("netsim:message", map[string]string{
 		"source":  source,
-		"service": service,
-		"command": command,
 		"label":   logLine,
 	})
 
@@ -238,9 +245,13 @@ func (s *NetsimSubscriber) registerFinish(uavID string) {
 		return
 	}
 	if uavID != "" {
-		s.finishedUAVs++
+		s.finishedUAVs[uavID] = true
 	}
-	if s.finishedUAVs == s.expectedUAVs {
+	keys := make([]string, 0, len(s.finishedUAVs))
+	for k := range s.finishedUAVs {
+		keys = append(keys, k)
+	}
+	if len(keys) == s.expectedUAVs {
 		s.finished = true
 		s.ui.EmitEvent("simulation:finished", nil)
 		if s.onFinish != nil {
