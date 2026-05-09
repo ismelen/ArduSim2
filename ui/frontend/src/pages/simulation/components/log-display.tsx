@@ -1,12 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from "react";
-import Button from "../../../components/button";
-import { cn } from "../../../utils/cn";
 import {
   EventsOff,
   EventsOn,
   EventsOnce,
 } from "../../../../wailsjs/runtime/runtime";
+import Button from "../../../components/button";
+import { cn } from "../../../utils/cn";
+
+declare global {
+  interface Window {
+    wails?: any;
+    runtime?: any;
+  }
+}
 
 interface LogEntry {
   time: string;
@@ -41,6 +48,13 @@ export default function LogDisplay({ className, onFinishReceived }: Props) {
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    if (!window.wails && !window.runtime) {
+      console.warn(
+        "Wails runtime no detectado. Simulando entorno de navegador.",
+      );
+      return;
+    }
+    
     for (const eventType of EVENT_TAGS) {
       EventsOn(eventType.tag, (msg: any) => {
         const now = new Date();

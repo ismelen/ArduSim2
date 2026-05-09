@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import hash from "object-hash";
+import { create } from "zustand";
 import {
   DiscardCurrentRun,
   LoadSimulationConfig,
@@ -8,10 +8,10 @@ import {
   StartSimulation,
   StopSimulation,
 } from "../../wailsjs/go/main/App";
-import { useFleet, type UAV } from "./useFleet";
-import { useConfig, type GeneralConfig } from "./useConfig";
 import { domain } from "../../wailsjs/go/models";
+import { useConfig, type GeneralConfig } from "./useConfig";
 import { useDialog } from "./useDialog";
+import { useFleet, type UAV } from "./useFleet";
 
 interface SimulationState {
   uavs: UAV[];
@@ -48,6 +48,7 @@ interface State {
   newConfig(): Promise<void>;
   setupFinished(): void;
   simulationFinished(): void;
+  startSimulation(): Promise<void>;
 
   start(targets: string[]): void;
   pause(targets: string[]): void;
@@ -134,7 +135,7 @@ export const useSimulation = create<State>((set, get) => {
     },
 
     async loadConfig() {
-      if (!get().lastHash || get().lastHash !== get().lastConfig.hash) {
+      if (get().lastHash || get().lastHash !== get().lastConfig.hash) {
         const action = await useDialog.getState().show({
           title: "Unsaved changes",
           text: "There are unsaved changes. Loading a new configuration will result in the loss of these modifications",

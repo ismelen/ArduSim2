@@ -1,27 +1,27 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import "maplibre-gl/dist/maplibre-gl.css";
-import { useCallback, useEffect, useState } from "react";
-import { useMap } from "../../hooks/useMap";
-import { useTelemetry } from "../../hooks/useTelemetry";
-import { useShallow } from "zustand/shallow";
-import "../../MapLibre.css";
-import { useSimulation } from "../../hooks/useSimulation";
-import UavTelemetryDisplay from "./components/uav-telemetry-display";
-import { PathLayer } from "@deck.gl/layers";
-import { Map } from "react-map-gl/maplibre";
-import DeckGL from "@deck.gl/react";
-import maplibregl from "maplibre-gl";
-import MapControls from "./components/map-controls";
-import SimulationControls from "./components/simulation-controls";
-import LogDisplay from "./components/log-display";
-import { SimpleMeshLayer } from "@deck.gl/mesh-layers";
 import {
-  LightingEffect,
   AmbientLight,
+  LightingEffect,
   _SunLight as SunLight,
 } from "@deck.gl/core";
+import { PathLayer } from "@deck.gl/layers";
+import { SimpleMeshLayer } from "@deck.gl/mesh-layers";
+import DeckGL from "@deck.gl/react";
 import { OBJLoader } from "@loaders.gl/obj";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { useCallback, useEffect, useState } from "react";
+import { Map } from "react-map-gl/maplibre";
+import { useShallow } from "zustand/shallow";
+import "../../MapLibre.css";
+import { useMap } from "../../hooks/useMap";
+import { useSimulation } from "../../hooks/useSimulation";
+import { useTelemetry } from "../../hooks/useTelemetry";
+import LogDisplay from "./components/log-display";
+import MapControls from "./components/map-controls";
+import SimulationControls from "./components/simulation-controls";
+import UavTelemetryDisplay from "./components/uav-telemetry-display";
 
 export default function SimulationPage() {
   const isSimulating = useSimulation((s) => s.isSimulating);

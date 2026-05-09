@@ -31,7 +31,7 @@ func main() {
 		OnStartup:        app.startup,
 		OnBeforeClose: func(ctx context.Context) bool {
 			app.shutdown()
-			return false // false = allow the window to close
+			return false
 		},
 		Bind: []interface{}{
 			app,

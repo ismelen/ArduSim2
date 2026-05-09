@@ -4,6 +4,11 @@ import { lerpAngle } from "../utils/lerp-angle";
 const nodes: Record<string, InterpolationNode> = {};
 const lastPacketTimes: Record<string, number> = {};
 
+const requestFrame =
+  typeof self.requestAnimationFrame === "function"
+    ? self.requestAnimationFrame.bind(self)
+    : (callback: FrameRequestCallback) => setTimeout(callback, 16);
+
 self.onmessage = (e) => {
   if (e.data.type === "NEW_DATA") {
     const { uavId, data, now, duration } = e.data;
@@ -49,7 +54,7 @@ const update = () => {
   }
 
   self.postMessage({ type: "TICK", interpolated });
-  requestAnimationFrame(update);
+  requestFrame(update);
 };
 
 update();

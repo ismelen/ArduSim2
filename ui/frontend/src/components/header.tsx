@@ -20,6 +20,8 @@ export default function Header() {
   const isNight = useTheme((s) => s.isNight);
   const toggleTheme = useTheme((s) => s.toggleTheme);
 
+  const startSimulation = useSimulation((s) => s.startSimulation);
+
   return (
     <header className="border-b border-border flex gap-4 p-3 items-center bg-cwhite sticky top-0 z-50 h-15">
       <Button icon="note_add" onClick={newConfig} type="filled" />
@@ -49,7 +51,11 @@ export default function Header() {
           onClick={saveConfig}
           enabled={lastConfig.hash !== lastHash}
         />
-        <Button label="Start Simulation" type="filled" />
+        <Button
+          label="Start Simulation"
+          type="filled"
+          onClick={startSimulation}
+        />
         <Button icon={!isNight ? "bedtime" : "sunny"} onClick={toggleTheme} />
       </span>
     </header>

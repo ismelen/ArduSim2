@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import maplibregl from "maplibre-gl";
 import { create } from "zustand";
-import type { TelemetryData } from "./useTelemetry";
 import { getRgbUavColor } from "../constants/uav-colors";
+import type { TelemetryData } from "./useTelemetry";
 
 interface State {
   showTerrain: boolean;
@@ -36,40 +36,8 @@ export const useMap = create<State>((set, get) => ({
   showTerrain: false,
 
   mode2D: false,
-  uavTrails: {
-    "1": {
-      id: "1",
-      path: [
-        [-0.349228, 39.481645, 0],
-        [-0.349228, 39.481645, 10],
-        [-0.348228, 39.482645, 15],
-        [-0.346228, 39.483645, 15],
-      ],
-      color: [...getRgbUavColor(1)],
-    },
-    "2": {
-      id: "2",
-      path: [
-        [-0.347228, 39.483645, 0],
-        [-0.347228, 39.483645, 10],
-        [-0.345228, 39.484645, 15],
-        [-0.343228, 39.485645, 15],
-      ],
-      color: [...getRgbUavColor(2)],
-    },
-  },
-  uavMarkers: {
-    "1": {
-      id: "1",
-      position: [-0.346228, 39.483645, 15, 120],
-      color: [...getRgbUavColor(1)],
-    },
-    "2": {
-      id: "2",
-      position: [-0.343228, 39.485645, 15, 90],
-      color: [...getRgbUavColor(2)],
-    },
-  },
+  uavTrails: {},
+  uavMarkers: {},
   map: null,
 
   toggleShowTrails: () => set((s) => ({ showTrails: !s.showTrails })),
@@ -177,30 +145,34 @@ export const useMap = create<State>((set, get) => ({
     });
     map.setTerrain(null);
 
-    map.addLayer({
-      id: "3d-buildings",
-      source: "carto",
-      "source-layer": "building",
-      type: "fill-extrusion",
-      minzoom: 15,
-      paint: {
-        "fill-extrusion-color": "#d1d5db",
-        "fill-extrusion-height": [
-          "coalesce",
-          ["get", "render_height"],
-          ["get", "height"],
-          15,
-        ],
-        "fill-extrusion-base": [
-          "coalesce",
-          ["get", "render_min_height"],
-          ["get", "min_height"],
-          0,
-        ],
-        "fill-extrusion-opacity": 0.5,
-        "fill-extrusion-vertical-gradient": true,
-      },
-    });
+    if (map.getSource("carto")) {
+      map.addLayer({
+        id: "3d-buildings",
+        source: "carto",
+        "source-layer": "building",
+        type: "fill-extrusion",
+        minzoom: 15,
+        paint: {
+          "fill-extrusion-color": "#d1d5db",
+          "fill-extrusion-height": [
+            "coalesce",
+            ["get", "render_height"],
+            ["get", "height"],
+            15,
+          ],
+          "fill-extrusion-base": [
+            "coalesce",
+            ["get", "render_min_height"],
+            ["get", "min_height"],
+            0,
+          ],
+          "fill-extrusion-opacity": 0.5,
+          "fill-extrusion-vertical-gradient": true,
+        },
+      });
+    } else {
+      console.warn("La fuente 'carto' no existe en el mapa base cargado.");
+    }
 
     map.setLight({
       anchor: "viewport",
