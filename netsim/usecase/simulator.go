@@ -1,0 +1,119 @@
+package usecase
+
+import (
+	"encoding/json"
+	"netsim/domain/model"
+	"netsim/domain/service"
+	"netsim/ports/input"
+	"netsim/ports/output"
+	"sync"
+	"time"
+)
+
+type Config struct {
+	BufferSizeBytes   int
+	CsmaRangeM        float64
+	MaxCsmaRetries    uint32
+	ChunkSizeM        float64
+	ChunkRadius       int64
+	MaxRangeM         float64
+	SnapshotIntervalS int
+}
+
+type Simulator struct {
+	Config      Config
+	UAVs        map[string]*model.UAV
+	DelayedMsgs []model.DelayedMessage
+	PendingMsgs map[string][]model.Message
+	Spatial     *service.SpatialGrid
+	Sender      output.PacketSender
+	Logger      output.Logger
+	Cache       sync.Map // string -> json.RawMessage
+	mu          sync.Mutex
+	NodeID      string
+}
+
+func NewSimulator(nodeID string, cfg Config, spatial *service.SpatialGrid, sender output.PacketSender, logger output.Logger) *Simulator {
+	return &Simulator{
+		Config:      cfg,
+		UAVs:        make(map[string]*model.UAV),
+		PendingMsgs: make(map[string][]model.Message),
+		Spatial:     spatial,
+		Sender:      sender,
+		Logger:      logger,
+		NodeID:      nodeID,
+	}
+}
+
+type GatewayToNetsimMsg struct {
+	Topic   string          `json:"topic"`
+	Payload json.RawMessage `json:"payload"`
+}
+
+type UAVTelemetryPayload struct {
+	UAVID   string              `json:"uav_id"`
+	Payload model.TelemetryData `json:"payload"`
+}
+
+type UAVBroadcastPayload struct {
+	UAVID   string `json:"uav_id"`
+	Payload string `json:"payload"`
+}
+
+type PeerBroadcastPayload struct {
+	SenderID       string          `json:"sender_id"`
+	SenderPosition model.Position  `json:"sender_position"`
+	Payload        json.RawMessage `json:"payload"`
+	OriginNode     string          `json:"origin_node"`
+}
+
+func (s *Simulator) Handle(pkt input.RawPacket) {
+	var msg GatewayToNetsimMsg
+	if err := json.Unmarshal(pkt.Data, &msg); err != nil {
+		s.Logger.Error("Failed to parse packet", "error", err)
+		return
+	}
+
+	switch msg.Topic {
+	case "uav_telemetry":
+		var tel UAVTelemetryPayload
+		if err := json.Unmarshal(msg.Payload, &tel); err == nil {
+			s.UpdateUAVTelemetry(tel.UAVID, tel.Payload)
+		}
+	case "uav_broadcast":
+		var bcast UAVBroadcastPayload
+		if err := json.Unmarshal(msg.Payload, &bcast); err == nil {
+			s.EnqueueBroadcast(bcast.UAVID, bcast.Payload, 0, time.Now())
+			s.NotifyGatewayOfBroadcast(bcast.UAVID, bcast.Payload)
+		}
+	case "peer_broadcast":
+		var peerBcast PeerBroadcastPayload
+		if err := json.Unmarshal(msg.Payload, &peerBcast); err == nil {
+			if peerBcast.OriginNode != s.NodeID {
+				payloadStr := string(peerBcast.Payload)
+				s.HandlePeerBroadcast(peerBcast.SenderID, &peerBcast.SenderPosition, payloadStr, time.Now())
+			}
+		}
+	}
+}
+
+func (s *Simulator) NotifyGatewayOfBroadcast(senderID, payload string) {
+	s.mu.Lock()
+	uav, exists := s.UAVs[senderID]
+	s.mu.Unlock()
+
+	if !exists {
+		return
+	}
+
+	notify := map[string]any{
+		"topic": "broadcast_notify",
+		"payload": map[string]any{
+			"sender_id":       senderID,
+			"sender_position": uav.Position,
+			"payload":         payload, // Will be raw string or json string, let's keep it generic
+		},
+	}
+	data, _ := json.Marshal(notify)
+	s.Sender.Send(data, nil)
+}

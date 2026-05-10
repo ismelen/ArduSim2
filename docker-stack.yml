@@ -1,0 +1,35 @@
+version: '3.9'
+services:
+  gateway:
+    image: registry.example.com/netsim_gateway:latest
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+    ports:
+      - target: 3000
+        published: 3000
+        protocol: udp
+        mode: host
+      - target: 3001
+        published: 3001
+        protocol: udp
+        mode: host
+    networks:
+      - sim_overlay
+
+  netsim:
+    image: registry.example.com/netsim:latest
+    deploy:
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+    networks:
+      - sim_overlay
+
+networks:
+  sim_overlay:
+    driver: overlay
+    attachable: true

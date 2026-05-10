@@ -6,4 +6,5 @@ warning: virtual workspace defaulting to `resolver = "1"` despite one or more wo
     Blocking waiting for file lock on package cache
     Blocking waiting for file lock on package cache
     Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on shared package cache
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
