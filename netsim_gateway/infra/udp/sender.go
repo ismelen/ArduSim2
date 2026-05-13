@@ -16,12 +16,7 @@ type Sender struct {
 	logger output.Logger
 }
 
-func NewSender(logger output.Logger) *Sender {
-	conn, err := net.ListenUDP("udp", nil)
-	if err != nil {
-		logger.Error("Failed to create UDP sender", "error", err)
-	}
-
+func NewSender(conn *net.UDPConn, logger output.Logger) *Sender {
 	return &Sender{
 		conn:   conn,
 		jobs:   make(chan DispatchJob, 1024),

@@ -7,28 +7,19 @@ import (
 )
 
 type Receiver struct {
-	port   int
 	logger output.Logger
+	conn *net.UDPConn
 }
 
-func NewReceiver(port int, logger output.Logger) *Receiver {
-	return &Receiver{port: port, logger: logger}
+func NewReceiver(conn *net.UDPConn, logger output.Logger) *Receiver {
+	return &Receiver{conn: conn, logger: logger}
 }
 
 func (r *Receiver) Run(handler interface{ Handle(input.RawPacket) }) {
-	addr := &net.UDPAddr{Port: r.port}
-	conn, err := net.ListenUDP("udp", addr)
-	if err != nil {
-		r.logger.Error("Failed to start UDP receiver", "error", err)
-		return
-	}
-	defer conn.Close()
-
-	r.logger.Info("UDP Receiver started", "port", r.port)
 	buf := make([]byte, 65507)
 
 	for {
-		n, peerAddr, err := conn.ReadFromUDP(buf)
+		n, peerAddr, err := r.conn.ReadFromUDP(buf)
 		if err != nil {
 			r.logger.Error("Error reading UDP", "error", err)
 			continue

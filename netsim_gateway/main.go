@@ -15,9 +15,13 @@ func main() {
 	cfg := config.LoadConfig("config.json")
 	log := logger.NewConsoleLogger(cfg.Log.Level)
 
-	sender := udp.NewSender(log)
-	uavRecv := udp.NewReceiver(cfg.UAVListenPort, log)
-	netsimRecv := udp.NewReceiver(cfg.NetsimListenPort, log)
+	uavConn := udp.NewConnection(cfg.UAVListenPort, log)
+	netsimConn := udp.NewConnection(cfg.NetsimListenPort, log)
+	
+	uavSender := udp.NewSender(uavConn, log)
+	netsimSender := udp.NewSender(netsimConn, log)
+	uavRecv := udp.NewReceiver(uavConn, log)
+	netsimRecv := udp.NewReceiver(netsimConn, log)
 
 	netsimAddrs := config.DiscoverNetsims(cfg.NetsimDiscovery)
 	gateway := usecase.NewGateway(usecase.Config{
@@ -25,14 +29,15 @@ func main() {
 		NetsimListenPort:  cfg.NetsimListenPort,
 		SnapshotIntervalS: cfg.SnapshotIntervalS,
 		NetsimDiscovery:   cfg.NetsimDiscovery,
-	}, netsimAddrs, sender, sender, log)
+	}, netsimAddrs, uavSender, netsimSender, log)
 
 	uavHandler := usecase.NewUAVHandler(gateway)
 	netsimHandler := usecase.NewNetsimHandler(gateway)
 
 	go uavRecv.Run(uavHandler)
 	go netsimRecv.Run(netsimHandler)
-	go sender.Run()
+	go uavSender.Run()
+	go netsimSender.Run()
 	go usecase.RunAggregatedSnapshotEmitter(gateway)
 
 	if cfg.NetsimDiscovery.Mode == "swarm" {
