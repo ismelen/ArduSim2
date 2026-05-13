@@ -2,7 +2,7 @@ package udp
 
 import (
 	"net"
-	"netsim_gateway/ports/output"
+	"netsim/ports/output"
 )
 
 func NewConnection(port int, logger output.Logger) *net.UDPConn {

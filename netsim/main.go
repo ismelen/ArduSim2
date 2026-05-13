@@ -16,8 +16,11 @@ func main() {
 	cfg := config.LoadConfig("config.json")
 	log := logger.NewConsoleLogger(cfg.Log.Level)
 
-	sender := udp.NewSender(cfg.GatewayAddr, log)
-	receiver := udp.NewReceiver(cfg.ListenPort, log)
+	conn := udp.NewConnection(cfg.ListenPort, log)
+	defer conn.Close()
+	
+	sender := udp.NewSender(conn, cfg.GatewayAddr, log)
+	receiver := udp.NewReceiver(conn, log)
 
 	spatial := service.NewSpatialGrid(cfg.Simulation.ChunkSizeM)
 	sim := usecase.NewSimulator(cfg.NodeID, cfg.Simulation, spatial, sender, log)

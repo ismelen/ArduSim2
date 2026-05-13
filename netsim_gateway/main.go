@@ -16,8 +16,11 @@ func main() {
 	log := logger.NewConsoleLogger(cfg.Log.Level)
 
 	uavConn := udp.NewConnection(cfg.UAVListenPort, log)
+	defer uavConn.Close()
+
 	netsimConn := udp.NewConnection(cfg.NetsimListenPort, log)
-	
+	defer netsimConn.Close()
+
 	uavSender := udp.NewSender(uavConn, log)
 	netsimSender := udp.NewSender(netsimConn, log)
 	uavRecv := udp.NewReceiver(uavConn, log)

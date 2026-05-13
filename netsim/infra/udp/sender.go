@@ -17,15 +17,10 @@ type Sender struct {
 	logger     output.Logger
 }
 
-func NewSender(targetAddrStr string, logger output.Logger) *Sender {
+func NewSender(conn *net.UDPConn, targetAddrStr string, logger output.Logger) *Sender {
 	addr, err := net.ResolveUDPAddr("udp", targetAddrStr)
 	if err != nil {
 		logger.Error("Failed to resolve target address", "address", targetAddrStr, "error", err)
-	}
-
-	conn, err := net.ListenUDP("udp", nil)
-	if err != nil {
-		logger.Error("Failed to create UDP sender", "error", err)
 	}
 
 	return &Sender{
