@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -27,14 +26,12 @@ type NetsimSubscriber struct {
 	ready        bool
 	finished     bool
 	remoteAddr   string
-	useDockerWait bool
 }
 
 func NewNetsimSubscriber(ui ports.UIBridge) *NetsimSubscriber {
 	return &NetsimSubscriber{
 		ui:            ui,
 		remoteAddr:    "127.0.0.1:3000",
-		useDockerWait: true,
 	}
 }
 
@@ -42,7 +39,6 @@ func (s *NetsimSubscriber) SetRemoteAddr(ip string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.remoteAddr = ip + ":3000"
-	s.useDockerWait = false
 }
 
 func (s *NetsimSubscriber) SetExpectedFleet(uavIDs []string) {
@@ -97,10 +93,6 @@ func (s *NetsimSubscriber) NotifyUserStoppedAll(ctx context.Context) {
 }
 
 func (s *NetsimSubscriber) Start(ctx context.Context) {
-	if s.useDockerWait {
-		_ = s.waitForContainer(ctx)
-	}
-
 	remoteUDPAddr, _ := net.ResolveUDPAddr("udp", s.remoteAddr)
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
 	if err != nil {
@@ -123,7 +115,7 @@ func (s *NetsimSubscriber) Start(ctx context.Context) {
 			default:
 			}
 
-			for _, topic := range []string{"telemetry", "messages"} {
+			for _, topic := range []string{"telemetry_snapshot", "messages"} {
 				p, _ := json.Marshal(map[string]interface{}{
 					"topic": "subscribe",
 					"payload": map[string]interface{}{"topic": topic},
@@ -151,19 +143,26 @@ func (s *NetsimSubscriber) Start(ctx context.Context) {
 		}
 
 		switch msg.Topic {
-		case "telemetry":
-			var t domain.TelemetryData
-			_ = mapstructure.Decode(msg.Payload, &t)
-			if t.NrGpsOnline == 0 { continue }
-			
-			s.ui.EmitEvent("telemetry", map[string]interface{}{
-				"uav_id":  msg.UavID,
-				"payload": t,
-			})
+		case "telemetry_snapshot":
+			uavsRaw, ok := msg.Payload["uavs"].(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			snapshotMap := make(map[string]interface{})
 
 			s.mu.Lock()
+			for id, raw := range uavsRaw {
+				var t domain.TelemetryData
+				_ = mapstructure.Decode(raw, &t)
+				snapshotMap[id] = t
+				
+				if t.NrGpsOnline > 0 && !s.ready {
+					s.receivedUAVs[id] = true
+				}
+			}
+
 			if !s.ready {
-				s.receivedUAVs[msg.UavID] = true
 				keys := make([]string, 0, len(s.receivedUAVs))
 				for k := range s.receivedUAVs {
 					keys = append(keys, k)
@@ -176,6 +175,10 @@ func (s *NetsimSubscriber) Start(ctx context.Context) {
 				}
 			}
 			s.mu.Unlock()
+
+			s.ui.EmitEvent("telemetry_snapshot", map[string]interface{}{
+				"uavs": snapshotMap,
+			})
 		case "messages":
 			s.handleMessagesPacket(msg)
 		}
@@ -260,20 +263,3 @@ func (s *NetsimSubscriber) registerFinish(uavID string) {
 	}
 }
 
-func (s *NetsimSubscriber) waitForContainer(ctx context.Context) error {
-	deadline := time.Now().Add(30 * time.Second)
-	for time.Now().Before(deadline) {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-		out, err := exec.CommandContext(ctx, "docker", "inspect", "-f", "{{.State.Running}}", "network_simulator").Output()
-		if err == nil && strings.TrimSpace(string(out)) == "true" {
-			time.Sleep(2 * time.Second)
-			return nil
-		}
-		time.Sleep(time.Second)
-	}
-	return fmt.Errorf("timeout")
-}

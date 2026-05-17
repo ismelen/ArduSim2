@@ -2,13 +2,9 @@
   "uav_listen_port": 3000,
   "netsim_listen_port": 3001,
   "snapshot_interval_s": 1,
-  "netsim_discovery": {
-    "mode": "static",
-    "addrs": ["netsim_1:3000", "netsim_2:3000", "netsim_3:3000"],
-    "swarm_service": "netsim",
-    "rediscover_interval_s": 30
-  },
-  "log": {
-    "level": "info"
-  }
+  "addrs": [
+    "netsim_1:3000",
+    "netsim_2:3000",
+    "netsim_3:3000"
+  ]
 }

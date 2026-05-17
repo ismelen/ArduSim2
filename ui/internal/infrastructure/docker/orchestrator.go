@@ -1,14 +1,15 @@
 package docker
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"ui/internal/domain"
 	"ui/internal/domain/formation"
@@ -23,6 +24,8 @@ type DockerOrchestrator struct {
 	applicationConfig   string
 	uavControllerConfig string
 	externalCommsConfig string
+	netsimGatewayConfig string
+	netsimConfig        string
 	algorithmsDir       string
 }
 
@@ -34,6 +37,8 @@ func NewDockerOrchestrator(projectRoot string, ui ports.UIBridge) *DockerOrchest
 		applicationConfig:   filepath.Join(base, "..", "application", "config.json"),
 		uavControllerConfig: filepath.Join(base, "..", "uav_controller", "ardupilot4_5_3", "config.sitl.json"),
 		externalCommsConfig: filepath.Join(base, "..", "external_comms", "config.json"),
+		netsimGatewayConfig: filepath.Join(base, "..", "netsim_gateway", "config.json"),
+		netsimConfig:        filepath.Join(base, "..", "netsim", "config.json"),
 		algorithmsDir:       filepath.Join(base, "..", "algorithms"),
 	}
 }
@@ -44,35 +49,46 @@ func (o *DockerOrchestrator) Run(uavs []domain.UAV, config domain.GeneralConfig,
 		return "", fmt.Errorf("create simulation dirs: %w", err)
 	}
 
-	var runDir string
-	if config.StoreLocalData {
-		timestamp := time.Now().Format("2006-01-02_15-04-05")
-		runDir = filepath.Join(simDir, "runs", timestamp)
-		_ = os.MkdirAll(runDir, 0755)
-	}
-
-	var speeds []float64 // Simplified: could load from file if needed
+	var speeds []float64 //TODO: Simplified: could load from file if needed
 
 	f := formation.GetFormation(config.GroundFormation)
 	offsets := f.CalculateOffsets(len(uavs), config.FormationSpacing)
 
 	if isLocal {
-		return o.buildLocalCompose(uavs, config, speeds, offsets, resDir, simDir, runDir)
+		return o.buildLocalCompose(uavs, config, speeds, offsets, resDir, simDir)
 	}
 	return o.buildSwarmCompose(uavs, config, speeds, offsets, resDir, simDir)
 }
 
-func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.GeneralConfig, speeds []float64, offsets []formation.Offset, resDir, simDir, runDir string) (string, error) {
+func normalizeNetsimInstances(n int) int {
+	if n < 1 {
+		return 1
+	}
+	return n
+}
+
+func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.GeneralConfig, speeds []float64, offsets []formation.Offset, resDir, simDir string) (string, error) {
 	writer := NewResourceWriter(resDir)
 	builder := newComposeBuilder()
 	pool := newSubnetPool()
 
-	var nsLogDir string
-	if runDir != "" {
-		nsLogDir = filepath.Join(runDir, "network_simulator")
-		_ = os.MkdirAll(nsLogDir, 0755)
+	netsimInstances := normalizeNetsimInstances(config.NetsimInstances)
+	netsimAddrs := make([]string, netsimInstances)
+	for i := 1; i <= netsimInstances; i++ {
+		netsimAddrs[i-1] = fmt.Sprintf("netsim_%d:3000", i)
 	}
-	builder.AddNetworkSimulator(nsLogDir, config.VerboseLogging)
+
+	gwCfg := LoadRawConfig(o.netsimGatewayConfig)
+	gwLimits := ParseResourceLimits(gwCfg)
+	gwFile, _ := o.writeTemplateConfig("netsim_gateway_config", o.netsimGatewayConfig, nil, writer)
+	builder.AddNetsimGateway(gwFile, netsimAddrs, gwLimits, config.VerboseLogging)
+	
+	nsCfg := LoadRawConfig(o.netsimConfig)
+	nsLimits := ParseResourceLimits(nsCfg)
+	nsFile, _ := o.writeTemplateConfig("netsim_config", o.netsimConfig, nil, writer)
+	for i := 1; i <= netsimInstances; i++ {
+		builder.AddNetsim(i, nsFile, nsLimits, config.VerboseLogging)
+	}
 
 	for i, uav := range uavs {
 		uavSpeed := 10.0
@@ -81,7 +97,7 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 		}
 
 		paramFile, _ := o.generateUAVParams(uav.ID, uavSpeed, config, resDir)
-		o.appendUAV(uav, paramFile, builder, writer, config, offsets[i], runDir, pool)
+		o.appendUAV(uav, paramFile, builder, writer, config, offsets[i], pool)
 	}
 
 	composePath := filepath.Join(simDir, "docker-compose.yaml")
@@ -89,13 +105,28 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 	return composePath, nil
 }
 
-//TODO: Recenter permanente, al salir y volver al tab de simulation se resetean valores y logs
 
 func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.GeneralConfig, speeds []float64, offsets []formation.Offset, resDir, simDir string) (string, error) {
 	writer := NewResourceWriter(resDir)
 	builder := newSwarmComposeBuilder()
 
-	builder.AddNetworkSimulator(config.VerboseLogging)
+	netsimInstances := normalizeNetsimInstances(config.NetsimInstances)
+	netsimAddrs := make([]string, netsimInstances)
+	for i := 1; i <= netsimInstances; i++ {
+		netsimAddrs[i-1] = fmt.Sprintf("netsim_%d:3000", i)
+	}
+
+	gwCfg := LoadRawConfig(o.netsimGatewayConfig)
+	gwLimits := ParseResourceLimits(gwCfg)
+	gwFile, _ := o.writeTemplateConfig("netsim_gateway_config", o.netsimGatewayConfig, nil, writer)
+	builder.AddNetsimGateway(gwFile, netsimAddrs, gwLimits, config.VerboseLogging)
+	
+	nsCfg := LoadRawConfig(o.netsimConfig)
+	nsLimits := ParseResourceLimits(nsCfg)
+	nsFile, _ := o.writeTemplateConfig("netsim_config", o.netsimConfig, nil, writer)
+	for i := 1; i <= netsimInstances; i++ {
+		builder.AddNetsim(i, nsFile, nsLimits, config.VerboseLogging)
+	}
 
 	for i, uav := range uavs {
 		uavSpeed := 10.0
@@ -122,22 +153,37 @@ func (o *DockerOrchestrator) StartCompose(composePath string) error {
 	cmd := exec.Command("docker", "compose", "up", /*"--build",*/ "-d")
 	cmd.Dir = filepath.Dir(composePath)
 
+	var stderrBuf bytes.Buffer
 	stdout, _ := cmd.StdoutPipe()
-	stderr, _ := cmd.StderrPipe()
+	// Tee stderr: emit to UI log AND capture in buffer for error reporting.
+	stderrPipe, _ := cmd.StderrPipe()
 
 	if err := cmd.Start(); err != nil {
 		return err
 	}
 
+	done := make(chan struct{})
 	go func() {
-		scanner := NewLogScanner(stdout, stderr)
+		defer close(done)
+		scanner := NewLogScanner(stdout, io.TeeReader(stderrPipe, &stderrBuf))
 		for scanner.Scan() {
 			o.ui.EmitEvent("simulation:log", scanner.Text())
 		}
 	}()
 
-	return cmd.Wait()
+	waitErr := cmd.Wait()
+	<-done // ensure all output has been flushed before reading the buffer
+
+	if waitErr != nil {
+		details := strings.TrimSpace(stderrBuf.String())
+		if details != "" {
+			return fmt.Errorf("docker compose: %w\n%s", waitErr, details)
+		}
+		return fmt.Errorf("docker compose: %w", waitErr)
+	}
+	return nil
 }
+
 
 func (o *DockerOrchestrator) StopCompose(composePath string) error {
 	cmd := exec.Command("docker", "compose", "down", "--remove-orphans")
@@ -180,7 +226,7 @@ func (o *DockerOrchestrator) StopStack(stackName, swarmHost string) error {
 }
 
 func (o *DockerOrchestrator) CollectSwarmLogs(stackName, swarmHost, simName, destDir string) error {
-	// Implementation from app.go's CleanSwarmNodes
+	// TODO: implement
 	return nil
 }
 
@@ -190,34 +236,35 @@ func (o *DockerOrchestrator) isLocalhost(host string) bool {
 
 // Ported helpers from ui/internal/simulation/orchestrator.go
 
-func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName string, builder *composeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset, runDir string, pool *subnetPool) {
+func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName string, builder *composeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset, pool *subnetPool) {
 	uavNum, _ := strconv.Atoi(uav.ID)
-	var uavLogRoot string
-	if runDir != "" {
-		uavLogRoot = filepath.Join(runDir, fmt.Sprintf("uav-%s", uav.ID))
-		_ = os.MkdirAll(uavLogRoot, 0755)
-	}
 
 	nContainers := 4 + len(uav.Services)
 	subnet := pool.Next(nContainers)
 	builder.AddUAVNetwork(uav.ID, subnet)
-	builder.AddCommunicationModule(uav.ID, o.getServiceLogDir(uavLogRoot, "communication_module"), config.VerboseLogging)
+	builder.AddCommunicationModule(uav.ID, ResourceLimits{}, config.VerboseLogging)
 
+	appCfg := LoadRawConfig(o.applicationConfig)
+	appLimits := ParseResourceLimits(appCfg)
 	appFile, _ := o.writeTemplateConfig("application_config", o.applicationConfig, nil, writer)
-	builder.AddApplication(uav.ID, appFile, o.getServiceLogDir(uavLogRoot, "application"), config.VerboseLogging)
+	builder.AddApplication(uav.ID, appFile, appLimits, config.VerboseLogging)
 
+	ucCfg := LoadRawConfig(o.uavControllerConfig)
+	ucLimits := ParseResourceLimits(ucCfg)
 	ucFile, _ := o.writeTemplateConfig("uav_controller_config", o.uavControllerConfig, nil, writer)
 	homeLat, homeLon := util.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
 	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
-	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, o.getServiceLogDir(uavLogRoot, "uav_controller"), config.VerboseLogging)
+	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, ucLimits, config.VerboseLogging)
 
 	ecOverrides := map[string]interface{}{
 		"uav_id":         uavNum,
-		"simulator_ip":   "network_simulator",
+		"simulator_ip":   "netsim_gateway",
 		"simulator_port": 3000,
 	}
+	ecCfg := LoadRawConfig(o.externalCommsConfig)
+	ecLimits := ParseResourceLimits(ecCfg)
 	ecFile, _ := o.writeTemplateConfig("external_comms_config", o.externalCommsConfig, ecOverrides, writer)
-	builder.AddExternalComms(uav.ID, ecFile, o.getServiceLogDir(uavLogRoot, "external_comms"), config.VerboseLogging)
+	builder.AddExternalComms(uav.ID, ecFile, ecLimits, config.VerboseLogging)
 
 	for _, svc := range uav.Services {
 		var extraVolumes []domain.VolumeMount
@@ -254,30 +301,41 @@ func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName string, bui
 		}
 
 		svcFile, _ := writer.Write(svc.ServiceId+"_config", cfg)
-		builder.AddAlgorithmService(uav.ID, svc, svcFile, extraVolumes, o.getServiceLogDir(uavLogRoot, svc.FolderName), config.VerboseLogging)
+		
+		schemaPath := filepath.Join(o.algorithmsDir, svc.FolderName, "schema.json")
+		algoSchema := LoadRawConfig(schemaPath)
+		algoLimits := ParseResourceLimits(algoSchema)
+		
+		builder.AddAlgorithmService(uav.ID, svc, svcFile, extraVolumes, algoLimits, config.VerboseLogging)
 	}
 }
 
 func (o *DockerOrchestrator) appendSwarmUAV(uav domain.UAV, paramFileName string, builder *swarmComposeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset) {
 	uavNum, _ := strconv.Atoi(uav.ID)
 	builder.AddUAVNetwork(uav.ID)
-	builder.AddCommunicationModule(uav.ID, config.VerboseLogging)
+	builder.AddCommunicationModule(uav.ID, ResourceLimits{}, config.VerboseLogging)
 
+	appCfg := LoadRawConfig(o.applicationConfig)
+	appLimits := ParseResourceLimits(appCfg)
 	appFile, _ := o.writeTemplateConfig("application_config", o.applicationConfig, nil, writer)
-	builder.AddApplication(uav.ID, appFile, config.VerboseLogging)
+	builder.AddApplication(uav.ID, appFile, appLimits, config.VerboseLogging)
 
+	ucCfg := LoadRawConfig(o.uavControllerConfig)
+	ucLimits := ParseResourceLimits(ucCfg)
 	ucFile, _ := o.writeTemplateConfig("uav_controller_config", o.uavControllerConfig, nil, writer)
 	homeLat, homeLon := util.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
 	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
-	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, config.VerboseLogging)
+	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, ucLimits, config.VerboseLogging)
 
 	ecOverrides := map[string]interface{}{
 		"uav_id":         uavNum,
-		"simulator_ip":   "network_simulator",
+		"simulator_ip":   "netsim_gateway",
 		"simulator_port": 3000,
 	}
+	ecCfg := LoadRawConfig(o.externalCommsConfig)
+	ecLimits := ParseResourceLimits(ecCfg)
 	ecFile, _ := o.writeTemplateConfig("external_comms_config", o.externalCommsConfig, ecOverrides, writer)
-	builder.AddExternalComms(uav.ID, ecFile, config.VerboseLogging)
+	builder.AddExternalComms(uav.ID, ecFile, ecLimits, config.VerboseLogging)
 
 	for _, svc := range uav.Services {
 		cfg := make(map[string]interface{})
@@ -314,7 +372,12 @@ func (o *DockerOrchestrator) appendSwarmUAV(uav domain.UAV, paramFileName string
 		}
 
 		svcFile, _ := writer.Write(svc.ServiceId+"_config", cfg)
-		builder.AddAlgorithmService(uav.ID, svc, svcFile, extraVolumes, config.VerboseLogging)
+		
+		schemaPath := filepath.Join(o.algorithmsDir, svc.FolderName, "schema.json")
+		algoSchema := LoadRawConfig(schemaPath)
+		algoLimits := ParseResourceLimits(algoSchema)
+		
+		builder.AddAlgorithmService(uav.ID, svc, svcFile, extraVolumes, algoLimits, config.VerboseLogging)
 	}
 }
 
@@ -330,15 +393,6 @@ func (o *DockerOrchestrator) getServiceSchema(folderName string) (map[string]int
 		return nil, err
 	}
 	return schema, nil
-}
-
-func (o *DockerOrchestrator) getServiceLogDir(uavLogRoot, serviceName string) string {
-	if uavLogRoot == "" {
-		return ""
-	}
-	dir := filepath.Join(uavLogRoot, serviceName)
-	_ = os.MkdirAll(dir, 0755)
-	return dir
 }
 
 func (o *DockerOrchestrator) generateUAVParams(uavID string, speed float64, config domain.GeneralConfig, resDir string) (string, error) {

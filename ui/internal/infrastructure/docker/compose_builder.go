@@ -21,33 +21,66 @@ func newComposeBuilder() *composeBuilder {
 	return b
 }
 
-// AddNetworkSimulator appends the shared network_simulator service block.
-func (b *composeBuilder) AddNetworkSimulator(logDir string, verbose bool) {
+// AddNetsimGateway appends the shared netsim_gateway service block.
+func (b *composeBuilder) AddNetsimGateway(configFileName string, netsimAddrs []string, limits ResourceLimits, verbose bool) {
 	var env string
 	if verbose {
 		env = "    environment:\n      - DEBUG=true\n"
 	}
-
-	var vols string
-	if logDir != "" {
-		vols = fmt.Sprintf("    volumes:\n      - %s:/app/logs\n", logDir)
+	
+	if len(netsimAddrs) > 0 {
+		addrsStr := strings.Join(netsimAddrs, ",")
+		if env == "" {
+			env = fmt.Sprintf("    environment:\n      - ADDRS=%s\n", addrsStr)
+		} else {
+			env += fmt.Sprintf("      - ADDRS=%s\n", addrsStr)
+		}
 	}
 
-	fmt.Fprintf(&b.services, `  network_simulator:
-    image: network_simulator
+	vols := fmt.Sprintf("    volumes:\n      - ./resources/%s:/app/config.json\n", configFileName)
+	lims := b.buildLocalLimits(limits)
+
+	fmt.Fprintf(&b.services, `  netsim_gateway:
+    image: netsim_gateway
     build:
-      context: ../../network_simulator
+      context: ../../netsim_gateway
       dockerfile: Dockerfile
-    container_name: network_simulator
+    container_name: netsim_gateway
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
       - 3000:3000/udp
-%s%s    networks:
+%s%s%s    networks:
       - air
 
-`, env, vols)
+`, env, vols, lims)
 	b.addNetwork("air", "10.9.0.0/24")
+}
+
+// AddNetsim appends a netsim worker service block.
+func (b *composeBuilder) AddNetsim(instanceID int, configFileName string, limits ResourceLimits, verbose bool) {
+	var env string
+	if verbose {
+		env = fmt.Sprintf("    environment:\n      - DEBUG=true\n      - NODE_ID=netsim_%d\n", instanceID)
+	} else {
+		env = fmt.Sprintf("    environment:\n      - NODE_ID=netsim_%d\n", instanceID)
+	}
+
+	vols := fmt.Sprintf("    volumes:\n      - ./resources/%s:/app/config.json\n", configFileName)
+	lims := b.buildLocalLimits(limits)
+
+	fmt.Fprintf(&b.services, `  netsim_%d:
+    image: netsim
+    build:
+      context: ../../netsim
+      dockerfile: Dockerfile
+    container_name: netsim_%d
+    depends_on:
+      - netsim_gateway
+%s%s%s    networks:
+      - air
+
+`, instanceID, instanceID, env, vols, lims)
 }
 
 // AddUAVNetwork registers the per-UAV bridge network.
@@ -56,18 +89,15 @@ func (b *composeBuilder) AddUAVNetwork(uavID string, subnet string) {
 }
 
 // AddCommunicationModule appends the communication_module service for a UAV.
-func (b *composeBuilder) AddCommunicationModule(uavID, logDir string, verbose bool) {
+func (b *composeBuilder) AddCommunicationModule(uavID string, limits ResourceLimits, verbose bool) {
 	uavNet := uavNetworkName(uavID)
 	
-	var env string
+	env := fmt.Sprintf("    environment:\n      - UAV_ID=%s\n", uavID)
 	if verbose {
-		env = "    environment:\n      - DEBUG=true\n"
+		env += "      - DEBUG=true\n"
 	}
-
-	var vols string
-	if logDir != "" {
-		vols = fmt.Sprintf("    volumes:\n      - %s:/app/logs\n", logDir)
-	}
+	
+	lims := b.buildLocalLimits(limits)
 
 	fmt.Fprintf(&b.services, `  communication_module_%s:
     image: communication_module
@@ -80,22 +110,20 @@ func (b *composeBuilder) AddCommunicationModule(uavID, logDir string, verbose bo
         aliases:
           - communication_module
 
-`, uavID, uavID, env, vols, uavNet)
+`, uavID, uavID, env, lims, uavNet)
 }
 
 // AddApplication appends the application service for a UAV.
-func (b *composeBuilder) AddApplication(uavID, configFileName, logDir string, verbose bool) {
+func (b *composeBuilder) AddApplication(uavID, configFileName string, limits ResourceLimits, verbose bool) {
 	uavNet := uavNetworkName(uavID)
 
-	var env string
+	env := fmt.Sprintf("    environment:\n      - UAV_ID=%s\n", uavID)
 	if verbose {
-		env = "    environment:\n      - DEBUG=true\n"
+		env += "      - DEBUG=true\n"
 	}
 
 	vols := fmt.Sprintf("      - ./resources/%s:/app/config.json\n", configFileName)
-	if logDir != "" {
-		vols += fmt.Sprintf("      - %s:/app/logs\n", logDir)
-	}
+	lims := b.buildLocalLimits(limits)
 
 	fmt.Fprintf(&b.services, `  application_%s:
     image: application
@@ -107,16 +135,16 @@ func (b *composeBuilder) AddApplication(uavID, configFileName, logDir string, ve
       - communication_module_%s
       - uav_controller_%s
 %s    volumes:
-%s    networks:
+%s%s    networks:
       %s:
         aliases:
           - application
 
-`, uavID, uavID, uavID, uavID, env, vols, uavNet)
+`, uavID, uavID, uavID, uavID, env, vols, lims, uavNet)
 }
 
 // AddUAVController appends the uav_controller (SITL) service for a UAV.
-func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, homeLocation, logDir string, verbose bool) {
+func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, homeLocation string, limits ResourceLimits, verbose bool) {
 	uavNet := uavNetworkName(uavID)
 
 	var env string
@@ -126,9 +154,7 @@ func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, 
 
 	vols := fmt.Sprintf("      - ./resources/%s:/app/config.json\n", configFileName)
 	vols += fmt.Sprintf("      - ./resources/%s:/app/copter.parm\n", paramFileName)
-	if logDir != "" {
-		vols += fmt.Sprintf("      - %s:/app/logs\n", logDir)
-	}
+	lims := b.buildLocalLimits(limits)
 
 	fmt.Fprintf(&b.services, `  uav_controller_%s:
     image: copter453
@@ -140,29 +166,28 @@ func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, 
       - communication_module_%s
     environment:
       - UAV_HOME_LOCATION=%s
+      - UAV_ID=%s
 %s    volumes:
-%s    networks:
+%s%s    networks:
       %s:
         aliases:
           - uav_controller
 
-`, uavID, uavID, uavID, homeLocation, env, vols, uavNet)
+`, uavID, uavID, uavID, homeLocation, uavID, env, vols, lims, uavNet)
 }
 
 // AddExternalComms appends the external_comms service for a UAV.
 // This service bridges the per-UAV network and the shared air network.
-func (b *composeBuilder) AddExternalComms(uavID, configFileName, logDir string, verbose bool) {
+func (b *composeBuilder) AddExternalComms(uavID, configFileName string, limits ResourceLimits, verbose bool) {
 	uavNet := uavNetworkName(uavID)
 
-	var env string
+	env := fmt.Sprintf("    environment:\n      - UAV_ID=%s\n", uavID)
 	if verbose {
-		env = "    environment:\n      - DEBUG=true\n"
+		env += "      - DEBUG=true\n"
 	}
 
 	vols := fmt.Sprintf("      - ./resources/%s:/app/config.json\n", configFileName)
-	if logDir != "" {
-		vols += fmt.Sprintf("      - %s:/app/logs\n", logDir)
-	}
+	lims := b.buildLocalLimits(limits)
 
 	fmt.Fprintf(&b.services, `  external_comms_%s:
     image: external_comms
@@ -172,24 +197,24 @@ func (b *composeBuilder) AddExternalComms(uavID, configFileName, logDir string, 
     container_name: external_comms_%s
     depends_on:
       - communication_module_%s
-      - network_simulator
+      - netsim_gateway
 %s    volumes:
-%s    networks:
+%s%s    networks:
       %s:
         aliases:
           - external_comms
       air:
 
-`, uavID, uavID, uavID, env, vols, uavNet)
+`, uavID, uavID, uavID, env, vols, lims, uavNet)
 }
 
 // AddAlgorithmService appends a user-deployed algorithm service for a UAV.
-func (b *composeBuilder) AddAlgorithmService(uavID string, svc domain.DeployedService, configFileName string, extraVolumes []domain.VolumeMount, logDir string, verbose bool) {
+func (b *composeBuilder) AddAlgorithmService(uavID string, svc domain.DeployedService, configFileName string, extraVolumes []domain.VolumeMount, limits ResourceLimits, verbose bool) {
 	uavNet := uavNetworkName(uavID)
 
-	var env string
+	env := fmt.Sprintf("    environment:\n      - UAV_ID=%s\n", uavID)
 	if verbose {
-		env = "    environment:\n      - DEBUG=true\n"
+		env += "      - DEBUG=true\n"
 	}
 
 	var vols strings.Builder
@@ -197,14 +222,13 @@ func (b *composeBuilder) AddAlgorithmService(uavID string, svc domain.DeployedSe
 	for _, v := range extraVolumes {
 		fmt.Fprintf(&vols, "      - ./resources/%s:%s\n", v.HostPath, v.ContainerPath)
 	}
-	if logDir != "" {
-		fmt.Fprintf(&vols, "      - %s:/app/logs\n", logDir)
-	}
 
 	folderName := svc.FolderName
 	if folderName == "" {
 		folderName = svc.ServiceId
 	}
+	
+	lims := b.buildLocalLimits(limits)
 
 	fmt.Fprintf(&b.services, `  %s_%s:
     image: %s
@@ -215,7 +239,7 @@ func (b *composeBuilder) AddAlgorithmService(uavID string, svc domain.DeployedSe
     depends_on:
       - communication_module_%s
 %s    volumes:
-%s    networks:
+%s%s    networks:
       %s:
         aliases:
           - %s
@@ -227,6 +251,7 @@ func (b *composeBuilder) AddAlgorithmService(uavID string, svc domain.DeployedSe
 		uavID,
 		env,
 		vols.String(),
+		lims,
 		uavNet,
 		svc.ServiceId)
 }
@@ -249,4 +274,18 @@ func (b *composeBuilder) addNetwork(name string, subnet string) {
 
 func uavNetworkName(uavID string) string {
 	return fmt.Sprintf("uav_net_%s", uavID)
+}
+
+func (b *composeBuilder) buildLocalLimits(limits ResourceLimits) string {
+	if !limits.HasLimits() {
+		return ""
+	}
+	var bldr strings.Builder
+	if limits.RAM != "" {
+		fmt.Fprintf(&bldr, "    mem_limit: %s\n", limits.RAM)
+	}
+	if limits.CPU > 0 {
+		fmt.Fprintf(&bldr, "    cpus: \"%.2f\"\n", limits.CPU)
+	}
+	return bldr.String()
 }

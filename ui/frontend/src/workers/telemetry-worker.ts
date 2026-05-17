@@ -10,19 +10,23 @@ const requestFrame =
     : (callback: FrameRequestCallback) => setTimeout(callback, 16);
 
 self.onmessage = (e) => {
-  if (e.data.type === "NEW_DATA") {
-    const { uavId, data, now, duration } = e.data;
-    const lastpacketTime = lastPacketTimes[uavId];
-    const newDuration = lastpacketTime ? now - lastpacketTime : duration;
-    lastPacketTimes[uavId] = now;
+  if (e.data.type === "NEW_SNAPSHOT") {
+    const { uavs, now } = e.data;
+    
+    for (const [uavId, data] of Object.entries(uavs) as [string, TelemetryData][]) {
+      const lastpacketTime = lastPacketTimes[uavId];
+      const newDuration = lastpacketTime ? now - lastpacketTime : 1000;
+      lastPacketTimes[uavId] = now;
+      data.last_update = now;
 
-    nodes[uavId] = {
-      start: nodes[uavId]?.end ?? data,
-      end: data,
-      startTime: now,
-      duration: newDuration,
-      trailEmited: false,
-    };
+      nodes[uavId] = {
+        start: nodes[uavId]?.end ?? data,
+        end: data,
+        startTime: now,
+        duration: newDuration,
+        trailEmited: false,
+      };
+    }
   }
 };
 

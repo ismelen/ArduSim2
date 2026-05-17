@@ -54,6 +54,7 @@ export namespace domain {
 	    formationSpacing: number;
 	    formationCenterMode: string;
 	    swarmHost: string;
+	    netsimInstances: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new GeneralConfig(source);
@@ -78,6 +79,7 @@ export namespace domain {
 	        this.formationSpacing = source["formationSpacing"];
 	        this.formationCenterMode = source["formationCenterMode"];
 	        this.swarmHost = source["swarmHost"];
+	        this.netsimInstances = source["netsimInstances"];
 	    }
 	}
 	export class ServiceType {

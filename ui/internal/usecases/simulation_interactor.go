@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
-	"time"
 
 	"ui/internal/domain"
 	"ui/internal/infrastructure/kml"
@@ -112,10 +110,7 @@ func (i *SimulationInteractor) StartSimulation(ctx context.Context, uavs []domai
 
 func (i *SimulationInteractor) StopSimulation() {
 	if i.activeStackName != "" {
-		timestamp := time.Now().Format("2006-01-02_15-04-05")
-		destDir := filepath.Join(i.repo.GetSimulationsDir(), i.activeSimulationName, "runs", timestamp)
-		
-		_ = i.orchestrator.CollectSwarmLogs(i.activeStackName, i.activeSwarmHost, i.activeSimulationName, destDir)
+		_ = i.orchestrator.CollectSwarmLogs(i.activeStackName, i.activeSwarmHost, i.activeSimulationName, "")
 		_ = i.orchestrator.StopStack(i.activeStackName, i.activeSwarmHost)
 		
 		i.activeStackName = ""
@@ -157,73 +152,13 @@ func (i *SimulationInteractor) SendAlgorithmCommand(serviceId string, command st
 }
 
 func (i *SimulationInteractor) LoadLogEntry(runDir string) (map[string]any, error) {
-	simulationLogs := map[string]any{}
-	logPaths, err := i.repo.GetFiles(runDir, ".log")
-	if err != nil {
-		return nil, err
-	}
-
-	for _, logPath := range logPaths {
-		var dirNames []string
-
-		dir := logPath
-		for {
-			dir = filepath.Dir(dir)
-			if dir == runDir { break }
-			dirNames = append(dirNames, filepath.Base(dir))
-		}
-		slices.Reverse(dirNames)
-		
-		simulationLogs = insertOnMap(simulationLogs, filepath.Base(logPath), dirNames...)
-	}
-
-	return simulationLogs, nil
-}
-
-func insertOnMap(m map[string]any, fileName string, keys ...string) map[string]any {
-	current := m
-
-	for _, key := range keys {
-		if next, ok := current[key]; ok {
-			if nextMap, ok := next.(map[string]any); ok {
-				current = nextMap
-			}
-		} else {
-			newLevel := make(map[string]any)
-			current[key] = newLevel
-			current = newLevel
-		}
-	}
-
-	if files, ok := current["_files"]; ok {
-		if slice, ok := files.([]string); ok {
-			current["_files"] = append(slice, fileName)
-		}
-	} else {
-		current["_files"] = []string{fileName}
-	}
-
-	return m
+	// TODO: implement
+	return nil, nil
 }
 
 func (i *SimulationInteractor) LoadLogEntries(ctx context.Context) ([]string, error) {
-	selectedDir, err := i.ui.OpenDirectoryDialog(ctx, "Select Simulation Directory", i.repo.GetSimulationsDir())
-	if err != nil || selectedDir == "" {
-		return nil, err
-	}
-
-	runsDir := filepath.Join(selectedDir, "runs")
-	dirs, err := os.ReadDir(runsDir)
-	if err != nil {
-		return nil, err
-	}
-
-	paths := []string{}
-	for _, dir := range dirs {
-		if(!dir.IsDir()) { continue }
-		paths = append(paths, filepath.Join(runsDir, dir.Name()))
-	}
-	return paths, err
+	// TODO: implement
+	return nil, nil
 }
 
 func (i *SimulationInteractor) LoadFile(path string) (string, error) {

@@ -37,6 +37,7 @@ export default function UavsList() {
       <div className="p-2 flex flex-col gap-2">
         {uavs.map((e, idx) => (
           <UavCard
+            key={e.id || idx}
             uav={e}
             selected={idx === activeUavIdx}
             onClick={() => {
@@ -79,8 +80,9 @@ function UavCard({ uav, onClick, selected }: UavCardProps) {
           Uav {uav.id}
         </p>
         <span className="flex gap-1 items-center">
-          {uav.services.map(() => (
+          {uav.services.map((service, idx) => (
             <div
+              key={service.serviceId || idx}
               className={cn("rounded-full aspect-square h-2 bg-dark-gray", {
                 "bg-onPrimary": selected,
               })}

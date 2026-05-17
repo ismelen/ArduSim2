@@ -72,17 +72,16 @@ export const useTelemetry = create<State>((_, get) => {
       if (subscribed) return;
       subscribed = true;
 
-      unsuscribeTelemetry = EventsOn("telemetry", (data: TelemetryData) => {
-        worker.postMessage({
-          type: "NEW_DATA",
-          uavId: data.uav_id,
-          data,
-          now: performance.now(),
-          duration: 1000,
-        });
-        const now = performance.now();
-        data.last_update = now;
-      });
+      unsuscribeTelemetry = EventsOn(
+        "telemetry_snapshot",
+        (payload: { uavs: Record<string, TelemetryData> }) => {
+          worker.postMessage({
+            type: "NEW_SNAPSHOT",
+            uavs: payload.uavs,
+            now: performance.now(),
+          });
+        },
+      );
     },
 
     unsuscribe() {

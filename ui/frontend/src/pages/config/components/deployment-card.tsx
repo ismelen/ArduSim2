@@ -7,6 +7,8 @@ import { useConfig } from "../../../hooks/useConfig";
 export default function DeploymentCard() {
   const activeMode = useConfig((s) => s.activeMode);
   const setActiveMode = useConfig((s) => s.setActieMode);
+  const netsimInstances = useConfig((s) => s.config.netsimInstances);
+  const update = useConfig((s) => s.update);
 
   return (
     <Card className="flex flex-col gap-2">
@@ -24,6 +26,17 @@ export default function DeploymentCard() {
             component: <DockerSwarmForm />,
           },
         ]}
+      />
+      <FormField
+        label="Netsim Instances"
+        hint="1"
+        initValue={String(netsimInstances ?? 1)}
+        onChange={(e) =>
+          update((s) => ({
+            ...s,
+            netsimInstances: Math.max(1, parseInt(e) || 1),
+          }))
+        }
       />
     </Card>
   );

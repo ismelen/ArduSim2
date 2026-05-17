@@ -30,6 +30,9 @@ type GeneralConfig struct {
 
 	// Remote Docker API endpoint for Swarm deployments (format: "IP:PORT").
 	SwarmHost string `json:"swarmHost"`
+
+	// NetsimInstances is the number of netsim worker containers to deploy.
+	NetsimInstances int `json:"netsimInstances"`
 }
 
 // SanitizeSimulationName ensures the simulation name is filesystem-friendly.

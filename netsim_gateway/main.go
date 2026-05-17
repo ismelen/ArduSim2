@@ -8,12 +8,11 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 )
 
 func main() {
 	cfg := config.LoadConfig("config.json")
-	log := logger.NewConsoleLogger(cfg.Log.Level)
+	log := logger.NewConsoleLogger()
 
 	uavConn := udp.NewConnection(cfg.UAVListenPort, log)
 	defer uavConn.Close()
@@ -26,12 +25,11 @@ func main() {
 	uavRecv := udp.NewReceiver(uavConn, log)
 	netsimRecv := udp.NewReceiver(netsimConn, log)
 
-	netsimAddrs := config.DiscoverNetsims(cfg.NetsimDiscovery)
+	netsimAddrs := config.DiscoverNetsims(cfg.Addrs)
 	gateway := usecase.NewGateway(usecase.Config{
 		UAVListenPort:     cfg.UAVListenPort,
 		NetsimListenPort:  cfg.NetsimListenPort,
 		SnapshotIntervalS: cfg.SnapshotIntervalS,
-		NetsimDiscovery:   cfg.NetsimDiscovery,
 	}, netsimAddrs, uavSender, netsimSender, log)
 
 	uavHandler := usecase.NewUAVHandler(gateway)
@@ -42,16 +40,6 @@ func main() {
 	go uavSender.Run()
 	go netsimSender.Run()
 	go usecase.RunAggregatedSnapshotEmitter(gateway)
-
-	if cfg.NetsimDiscovery.Mode == "swarm" {
-		go func() {
-			ticker := time.NewTicker(time.Duration(cfg.NetsimDiscovery.RediscoverIntervalS) * time.Second)
-			for range ticker.C {
-				newAddrs := config.DiscoverNetsims(cfg.NetsimDiscovery)
-				gateway.UpdateNetsims(newAddrs)
-			}
-		}()
-	}
 
 	log.Info("Gateway started", "uav_port", cfg.UAVListenPort, "netsim_port", cfg.NetsimListenPort)
 

@@ -64,7 +64,7 @@ export default function FormField({
            disabled:opacity-20 placeholder text-field"
           style={{}}
           placeholder={hint}
-          value={localValue}
+          value={localValue !== undefined ? String(localValue) : ""}
           min={min}
           max={max}
           onChange={handleChange}

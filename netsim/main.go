@@ -22,8 +22,9 @@ func main() {
 	sender := udp.NewSender(conn, cfg.GatewayAddr, log)
 	receiver := udp.NewReceiver(conn, log)
 
+	nodeId := os.Getenv("NODE_ID")
 	spatial := service.NewSpatialGrid(cfg.Simulation.ChunkSizeM)
-	sim := usecase.NewSimulator(cfg.NodeID, cfg.Simulation, spatial, sender, log)
+	sim := usecase.NewSimulator(nodeId, cfg.Simulation, spatial, sender, log)
 
 	go receiver.Run(sim)
 	go sender.Run()
@@ -36,7 +37,7 @@ func main() {
 		}
 	}()
 
-	log.Info("Netsim started", "node_id", cfg.NodeID, "port", cfg.ListenPort)
+	log.Info("Netsim started", "node_id", nodeId, "port", cfg.ListenPort)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)

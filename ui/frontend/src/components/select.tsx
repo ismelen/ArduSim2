@@ -23,11 +23,13 @@ export default function Select<T>({
       <label className="text-dark-gray">{label}</label>
       <select
         disabled={!enabled}
-        value={initValue as string}
+        value={initValue !== undefined ? String(initValue) : ""}
         onChange={(e) => onChange?.(e.target.value as T)}
       >
         {options.map((e) => (
-          <option value={e.value as string}>{e.label}</option>
+          <option key={String(e.value)} value={e.value as string}>
+            {e.label}
+          </option>
         ))}
       </select>
     </div>

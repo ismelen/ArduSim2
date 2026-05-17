@@ -19,6 +19,7 @@ export interface GeneralConfig {
   formationSpacing?: number;
   formationCenterMode?: string;
   swarmHost?: string;
+  netsimInstances?: number;
 }
 
 interface State {
@@ -30,7 +31,7 @@ interface State {
 }
 
 export const useConfig = create<State>((set, get) => ({
-  config: {},
+  config: { netsimInstances: 1 },
   activeMode: "LOCAL",
 
   update(fn: (config: GeneralConfig) => GeneralConfig) {

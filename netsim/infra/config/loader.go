@@ -7,7 +7,6 @@ import (
 )
 
 type Config struct {
-	NodeID       string         `json:"node_id"`
 	ListenPort   int            `json:"listen_port"`
 	GatewayAddr  string         `json:"gateway_addr"`
 	Simulation   usecase.Config `json:"simulation"`
@@ -21,7 +20,6 @@ type LogConfig struct {
 func LoadConfig(path string) Config {
 	file, err := os.Open(path)
 	cfg := Config{
-		NodeID:      "netsim_1",
 		ListenPort:  3000,
 		GatewayAddr: "gateway:3001",
 		Simulation: usecase.Config{
