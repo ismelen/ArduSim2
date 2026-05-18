@@ -19,13 +19,16 @@ self.onmessage = (e) => {
     ][]) {
       const newDuration = lastPacketTime ? now - lastPacketTime : 1000;
       lastPacketTime = now;
+      data.uav_id = uavId;  
+      
+      const savedData = nodes[uavId]
 
       nodes[uavId] = {
-        start: nodes[uavId]?.end ?? data,
+        start: savedData?.end ?? data,
         end: data,
         startTime: now,
         duration: newDuration,
-        trailEmited: false,
+        trailEmited: !savedData,
       };
     }
   }
@@ -40,8 +43,8 @@ const update = () => {
     let t = (now - node.startTime) / node.duration;
     if (t > 1) t = 1; //TODO: continue?
 
-    const iPos = node.start.payload.position;
-    const fPos = node.end.payload.position;
+    const iPos = node.start.position;
+    const fPos = node.end.position;
 
     if (!node.trailEmited) {
       node.trailEmited = true;
@@ -55,16 +58,13 @@ const update = () => {
     }
     interpolated[id] = {
       ...node.end,
-      payload: {
-        ...node.end.payload,
-        position: {
-          lat: iPos.lat + (fPos.lat - iPos.lat) * t,
-          lon: iPos.lon + (fPos.lon - iPos.lon) * t,
-          alt: iPos.alt + (fPos.alt - iPos.alt) * t,
-          relative_alt:
-            iPos.relative_alt + (fPos.relative_alt - iPos.relative_alt) * t,
-          heading: lerpAngle(iPos.heading, fPos.heading, t),
-        },
+      position: {
+        lat: iPos.lat + (fPos.lat - iPos.lat) * t,
+        lon: iPos.lon + (fPos.lon - iPos.lon) * t,
+        alt: iPos.alt + (fPos.alt - iPos.alt) * t,
+        relative_alt:
+          iPos.relative_alt + (fPos.relative_alt - iPos.relative_alt) * t,
+        heading: lerpAngle(iPos.heading, fPos.heading, t),
       },
     };
   }

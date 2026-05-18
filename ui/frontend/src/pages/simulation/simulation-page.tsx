@@ -96,12 +96,6 @@ export default function SimulationPage() {
     setonNewRealPoint(updateTrails);
   }, [setonNewRealPoint, updateTrails]);
 
-  // useEffect(() => {
-  //   if (!isSimulating) return;
-  //   const uavList = Object.values(uavs);
-  //   updateMarkers(uavList);
-  // }, [uavs, updateMarkers, isSimulating]);
-
   useEffect(() => {
     if (!followTarget) return;
 

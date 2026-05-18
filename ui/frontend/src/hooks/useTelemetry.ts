@@ -2,23 +2,20 @@ import { create } from "zustand";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 
 export interface TelemetryData {
-  uav_id: string;
-  payload: {
-    position: {
-      lat: number;
-      lon: number;
-      alt: number;
-      heading: number;
-      relative_alt: number;
-    };
-    speed: { vx: number; vy: number; vz: number };
-    battery: number;
-    status: string;
-    flight_mode: string;
-    nr_gps_online: number;
-    time_boot_ms: number;
+  uav_id?: string;
+  position: {
+    lat: number;
+    lon: number;
+    alt: number;
+    heading: number;
+    relative_alt: number;
   };
-  last_update: number;
+  speed: { vx: number; vy: number; vz: number };
+  battery: number;
+  status: string;
+  flight_mode: string;
+  nr_gps_online: number;
+  time_boot_ms: number;
 }
 
 export interface InterpolationNode {

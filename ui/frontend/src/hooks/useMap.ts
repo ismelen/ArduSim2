@@ -83,16 +83,16 @@ export const useMap = create<State>((set, get) => ({
     const markers = get().uavMarkers;
 
     for (const [idx, uav] of uavs.entries()) {
-      let marker = markers[uav.uav_id];
-      const pos = uav.payload.position;
+      let marker = markers[uav.uav_id!];
+      const pos = uav.position;
 
       if (!marker) {
         marker = {
           color: getRgbUavColor(idx),
-          id: uav.uav_id,
+          id: uav.uav_id!,
           position: [],
         };
-        markers[uav.uav_id] = marker;
+        markers[uav.uav_id!] = marker;
       }
 
       marker.position = [pos.lon, pos.lat, pos.alt, pos.heading];
