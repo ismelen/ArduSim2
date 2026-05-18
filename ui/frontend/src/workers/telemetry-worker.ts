@@ -2,7 +2,7 @@ import type { InterpolationNode, TelemetryData } from "../hooks/useTelemetry";
 import { lerpAngle } from "../utils/lerp-angle";
 
 const nodes: Record<string, InterpolationNode> = {};
-const lastPacketTimes: Record<string, number> = {};
+let lastPacketTime: number | undefined;
 
 const requestFrame =
   typeof self.requestAnimationFrame === "function"
@@ -12,12 +12,13 @@ const requestFrame =
 self.onmessage = (e) => {
   if (e.data.type === "NEW_SNAPSHOT") {
     const { uavs, now } = e.data;
-    
-    for (const [uavId, data] of Object.entries(uavs) as [string, TelemetryData][]) {
-      const lastpacketTime = lastPacketTimes[uavId];
-      const newDuration = lastpacketTime ? now - lastpacketTime : 1000;
-      lastPacketTimes[uavId] = now;
-      data.last_update = now;
+
+    for (const [uavId, data] of Object.entries(uavs) as [
+      string,
+      TelemetryData,
+    ][]) {
+      const newDuration = lastPacketTime ? now - lastPacketTime : 1000;
+      lastPacketTime = now;
 
       nodes[uavId] = {
         start: nodes[uavId]?.end ?? data,
@@ -37,11 +38,11 @@ const update = () => {
   for (const id in nodes) {
     const node = nodes[id];
     let t = (now - node.startTime) / node.duration;
-    if (t > 1) t = 1;
-    
+    if (t > 1) t = 1; //TODO: continue?
+
     const iPos = node.start.payload.position;
     const fPos = node.end.payload.position;
-    
+
     if (!node.trailEmited) {
       node.trailEmited = true;
       self.postMessage({
