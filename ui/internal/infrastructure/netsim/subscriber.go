@@ -96,6 +96,7 @@ func (s *NetsimSubscriber) Start(ctx context.Context) {
 	remoteUDPAddr, _ := net.ResolveUDPAddr("udp", s.remoteAddr)
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
 	if err != nil {
+		fmt.Println("Error listening on UDP", err)
 		return
 	}
 	defer conn.Close()
@@ -105,11 +106,16 @@ func (s *NetsimSubscriber) Start(ctx context.Context) {
 		conn.Close()
 	}()
 
+	msgReceivedChan := make(chan any, 1)
+	msgReceived := false
+
 	// Subscribe in a loop until we get a message or timeout
 	go func() {
 		deadline := time.Now().Add(30 * time.Second)
 		for time.Now().Before(deadline) {
 			select {
+			case <-msgReceivedChan:
+				return
 			case <-ctx.Done():
 				return
 			default:
@@ -131,6 +137,10 @@ func (s *NetsimSubscriber) Start(ctx context.Context) {
 		n, _, err := conn.ReadFromUDP(buffer)
 		if err != nil {
 			return
+		}
+		if !msgReceived {
+			msgReceived = true
+			msgReceivedChan <- struct{}{}
 		}
 
 		var msg struct {

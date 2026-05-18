@@ -56,7 +56,7 @@ func (g *GatewayBridge) handleInternalBrokerMessage(msg ports.BrokerMessage) {
 			Payload: msg.Payload,
 		}
 		g.netLink.Send(extMsg)
-		// log.Printf("[Internal->External] Forwarded Telemetry")
+		log.Printf("[Internal->External] Forwarded Telemetry")
 
 	case g.config.SubMessagesTopic:
 		// Route internal P2P message to swarm

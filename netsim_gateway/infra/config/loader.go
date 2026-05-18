@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -38,6 +39,8 @@ func DiscoverNetsims(addrs []string) []*net.UDPAddr {
 	for _, addrStr := range addrs {
 		if addr, err := net.ResolveUDPAddr("udp", addrStr); err == nil {
 			resolved = append(resolved, addr)
+		} else {
+			log.Printf("Failed to resolve %s: %v\n", addrStr, err)
 		}
 	}
 	return resolved

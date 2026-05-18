@@ -150,7 +150,7 @@ func (o *DockerOrchestrator) StartCompose(composePath string) error {
 		return fmt.Errorf("DOCKER_NOT_RUNNING")
 	}
 
-	cmd := exec.Command("docker", "compose", "up", /*"--build",*/ "-d")
+	cmd := exec.Command("docker", "compose", "up", "--build", "-d")
 	cmd.Dir = filepath.Dir(composePath)
 
 	var stderrBuf bytes.Buffer
@@ -258,8 +258,6 @@ func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName string, bui
 
 	ecOverrides := map[string]interface{}{
 		"uav_id":         uavNum,
-		"simulator_ip":   "netsim_gateway",
-		"simulator_port": 3000,
 	}
 	ecCfg := LoadRawConfig(o.externalCommsConfig)
 	ecLimits := ParseResourceLimits(ecCfg)

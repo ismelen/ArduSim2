@@ -21,7 +21,7 @@ func LoadConfig(path string) Config {
 	file, err := os.Open(path)
 	cfg := Config{
 		ListenPort:  3000,
-		GatewayAddr: "gateway:3001",
+		GatewayAddr: "netsim_gateway:3001",
 		Simulation: usecase.Config{
 			BufferSizeBytes:   163840,
 			CsmaRangeM:        700.0,

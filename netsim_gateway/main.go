@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -40,6 +41,14 @@ func main() {
 	go uavSender.Run()
 	go netsimSender.Run()
 	go usecase.RunAggregatedSnapshotEmitter(gateway)
+	go func() {
+		addrs := netsimAddrs
+		for ; len(cfg.Addrs) > len(addrs); {
+			addrs = config.DiscoverNetsims(cfg.Addrs)
+			time.Sleep(1 * time.Second)
+		}
+		gateway.UpdateNetsims(addrs)
+	}()
 
 	log.Info("Gateway started", "uav_port", cfg.UAVListenPort, "netsim_port", cfg.NetsimListenPort)
 

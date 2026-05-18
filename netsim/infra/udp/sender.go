@@ -3,6 +3,7 @@ package udp
 import (
 	"net"
 	"netsim/ports/output"
+	"time"
 )
 
 type DispatchJob struct {
@@ -18,9 +19,16 @@ type Sender struct {
 }
 
 func NewSender(conn *net.UDPConn, targetAddrStr string, logger output.Logger) *Sender {
-	addr, err := net.ResolveUDPAddr("udp", targetAddrStr)
-	if err != nil {
-		logger.Error("Failed to resolve target address", "address", targetAddrStr, "error", err)
+	var addr *net.UDPAddr
+	var err error
+	for {
+		addr, err = net.ResolveUDPAddr("udp", targetAddrStr)
+		if err != nil {
+			logger.Error("Failed to resolve target address", "address", targetAddrStr, "error", err)
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		break	
 	}
 
 	return &Sender{

@@ -1,7 +1,7 @@
 {
   "node_id": "netsim_1",
   "listen_port": 3000,
-  "gateway_addr": "gateway:3001",
+  "gateway_addr": "netsim_gateway:3001",
   "simulation": {
     "buffer_size_bytes": 163840,
     "csma_range_m": 700.0,
