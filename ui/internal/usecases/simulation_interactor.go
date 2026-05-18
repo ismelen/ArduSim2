@@ -133,6 +133,11 @@ func (i *SimulationInteractor) SendAlgorithmCommand(serviceId string, command st
 		return err
 	}
 
+	i.ui.EmitEvent("netsim:message", map[string]string{
+		"source":  "[Global] ",
+		"label":   fmt.Sprintf("[Global] Command '%s' sent to service: %s", command, serviceId),
+	})
+
 	if command == "stop" && len(i.activeAlgorithmIDs) > 0 {
 		i.stoppedAlgorithmIDs[serviceId] = true
 		allStopped := true

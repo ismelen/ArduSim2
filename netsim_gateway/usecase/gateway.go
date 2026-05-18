@@ -76,7 +76,20 @@ func (g *Gateway) HandleUAVMessage(pkt input.RawPacket) {
 	var payload map[string]any
 	if err := json.Unmarshal(msg.Payload, &payload); err == nil {
 		if uavID, ok := payload["uav_id"].(string); ok {
-			g.uavRegistry.Store(uavID, pkt.Addr)
+			if uavID != "" {
+				g.uavRegistry.Store(uavID, pkt.Addr)
+			}
+
+			if msg.Topic == "broadcast" && uavID == "" {
+				if data, err := json.Marshal(payload); err == nil {
+					g.uavRegistry.Range(func(key, value any) bool {
+						addr := value.(*net.UDPAddr)
+						g.uavSender.Send(data, addr)
+						return true
+					})
+				}
+				return
+			}
 
 			g.mu.RLock()
 			netsimCount := len(g.netsimAddrs)
@@ -131,8 +144,15 @@ func (g *Gateway) HandleNetsimMessage(pkt input.RawPacket) {
 		if err := json.Unmarshal(msg.Payload, &deliver); err == nil {
 			if val, ok := g.uavRegistry.Load(deliver.TargetUAVID); ok {
 				addr := val.(*net.UDPAddr)
-				data, _ := json.Marshal(deliver)
-				g.uavSender.Send(data, addr)
+				var parsedPayload map[string]interface{}
+				if err := json.Unmarshal([]byte(deliver.Payload), &parsedPayload); err == nil {
+					formatted := map[string]interface{}{
+						"uav_id":  deliver.SenderID,
+						"payload": parsedPayload,
+					}
+					data, _ := json.Marshal(formatted)
+					g.uavSender.Send(data, addr)
+				}
 			}
 		}
 	case "broadcast_notify":

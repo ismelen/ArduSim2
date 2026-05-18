@@ -186,9 +186,11 @@ func (s *NetsimSubscriber) Start(ctx context.Context) {
 			}
 			s.mu.Unlock()
 
-			s.ui.EmitEvent("telemetry_snapshot", map[string]interface{}{
-				"uavs": snapshotMap,
-			})
+			if(s.ready) {
+				s.ui.EmitEvent("telemetry_snapshot", map[string]interface{}{
+					"uavs": snapshotMap,
+				})
+			}
 		case "messages":
 			s.handleMessagesPacket(msg)
 		}

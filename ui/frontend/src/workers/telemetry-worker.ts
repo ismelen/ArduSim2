@@ -13,15 +13,19 @@ self.onmessage = (e) => {
   if (e.data.type === "NEW_SNAPSHOT") {
     const { uavs, now } = e.data;
 
+    // Compute duration ONCE per snapshot, before iterating over UAVs.
+    // Moving this inside the loop caused duration=0 for the 2nd+ UAV
+    // because lastPacketTime was already updated by the first UAV.
+    const newDuration = lastPacketTime ? now - lastPacketTime : 1000;
+    lastPacketTime = now;
+
     for (const [uavId, data] of Object.entries(uavs) as [
       string,
       TelemetryData,
     ][]) {
-      const newDuration = lastPacketTime ? now - lastPacketTime : 1000;
-      lastPacketTime = now;
-      data.uav_id = uavId;  
-      
-      const savedData = nodes[uavId]
+      data.uav_id = uavId;
+
+      const savedData = nodes[uavId];
 
       nodes[uavId] = {
         start: savedData?.end ?? data,
@@ -59,12 +63,12 @@ const update = () => {
     interpolated[id] = {
       ...node.end,
       position: {
-        lat: iPos.lat + (fPos.lat - iPos.lat) * t,
-        lon: iPos.lon + (fPos.lon - iPos.lon) * t,
-        alt: iPos.alt + (fPos.alt - iPos.alt) * t,
+        lat: (iPos.lat ?? 0) + ((fPos.lat ?? 0) - (iPos.lat ?? 0)) * t,
+        lon: (iPos.lon ?? 0) + ((fPos.lon ?? 0) - (iPos.lon ?? 0)) * t,
+        alt: (iPos.alt ?? 0) + ((fPos.alt ?? 0) - (iPos.alt ?? 0)) * t,
         relative_alt:
-          iPos.relative_alt + (fPos.relative_alt - iPos.relative_alt) * t,
-        heading: lerpAngle(iPos.heading, fPos.heading, t),
+          (iPos.relative_alt ?? 0) + ((fPos.relative_alt ?? 0) - (iPos.relative_alt ?? 0)) * t,
+        heading: lerpAngle(iPos.heading ?? 0, fPos.heading ?? 0, t),
       },
     };
   }

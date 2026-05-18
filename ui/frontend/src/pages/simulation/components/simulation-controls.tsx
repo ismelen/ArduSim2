@@ -1,13 +1,14 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import Button from "../../../components/button";
 import Card from "../../../components/card";
 import type { SelectableValue } from "../../../components/select";
 import SplitButton from "../../../components/split-button";
 import { useFleet, type UAV } from "../../../hooks/useFleet";
+import { useMap } from "../../../hooks/useMap";
 import { useSimulation } from "../../../hooks/useSimulation";
-import { useTelemetry } from "../../../hooks/useTelemetry";
 import { cn } from "../../../utils/cn";
+import { EventsOff, EventsOn } from "../../../../wailsjs/runtime/runtime";
 
 interface Props {
   className?: string;
@@ -15,7 +16,6 @@ interface Props {
 
 export default function SimulationControls({ className }: Props) {
   const fleetUavs = useFleet((s) => s.uavs);
-  const uavs = useTelemetry((s) => s.interpolatedUavs());
   const availableServices = useMemo(
     () => getAvailabeServices(fleetUavs),
     [fleetUavs],
@@ -23,12 +23,22 @@ export default function SimulationControls({ className }: Props) {
   const [start, pause, stop, exit] = useSimulation(
     useShallow((s) => [s.start, s.pause, s.stop, s.exit]),
   );
+  const [allReady, setAllReady] = useState(false);
 
-  const allReady = Object.keys(uavs).length === fleetUavs.length;
   useEffect(() => {
-    if (!allReady) return;
-    useSimulation.getState().setupFinished();
-  }, [allReady]);
+    // Reset readiness whenever the simulation resets (isSimulating changes)
+    setAllReady(false);
+
+    const READY_EVENT = "netsim:message";
+    EventsOn(READY_EVENT, (msg: { label: string }) => {
+      if (msg.label === "All Ready") {
+        setAllReady(true);
+        useSimulation.getState().setupFinished();
+        useMap.getState().flyToFirstUav();
+      }
+    });
+    return () => EventsOff(READY_EVENT);
+  }, []);
 
   return (
     <Card className={cn("p-1 flex gap-1 w-min overflow-visible ", className)}>

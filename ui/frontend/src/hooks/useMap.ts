@@ -1,8 +1,64 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { AmbientLight, LightingEffect, _SunLight as SunLight } from "@deck.gl/core";
+import { PathLayer } from "@deck.gl/layers";
+import { MapboxOverlay } from "@deck.gl/mapbox";
+import { SimpleMeshLayer } from "@deck.gl/mesh-layers";
+import { OBJLoader } from "@loaders.gl/obj";
 import maplibregl from "maplibre-gl";
 import { create } from "zustand";
 import { getRgbUavColor } from "../constants/uav-colors";
 import type { TelemetryData } from "./useTelemetry";
+
+// Internal data out of React state
+const trailsData: Record<string, { id: string; path: number[][]; color: number[] }> = {};
+const markersData: Record<string, { id: string; position: number[]; color: number[] }> = {};
+let overlayRef: MapboxOverlay | null = null;
+let showTrailsRef = true;
+
+const ambientLight = new AmbientLight({
+  color: [255, 255, 255],
+  intensity: 1.5,
+});
+const sunLight = new SunLight({
+  color: [255, 255, 255],
+  intensity: 2,
+  timestamp: 0,
+});
+const lightingEffect = new LightingEffect({ ambientLight, sunLight });
+
+function refreshLayers() {
+  if (!overlayRef) return;
+  overlayRef.setProps({
+    layers: [
+      showTrailsRef &&
+        new PathLayer({
+          id: "uav-path-layer",
+          data: Object.values(trailsData),
+          getPath: (d: any) => d.path,
+          getColor: (d: any) => d.color,
+          widthMinPixels: 2,
+          widthUnits: "meters",
+          getWidth: 0.25,
+          jointRounded: true,
+          capRounded: true,
+          billboard: false,
+          opacity: 0.5,
+        }),
+      new SimpleMeshLayer({
+        id: "uav-mesh-layer",
+        data: Object.values(markersData),
+        mesh: "/uav1.obj",
+        loaders: [OBJLoader],
+        getPosition: (d: any) => d.position.slice(0, 3),
+        getColor: (d: any) => d.color,
+        getScale: [10, 10, 10],
+        getOrientation: (d: any) => [0, -d.position[3] || 0, 90],
+        _lighting: "phong",
+        autoHighlight: true,
+      }),
+    ].filter(Boolean),
+  });
+}
 
 interface State {
   showTerrain: boolean;
@@ -14,20 +70,20 @@ interface State {
   showTrails: boolean;
   followTarget?: string;
   map: maplibregl.Map | null;
-  uavTrails: Record<string, { id: string; path: number[][]; color: number[] }>;
-  uavMarkers: Record<
-    string,
-    { id: string; position: number[]; color: number[] }
-  >;
   mode2D: boolean;
   setMode2D(value?: boolean): void;
 
+  uavMarkers: Record<string, { id: string; position: number[]; color: number[] }>;
+
   toggleShowTrails(): void;
+  /** One-shot: flies to the given UAV and immediately clears the follow state. */
   toggleFollowTarget(value?: string): void;
+  /** Flies to the first UAV with a valid position. Used on "All Ready". */
+  flyToFirstUav(): void;
   updateTrails(uavId: string, lat: number, lon: number, alt: number): void;
   updateMarkers(uavs: TelemetryData[]): void;
 
-  init(event: any): void;
+  init(container: HTMLDivElement): any;
   reset(): void;
 }
 
@@ -37,17 +93,20 @@ export const useMap = create<State>((set, get) => ({
   showTerrain: false,
 
   mode2D: false,
-  uavTrails: {},
-  uavMarkers: {},
   map: null,
+  uavMarkers: {},
 
-  toggleShowTrails: () => set((s) => ({ showTrails: !s.showTrails })),
+  toggleShowTrails: () => {
+    const next = !get().showTrails;
+    showTrailsRef = next;
+    refreshLayers();
+    set({ showTrails: next });
+  },
 
   toggleTerrain: () => {
     const { map, showTerrain } = get();
     const next = !showTerrain;
     if (map) {
-      // Si el próximo estado es ocultar, pasamos null a setTerrain
       map.setTerrain(
         next ? { source: "terrain-source", exaggeration: 1.5 } : null,
       );
@@ -69,121 +128,161 @@ export const useMap = create<State>((set, get) => ({
   },
 
   setMode2D(value?: boolean) {
-    if (value === false) {
-      get().map?.setPitch(0);
+    const next = value ?? !get().mode2D;
+    if (next) {
+      get().map?.easeTo({ pitch: 0 });
     }
-    set((s) => ({ mode2D: value ?? s.mode2D }));
+    set({ mode2D: next });
   },
 
+  /** One-shot center: flies to the UAV once, does not lock the map. */
   toggleFollowTarget(value?: string) {
+    const { map } = get();
+    if (value && map && markersData[value]) {
+      const pos = markersData[value].position;
+      map.flyTo({ center: [pos[0], pos[1]], zoom: 18 });
+    }
+    // Mark as active for the button highlight, then clear immediately after
+    // the animation ends so the map is never locked.
     set({ followTarget: value });
+    map?.once('moveend', () => set({ followTarget: undefined }));
+  },
+
+  flyToFirstUav() {
+    const { map } = get();
+    if (!map) return;
+    const first = Object.values(markersData)[0];
+    if (!first || first.position.length < 2) return;
+    map.flyTo({ center: [first.position[0], first.position[1]], zoom: 18 });
   },
 
   updateMarkers(uavs: TelemetryData[]) {
-    const markers = get().uavMarkers;
-
+    let changed = false;
     for (const [idx, uav] of uavs.entries()) {
-      let marker = markers[uav.uav_id!];
       const pos = uav.position;
+      // Skip UAVs that haven't acquired a valid GPS fix yet, or have corrupt data
+      if (
+        pos.lat === 0 && pos.lon === 0 && pos.alt === 0 ||
+        isNaN(pos.lat) || isNaN(pos.lon) || isNaN(pos.alt)
+      ) continue;
 
+      let marker = markersData[uav.uav_id!];
       if (!marker) {
         marker = {
           color: getRgbUavColor(idx),
           id: uav.uav_id!,
           position: [],
         };
-        markers[uav.uav_id!] = marker;
+        markersData[uav.uav_id!] = marker;
+        changed = true;
       }
 
       marker.position = [pos.lon, pos.lat, pos.alt, pos.heading];
     }
 
-    // const uavTrails = get().uavTrails;
-    // Object.entries(uavTrails).map(([id, trail]) => {
-    //   const uavIdx = uavs.findIndex((s) => s.uav_id === id);
-    //   const uav = uavs[uavIdx];
-    //   const pos = uav?.payload.position;
-
-    //   if (pos && pos.lon !== 0 && pos.lat !== 0 && pos.alt !== 0) {
-    //     // TODO: Check direction
-    //     trail.path.push([pos.lon, pos.lat, pos.alt]);
-    //   }
-    // });
-
-    // set({ uavTrails: { ...uavTrails }, uavMarkers: { ...markers } });
-    set({ uavMarkers: { ...markers } });
+    if (Object.keys(markersData).length > 0) {
+      refreshLayers();
+      if (changed) {
+        set({ uavMarkers: { ...markersData } });
+      }
+    }
   },
 
   updateTrails(uavId: string, lat: number, lon: number, alt: number) {
-    const uavTrails = get().uavTrails;
-    if (!uavTrails[uavId]) {
-      uavTrails[uavId] = {
+    if (!trailsData[uavId]) {
+      trailsData[uavId] = {
         id: uavId,
         color: getRgbUavColor(Number(uavId)),
         path: [],
       };
     }
-    const { path } = uavTrails[uavId];
+    const { path } = trailsData[uavId];
     const last = path[path.length - 1];
-    if (!last || last[0] !== lon || last[1] !== lat || last[2] != alt) {
-      //TODO: Check direction
+    if (!last || last[0] !== lon || last[1] !== lat || last[2] !== alt) {
       path.push([lon, lat, alt]);
+      refreshLayers();
     }
-    set({ uavTrails: { ...uavTrails } });
   },
 
-  init(event: any) {
-    const map = event.target;
-
-    map.addSource("terrain-source", {
-      type: "raster-dem",
-      tiles: [
-        "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
-      ],
-      encoding: "terrarium", // ¡Muy importante especificar el encoding para AWS!
-      tileSize: 256,
-      maxzoom: 14, // Zoom máximo del proveedor de datos
+  init(container: HTMLDivElement) {
+    const map = new maplibregl.Map({
+      container: container,
+      style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+      center: [-0.349228, 39.481645],
+      zoom: 13,
+      maxPitch: 85,
     });
-    map.setTerrain(null);
 
-    if (map.getSource("carto")) {
-      map.addLayer({
-        id: "3d-buildings",
-        source: "carto",
-        "source-layer": "building",
-        type: "fill-extrusion",
-        minzoom: 15,
-        paint: {
-          "fill-extrusion-color": "#d1d5db",
-          "fill-extrusion-height": [
-            "coalesce",
-            ["get", "render_height"],
-            ["get", "height"],
-            15,
-          ],
-          "fill-extrusion-base": [
-            "coalesce",
-            ["get", "render_min_height"],
-            ["get", "min_height"],
-            0,
-          ],
-          "fill-extrusion-opacity": 0.5,
-          "fill-extrusion-vertical-gradient": true,
-        },
+    map.on("load", () => {
+      map.addSource("terrain-source", {
+        type: "raster-dem",
+        tiles: [
+          "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
+        ],
+        encoding: "terrarium",
+        tileSize: 256,
+        maxzoom: 14,
       });
-    } else {
-      console.warn("La fuente 'carto' no existe en el mapa base cargado.");
-    }
 
-    map.setLight({
-      anchor: "viewport",
-      color: "white",
-      intensity: 0.3,
-      position: [1.15, 90, 40], // [radial, azimuthal, polar]
+      if (map.getSource("carto")) {
+        map.addLayer({
+          id: "3d-buildings",
+          source: "carto",
+          "source-layer": "building",
+          type: "fill-extrusion",
+          minzoom: 15,
+          paint: {
+            "fill-extrusion-color": "#d1d5db",
+            "fill-extrusion-height": [
+              "coalesce",
+              ["get", "render_height"],
+              ["get", "height"],
+              15,
+            ],
+            "fill-extrusion-base": [
+              "coalesce",
+              ["get", "render_min_height"],
+              ["get", "min_height"],
+              0,
+            ],
+            "fill-extrusion-opacity": 0.5,
+            "fill-extrusion-vertical-gradient": true,
+          },
+        });
+      }
+
+      map.setLight({
+        anchor: "viewport",
+        color: "white",
+        intensity: 0.3,
+        position: [1.15, 90, 40],
+      });
+
+      overlayRef = new MapboxOverlay({
+        interleaved: true,
+        effects: [lightingEffect],
+        layers: [],
+      });
+      map.addControl(overlayRef as any);
+
+      refreshLayers();
+
+      // Ensure terrain/buildings sync
+      if (get().showTerrain) {
+        map.setTerrain({ source: "terrain-source", exaggeration: 1.5 });
+      }
+      if (!get().showBuildings && map.getLayer("3d-buildings")) {
+        map.setLayoutProperty("3d-buildings", "visibility", "none");
+      }
     });
 
-    map.setMaxPitch(85);
-    map.setMinPitch(0);
+    map.on('pitch', () => {
+      if (map.getPitch() > 0 && get().mode2D) {
+        set({ mode2D: false });
+      }
+    });
+
+
 
     map.addControl(
       new maplibregl.NavigationControl({
@@ -198,11 +297,15 @@ export const useMap = create<State>((set, get) => ({
 
     return () => {
       map.remove();
+      overlayRef = null;
       set({ map: null });
     };
   },
 
   reset() {
-    set({ uavMarkers: {}, uavTrails: {} });
+    for (const key in trailsData) delete trailsData[key];
+    for (const key in markersData) delete markersData[key];
+    set({ uavMarkers: {}, followTarget: undefined });
+    refreshLayers();
   },
 }));

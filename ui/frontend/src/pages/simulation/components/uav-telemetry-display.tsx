@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import Card from "../../../components/card";
 import { getUavColor } from "../../../constants/uav-colors";
@@ -10,11 +11,29 @@ import { formatTime } from "../../../utils/format-time";
 
 export default function UavTelemetryDisplay() {
   const fleetUavs = useFleet((s) => s.uavs);
-  const uavs = useTelemetry((s) => s.interpolatedUavs);
+  const getUavs = useTelemetry((s) => s.interpolatedUavs);
   const [setupTime, simulationTime] = useSimulation(
     useShallow((s) => [s.setupTime, s.simulationTime]),
   );
   const toggleFollowTarget = useMap((s) => s.toggleFollowTarget);
+
+  // Pull fresh data from the telemetry closure at ~10fps.
+  // interpolatedUavs() reads rawData.current which updates without Zustand set(),
+  // so we need our own loop to detect changes and trigger React re-renders.
+  const [snapshot, setSnapshot] = useState<Record<string, TelemetryData>>({});
+  useEffect(() => {
+    let rafId: number;
+    let lastUpdate = 0;
+    const tick = (time: number) => {
+      if (time - lastUpdate > 100) {
+        setSnapshot({ ...getUavs() });
+        lastUpdate = time;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [getUavs]);
 
   return (
     <div
@@ -26,7 +45,7 @@ export default function UavTelemetryDisplay() {
           <TelemetryCard
             key={i}
             uav_id={e.id}
-            data={uavs()[e.id]}
+            data={snapshot[e.id]}
             onClick={() => toggleFollowTarget(e.id)}
           />
         ))}
@@ -54,10 +73,10 @@ interface TelemetryCardProps {
 }
 
 function TelemetryCard({ uav_id, data, onClick }: TelemetryCardProps) {
-  const p = data?.payload;
+  const p = data;
   const color = getUavColor(Number(uav_id));
   const speed = p
-    ? Math.sqrt(p.speed.vx ^ (2 + p.speed.vy) ^ (2 + p.speed.vz) ^ 2)
+    ? Math.sqrt(p.speed.vx ** 2 + p.speed.vy ** 2 + p.speed.vz ** 2)
     : 0;
   return (
     <div onClick={() => (p ? onClick?.() : null)}>
