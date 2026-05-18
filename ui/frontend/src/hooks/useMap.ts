@@ -98,18 +98,20 @@ export const useMap = create<State>((set, get) => ({
       marker.position = [pos.lon, pos.lat, pos.alt, pos.heading];
     }
 
-    const uavTrails = get().uavTrails;
-    Object.entries(uavTrails).map(([id, trail]) => {
-      const uavIdx = uavs.findIndex((s) => s.uav_id === id);
-      const uav = uavs[uavIdx];
-      const pos = uav?.payload.position;
+    // const uavTrails = get().uavTrails;
+    // Object.entries(uavTrails).map(([id, trail]) => {
+    //   const uavIdx = uavs.findIndex((s) => s.uav_id === id);
+    //   const uav = uavs[uavIdx];
+    //   const pos = uav?.payload.position;
 
-      if (pos && pos.lon !== 0 && pos.lat !== 0 && pos.alt !== 0) {
-        trail.path.push([pos.lon, pos.lat, pos.alt]);
-      }
-    });
+    //   if (pos && pos.lon !== 0 && pos.lat !== 0 && pos.alt !== 0) {
+    //     // TODO: Check direction
+    //     trail.path.push([pos.lon, pos.lat, pos.alt]);
+    //   }
+    // });
 
-    set({ uavTrails: { ...uavTrails }, uavMarkers: { ...markers } });
+    // set({ uavTrails: { ...uavTrails }, uavMarkers: { ...markers } });
+    set({ uavMarkers: { ...markers } });
   },
 
   updateTrails(uavId: string, lat: number, lon: number, alt: number) {
@@ -124,6 +126,7 @@ export const useMap = create<State>((set, get) => ({
     const { path } = uavTrails[uavId];
     const last = path[path.length - 1];
     if (!last || last[0] !== lon || last[1] !== lat || last[2] != alt) {
+      //TODO: Check direction
       path.push([lon, lat, alt]);
     }
     set({ uavTrails: { ...uavTrails } });
