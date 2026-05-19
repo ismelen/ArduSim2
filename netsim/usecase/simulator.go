@@ -56,8 +56,8 @@ type UAVTelemetryPayload struct {
 }
 
 type UAVBroadcastPayload struct {
-	UAVID   string `json:"uav_id"`
-	Payload string `json:"payload"`
+	UAVID   string          `json:"uav_id"`
+	Payload json.RawMessage `json:"payload"`
 }
 
 type PeerBroadcastPayload struct {
@@ -83,8 +83,9 @@ func (s *Simulator) Handle(pkt input.RawPacket) {
 	case "uav_broadcast":
 		var bcast UAVBroadcastPayload
 		if err := json.Unmarshal(msg.Payload, &bcast); err == nil {
-			s.EnqueueBroadcast(bcast.UAVID, bcast.Payload, 0, time.Now())
-			s.NotifyGatewayOfBroadcast(bcast.UAVID, bcast.Payload)
+			payloadStr := string(bcast.Payload)
+			s.EnqueueBroadcast(bcast.UAVID, payloadStr, 0, time.Now())
+			s.NotifyGatewayOfBroadcast(bcast.UAVID, payloadStr)
 		}
 	case "peer_broadcast":
 		var peerBcast PeerBroadcastPayload
@@ -111,7 +112,7 @@ func (s *Simulator) NotifyGatewayOfBroadcast(senderID, payload string) {
 		"payload": map[string]any{
 			"sender_id":       senderID,
 			"sender_position": uav.Position,
-			"payload":         payload, // Will be raw string or json string, let's keep it generic
+			"payload":         json.RawMessage(payload), // Will be raw string or json string, let's keep it generic
 		},
 	}
 	data, _ := json.Marshal(notify)

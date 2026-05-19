@@ -112,12 +112,12 @@ export default function LogDisplay({ className, onFinishReceived }: Props) {
         <div className="h-full overlow-y-auto">
           {logs.map((log, i) => {
             return (
-              <div key={i} className="flex flex-row gap-2 text-dark-gray px-2">
-                <span className="text-cblack">{log.time}</span>
-                <span className={cn("text-lg", log.levelClass)}>
+              <div key={i} className="flex flex-row gap-2 px-2 items-center text-gray text-lg">
+                <span className="text-cblack font-bold">{log.time}</span>
+                <span className={cn("font-bold", log.levelClass)}>
                   {log.level}
                 </span>
-                {log.msg}
+                <p className="text-dark-gray">{log.msg}</p>
               </div>
             );
           })}

@@ -41,7 +41,7 @@ function refreshLayers() {
           getWidth: 0.25,
           jointRounded: true,
           capRounded: true,
-          billboard: false,
+          billboard: true,
           opacity: 0.5,
         }),
       new SimpleMeshLayer({
