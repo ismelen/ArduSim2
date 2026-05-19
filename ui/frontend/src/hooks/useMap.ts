@@ -211,6 +211,8 @@ export const useMap = create<State>((set, get) => ({
       center: [-0.349228, 39.481645],
       zoom: 13,
       maxPitch: 85,
+      pitchWithRotate: true,
+      aroundCenter: false,
     });
 
     map.on("load", () => {
