@@ -1,12 +1,16 @@
 package usecases
 
 import (
+	"archive/zip"
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -200,14 +204,85 @@ func (i *SimulationInteractor) DownloadLogs() error {
 	return err
 }
 
-func (i *SimulationInteractor) LoadLogEntry(runDir string) (map[string]any, error) {
-	// TODO: implement
-	return nil, nil
+func (i *SimulationInteractor) SearchLogs(zipPath string, filter domain.LogFilter) ([]domain.LogMessage, error) {
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open zip file: %v", err)
+	}
+	defer r.Close()
+
+	var allLogs []domain.LogMessage
+	filterText := strings.ToLower(filter.SearchText)
+
+	for _, f := range r.File {
+		if !strings.HasSuffix(f.Name, ".jsonl") {
+			continue
+		}
+		
+		rc, err := f.Open()
+		if err != nil {
+			continue
+		}
+
+		scanner := bufio.NewScanner(rc)
+		for scanner.Scan() {
+			var msg domain.LogMessage
+			if err := json.Unmarshal(scanner.Bytes(), &msg); err != nil {
+				continue
+			}
+
+			// Apply filters
+			if filter.InstanceID != "" && !strings.Contains(strings.ToLower(msg.InstanceID), strings.ToLower(filter.InstanceID)) {
+				continue
+			}
+			if filter.ServiceID != "" && !strings.Contains(strings.ToLower(msg.ServiceID), strings.ToLower(filter.ServiceID)) {
+				continue
+			}
+			if filter.Level != "" && !strings.EqualFold(msg.Level, filter.Level) {
+				continue
+			}
+			if filter.EventID != "" && !strings.Contains(strings.ToLower(msg.EventID), strings.ToLower(filter.EventID)) {
+				continue
+			}
+			if filterText != "" && !strings.Contains(strings.ToLower(msg.Message), filterText) {
+				continue
+			}
+
+			allLogs = append(allLogs, msg)
+		}
+		rc.Close()
+	}
+
+	// Sort logs chronologically (oldest first, so newest at the bottom as requested)
+	sort.Slice(allLogs, func(a, b int) bool {
+		return allLogs[a].Timestamp.Before(allLogs[b].Timestamp)
+	})
+
+	return allLogs, nil
 }
 
 func (i *SimulationInteractor) LoadLogEntries(ctx context.Context) ([]string, error) {
-	// TODO: implement
-	return nil, nil
+	baseDir := i.repo.GetSimulationsDir()
+	var entries []string
+
+	entriesMap := make(map[string]bool)
+
+	// We expect logs to be in simulations/<sim_name>/logs/logs_*.zip
+	entriesFiles, err := filepath.Glob(filepath.Join(baseDir, "*", "logs", "*.zip"))
+	if err == nil {
+		for _, file := range entriesFiles {
+			entriesMap[file] = true
+		}
+	}
+
+	for k := range entriesMap {
+		entries = append(entries, k)
+	}
+
+	// Sort entries reverse chronologically so newest zip is at the top
+	sort.Sort(sort.Reverse(sort.StringSlice(entries)))
+
+	return entries, nil
 }
 
 func (i *SimulationInteractor) LoadFile(path string) (string, error) {

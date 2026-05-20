@@ -14,7 +14,7 @@ export function LoadFile(arg1:string):Promise<string>;
 
 export function LoadLogEntries():Promise<Array<string>>;
 
-export function LoadLogEntry(arg1:string):Promise<Record<string, any>>;
+export function SearchLogs(arg1:string,arg2:domain.LogFilter):Promise<Array<domain.LogMessage>>;
 
 export function LoadSimulationConfig():Promise<domain.SimulationState>;
 

@@ -100,8 +100,8 @@ func (a *App) LoadLogEntries() ([]string, error) {
 	return a.simulation.LoadLogEntries(a.ctx)
 }
 
-func (a *App) LoadLogEntry(path string) (map[string]any, error) {
-	return a.simulation.LoadLogEntry(path)
+func (a *App) SearchLogs(zipPath string, filter domain.LogFilter) ([]domain.LogMessage, error) {
+	return a.simulation.SearchLogs(zipPath, filter)
 }
 
 func (a *App) LoadFile(path string) (string, error) {

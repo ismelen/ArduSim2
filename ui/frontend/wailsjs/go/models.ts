@@ -166,6 +166,47 @@ export namespace domain {
 		    return a;
 		}
 	}
-
+	export class LogMessage {
+	    InstanceID: string;
+	    ServiceID: string;
+	    Level: string;
+	    Timestamp: string;
+	    Message: string;
+	    EventID: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LogMessage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.InstanceID = source["InstanceID"];
+	        this.ServiceID = source["ServiceID"];
+	        this.Level = source["Level"];
+	        this.Timestamp = source["Timestamp"];
+	        this.Message = source["Message"];
+	        this.EventID = source["EventID"];
+	    }
+	}
+	export class LogFilter {
+	    InstanceID: string;
+	    ServiceID: string;
+	    Level: string;
+	    EventID: string;
+	    SearchText: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LogFilter(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.InstanceID = source["InstanceID"] || "";
+	        this.ServiceID = source["ServiceID"] || "";
+	        this.Level = source["Level"] || "";
+	        this.EventID = source["EventID"] || "";
+	        this.SearchText = source["SearchText"] || "";
+	    }
+	}
 }
 

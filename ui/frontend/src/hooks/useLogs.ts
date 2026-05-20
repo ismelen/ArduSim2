@@ -3,21 +3,27 @@ import { create } from "zustand";
 import {
   LoadLogEntries,
   LoadLogEntry,
-  LoadFile,
+  SearchLogs,
 } from "../../wailsjs/go/main/App";
+import { domain } from "../../wailsjs/go/models";
 
 interface State {
-  logPaths: [string, string][];
-  current?: Record<string, any>;
+  logPaths: [string, string][]; // [name, path]
   selectedIdx?: number;
-  file?: string;
+  filter: domain.LogFilter;
+  messages: domain.LogMessage[];
+  isLoading: boolean;
+
   loadAll(): Promise<void>;
-  loadLogs(idx?: number): Promise<void>;
-  loadFile(path: string): Promise<void>;
+  selectLog(idx?: number): void;
+  setFilter(filter: Partial<domain.LogFilter>): void;
+  search(): Promise<void>;
 }
 
 export const useLogs = create<State>((set, get) => ({
-  logPaths: [],
+  filter: new domain.LogFilter({}),
+  messages: [],
+  isLoading: false,
 
   async loadAll() {
     const paths = await LoadLogEntries();
@@ -27,23 +33,38 @@ export const useLogs = create<State>((set, get) => ({
       if (!name) continue;
       logPaths.push([name, path]);
     }
-
-    set({ logPaths: [...logPaths] });
+    set({ logPaths });
   },
 
-  async loadLogs(idx?: number) {
-    if (!idx) {
-      set({ current: undefined, selectedIdx: undefined });
+  selectLog(idx?: number) {
+    if (idx === undefined) {
+      set({ selectedIdx: undefined, messages: [] });
       return;
     }
-    const path = get().logPaths[idx][1];
-    const simulationLogs = await LoadLogEntry(path);
-    console.log(simulationLogs);
-    set({ current: simulationLogs, selectedIdx: idx });
+    set({ selectedIdx: idx });
+    get().search();
   },
 
-  async loadFile(path: string) {
-    console.log(path);
-    set({ file: await LoadFile(path) });
+  setFilter(partial: Partial<domain.LogFilter>) {
+    set((state) => ({
+      filter: { ...state.filter, ...partial } as domain.LogFilter,
+    }));
+  },
+
+  async search() {
+    const state = get();
+    if (state.selectedIdx === undefined) return;
+    const path = state.logPaths[state.selectedIdx][1];
+    
+    set({ isLoading: true });
+    try {
+      const messages = await SearchLogs(path, state.filter);
+      set({ messages: messages || [] });
+    } catch (err) {
+      console.error("Search failed:", err);
+      set({ messages: [] });
+    } finally {
+      set({ isLoading: false });
+    }
   },
 }));

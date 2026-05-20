@@ -26,8 +26,8 @@ export function LoadLogEntries() {
   return window['go']['main']['App']['LoadLogEntries']();
 }
 
-export function LoadLogEntry(arg1) {
-  return window['go']['main']['App']['LoadLogEntry'](arg1);
+export function SearchLogs(arg1, arg2) {
+  return window['go']['main']['App']['SearchLogs'](arg1, arg2);
 }
 
 export function LoadSimulationConfig() {
