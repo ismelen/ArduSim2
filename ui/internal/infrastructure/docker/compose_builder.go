@@ -261,6 +261,25 @@ func (b *composeBuilder) Build() string {
 	return b.services.String() + "\n" + b.networks.String()
 }
 
+// AddLogger appends the central logger service.
+func (b *composeBuilder) AddLogger(limits ResourceLimits) {
+	lims := b.buildLocalLimits(limits)
+
+	fmt.Fprintf(&b.services, `  logger:
+    image: logger
+    build:
+      context: ../../logger
+      dockerfile: Dockerfile
+    container_name: logger
+    ports:
+      - 5000:5000/udp
+      - 8080:8080/tcp
+%s    networks:
+      - air
+
+`, lims)
+}
+
 // addNetwork appends a bridge network definition if not already present.
 // Multiple calls with the same name are intentionally idempotent — the YAML
 // key would duplicate, so callers are responsible for calling once per name.

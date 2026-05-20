@@ -55,15 +55,9 @@ func main() {
 
 	var loggerLink *infrastructure.UDPLoggerLink
 	if config.LoggerIP != "" && config.LoggerPort != 0 {
-		var err error
-		loggerLink, err = infrastructure.NewUDPLoggerLink(config.LoggerIP, config.LoggerPort)
-		if err != nil {
-			log.Printf("Failed to connect Logger UDP link: %v", err)
-			// Non-fatal, we just won't forward logs
-		} else {
-			defer loggerLink.Close()
-			log.Printf("Connected Logger UDP link to %s:%d", config.LoggerIP, config.LoggerPort)
-		}
+		loggerLink = infrastructure.NewUDPLoggerLink(config.LoggerIP, config.LoggerPort)
+		defer loggerLink.Close()
+		log.Printf("Logger UDP link initialized for %s:%d (queues logs if disconnected)", config.LoggerIP, config.LoggerPort)
 	}
 
 	setupLogger(loggerLink)

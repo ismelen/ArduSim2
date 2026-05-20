@@ -90,6 +90,8 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 		builder.AddNetsim(i, nsFile, nsLimits, config.VerboseLogging)
 	}
 
+	builder.AddLogger(ResourceLimits{})
+
 	for i, uav := range uavs {
 		uavSpeed := 10.0
 		if i < len(speeds) {
@@ -127,6 +129,8 @@ func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.
 	for i := 1; i <= netsimInstances; i++ {
 		builder.AddNetsim(i, nsFile, nsLimits, config.VerboseLogging)
 	}
+
+	builder.AddLogger(ResourceLimits{})
 
 	for i, uav := range uavs {
 		uavSpeed := 10.0

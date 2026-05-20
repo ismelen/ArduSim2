@@ -231,6 +231,27 @@ func (b *swarmComposeBuilder) Build() string {
 	return b.services.String() + "\n" + b.networks.String() + "\n" + b.configs.String()
 }
 
+// AddLogger appends the central logger service.
+func (b *swarmComposeBuilder) AddLogger(limits ResourceLimits) {
+	lims := b.buildSwarmDeployBlock(limits, "")
+
+	fmt.Fprintf(&b.services, `  logger:
+    image: logger
+%s    ports:
+      - target: 5000
+        published: 5000
+        protocol: udp
+        mode: host
+      - target: 8080
+        published: 8080
+        protocol: tcp
+        mode: host
+    networks:
+      - air
+
+`, lims)
+}
+
 // declareConfig registers a file as a Docker Swarm config (idempotent) and
 // returns the config name to use in service definitions.
 // Config names are derived from the file name with dots replaced by underscores
