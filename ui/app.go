@@ -68,6 +68,10 @@ func (a *App) StopSimulation() {
 	a.simulation.StopSimulation()
 }
 
+func (a *App) DownloadLogs() error {
+	return a.simulation.DownloadLogs()
+}
+
 func (a *App) SendAlgorithmCommand(serviceId string, command string) error {
 	return a.simulation.SendAlgorithmCommand(serviceId, command)
 }

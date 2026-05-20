@@ -7,6 +7,7 @@ import {
   SendAlgorithmCommand,
   StartSimulation,
   StopSimulation,
+  DownloadLogs,
 } from "../../wailsjs/go/main/App";
 import { domain } from "../../wailsjs/go/models";
 import { useConfig, type GeneralConfig } from "./useConfig";
@@ -303,6 +304,16 @@ export const useSimulation = create<State>((set, get) => {
         case 1:
           keepLogs = false;
       }
+
+      if (keepLogs) {
+        try {
+          await DownloadLogs();
+        } catch (err) {
+          console.error("Failed to download logs:", err);
+          alert(`Failed to save logs: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+
       await StopSimulation();
       if (!keepLogs) {
         await DiscardCurrentRun(

@@ -4,6 +4,8 @@ import {domain} from '../models';
 
 export function DiscardCurrentRun(arg1:domain.GeneralConfig):Promise<void>;
 
+export function DownloadLogs():Promise<void>;
+
 export function GetAvailableServices():Promise<Array<domain.ServiceType>>;
 
 export function GetKmlFirstCoordinate(arg1:string):Promise<domain.Coordinate>;

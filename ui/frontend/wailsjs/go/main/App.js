@@ -6,6 +6,10 @@ export function DiscardCurrentRun(arg1) {
   return window['go']['main']['App']['DiscardCurrentRun'](arg1);
 }
 
+export function DownloadLogs() {
+  return window['go']['main']['App']['DownloadLogs']();
+}
+
 export function GetAvailableServices() {
   return window['go']['main']['App']['GetAvailableServices']();
 }

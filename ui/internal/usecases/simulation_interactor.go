@@ -3,9 +3,12 @@ package usecases
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"ui/internal/domain"
 	"ui/internal/infrastructure/kml"
@@ -154,6 +157,47 @@ func (i *SimulationInteractor) SendAlgorithmCommand(serviceId string, command st
 		}
 	}
 	return nil
+}
+
+func (i *SimulationInteractor) DownloadLogs() error {
+	if i.activeSimulationName == "" {
+		return fmt.Errorf("no active simulation")
+	}
+
+	url := "http://localhost:8080/api/logs/download"
+	if i.activeSwarmHost != "" && !strings.Contains(i.activeSwarmHost, "localhost") && !strings.Contains(i.activeSwarmHost, "127.0.0.1") {
+		host, _, _ := strings.Cut(i.activeSwarmHost, ":")
+		url = fmt.Sprintf("http://%s:8080/api/logs/download", host)
+	}
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("failed to reach logger service: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("logger service returned status %d", resp.StatusCode)
+	}
+
+	simDir := filepath.Join(i.repo.GetSimulationsDir(), i.activeSimulationName)
+	logsDir := filepath.Join(simDir, "logs")
+	if err := os.MkdirAll(logsDir, 0755); err != nil {
+		return err
+	}
+
+	timestamp := time.Now().Format("20060102_150405")
+	filename := fmt.Sprintf("logs_%s.zip", timestamp)
+	outPath := filepath.Join(logsDir, filename)
+
+	out, err := os.Create(outPath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return err
 }
 
 func (i *SimulationInteractor) LoadLogEntry(runDir string) (map[string]any, error) {
