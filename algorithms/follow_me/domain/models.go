@@ -67,6 +67,7 @@ type Config struct {
 	SubscriptionTopic     string  `json:"subscription_topic"`
 	SlavesTakeoffAltitude float64 `json:"slaves_takeoff_altitude"`
 	SendPeriodMs          int     `json:"send_period_ms"`
+	LogsTopic             string  `json:"logs_topic"`
 }
 
 // Suggestion endpoints for uav_controller

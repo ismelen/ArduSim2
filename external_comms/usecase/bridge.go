@@ -10,15 +10,17 @@ import (
 
 type GatewayBridge struct {
 	config  *domain.AppConfig
-	broker  ports.Broker
-	netLink ports.NetSimLink
+	broker     ports.Broker
+	netLink    ports.NetSimLink
+	loggerLink ports.LoggerLink
 }
 
-func NewGatewayBridge(c *domain.AppConfig, b ports.Broker, n ports.NetSimLink) *GatewayBridge {
+func NewGatewayBridge(c *domain.AppConfig, b ports.Broker, n ports.NetSimLink, l ports.LoggerLink) *GatewayBridge {
 	return &GatewayBridge{
-		config:  c,
-		broker:  b,
-		netLink: n,
+		config:     c,
+		broker:     b,
+		netLink:    n,
+		loggerLink: l,
 	}
 }
 
@@ -67,6 +69,14 @@ func (g *GatewayBridge) handleInternalBrokerMessage(msg ports.BrokerMessage) {
 		}
 		g.netLink.Send(extMsg)
 		log.Printf("[Internal->External] Forwarded Message: %v", msg.Payload)
+
+	case g.config.SubLogsTopic:
+		// Route internal logs directly to the Logger microservice
+		if g.loggerLink != nil {
+			if err := g.loggerLink.SendLog(msg.Payload); err != nil {
+				log.Printf("[Internal->External] Failed to forward Log to logger: %v", err)
+			}
+		}
 	}
 }
 

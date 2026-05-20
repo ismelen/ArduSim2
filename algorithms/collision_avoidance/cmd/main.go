@@ -10,12 +10,11 @@ import (
 
 	"collision_avoidance/domain"
 	"collision_avoidance/infrastructure"
+	"collision_avoidance/ports"
 	"collision_avoidance/usecase"
 )
 
 func main() {
-	setupLogger()
-
 	if len(os.Args) < 2 {
 		log.Fatalf("Usage: %s <config.json>\n", os.Args[0])
 	}
@@ -45,6 +44,8 @@ func main() {
 		}
 		break
 	}
+
+	setupLogger(udpBroker, config.LogsTopic)
 
 	mbcapCore := usecase.NewMBCAPCore(udpBroker, memoryStore, config, params)
 
@@ -99,7 +100,7 @@ func main() {
 	mbcapCore.Run() // Blocks and runs the ticking loop
 }
 
-func setupLogger() {
+func setupLogger(broker ports.Broker, logsTopic string) {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
 
 	outputs := []io.Writer{os.Stdout}
@@ -114,6 +115,11 @@ func setupLogger() {
 		} else {
 			fmt.Printf("Warning: failed to open log file: %v\n", err)
 		}
+	}
+
+	if broker != nil && logsTopic != "" {
+		brokerWriter := infrastructure.NewBrokerLogWriter(broker, logsTopic)
+		outputs = append(outputs, brokerWriter)
 	}
 
 	multi := io.MultiWriter(outputs...)

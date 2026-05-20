@@ -9,12 +9,11 @@ import (
 	"time"
 
 	"application/infrastructure"
+	"application/ports"
 	"application/usecase"
 )
 
 func main() {
-	setupLogger()
-
 	if len(os.Args) < 2 {
 		log.Fatalf("Usage: %s <config.json>\n", os.Args[0])
 	}
@@ -49,6 +48,11 @@ func main() {
 		break
 	}
 
+	// ---------------------------
+	// Inject Broker into Logger
+	// ---------------------------
+	setupLogger(broker, config.LogsTopic)
+
 	var uavLink *infrastructure.DirectUAVLink
 	for {
 		uavLink, err = infrastructure.NewDirectUAVLink(config.UAVControllerIP, config.UAVControllerPort, config.UAVTelemetryPort)
@@ -68,7 +72,7 @@ func main() {
 	mixer.Run()
 }
 
-func setupLogger() {
+func setupLogger(broker ports.Broker, logsTopic string) {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
 
 	outputs := []io.Writer{os.Stdout}
@@ -83,6 +87,12 @@ func setupLogger() {
 		} else {
 			fmt.Printf("Warning: failed to open log file: %v\n", err)
 		}
+	}
+
+	// Add our custom BrokerLogWriter if broker is connected
+	if broker != nil && logsTopic != "" {
+		brokerWriter := infrastructure.NewBrokerLogWriter(broker, logsTopic)
+		outputs = append(outputs, brokerWriter)
 	}
 
 	multi := io.MultiWriter(outputs...)

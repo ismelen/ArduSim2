@@ -90,6 +90,10 @@
       "type": "integer",
       "title": "Deadlock Base Timeout (s)",
       "default": 120
+    },
+    "logs_topic": {
+      "type": "string",
+      "default": "uav/logs"
     }
   }
 }

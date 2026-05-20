@@ -54,6 +54,7 @@ type AppConfig struct {
 	TelemetryTopic    string `json:"telemetry_topic"`
 	ExternalTelemetry string `json:"external_telemetry"`
 	CmdPublishTopic   string `json:"cmd_publish_topic"`
+	LogsTopic         string `json:"logs_topic"`
 
 	// Algorithmic parameters previously from mbcap.properties
 	CollisionWarningDistance       float64 `json:"collisionWarningDistance"`

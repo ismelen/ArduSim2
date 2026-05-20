@@ -108,6 +108,10 @@
       "type": "boolean",
       "title": "Relative Movement",
       "default": false
+    },
+    "logs_topic": {
+      "type": "string",
+      "default": "uav/logs"
     }
   }
 }

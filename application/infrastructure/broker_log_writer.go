@@ -1,0 +1,43 @@
+package infrastructure
+
+import (
+	"os"
+	"strings"
+	"time"
+
+	"application/ports"
+)
+
+type BrokerLogWriter struct {
+	broker ports.Broker
+	topic  string
+}
+
+func NewBrokerLogWriter(broker ports.Broker, topic string) *BrokerLogWriter {
+	return &BrokerLogWriter{
+		broker: broker,
+		topic:  topic,
+	}
+}
+
+func (w *BrokerLogWriter) Write(p []byte) (n int, err error) {
+	msg := strings.TrimSpace(string(p))
+	
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown"
+	}
+
+	payload := map[string]interface{}{
+		"InstanceID": hostname,
+		"ServiceID":  "application",
+		"Level":      "INFO",
+		"Timestamp":  time.Now().Format(time.RFC3339),
+		"Message":    msg,
+	}
+
+	// This is a fire-and-forget publish to not block the main application thread
+	w.broker.Publish(w.topic, payload)
+
+	return len(p), nil
+}

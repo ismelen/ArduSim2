@@ -9,5 +9,6 @@
   "external_telemetry": "external/telemetry",
   "external_messages": "external/messages",
   "global_commands": "global/commands",
+  "logs_topic": "uav/logs",
   "mix_window_ms": 200
 }

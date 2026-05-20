@@ -54,6 +54,7 @@ type AppConfig struct {
 	SwarmTelemetry   string `json:"external_telemetry"`
 	SwarmMessages    string `json:"external_messages"`
 	GlobalCommands   string `json:"global_commands"`
+	LogsTopic        string `json:"logs_topic"`
 
 	MixWindowMs int `json:"mix_window_ms"` // The time window (ms) to collect and merge suggestions
 }

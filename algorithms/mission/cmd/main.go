@@ -7,15 +7,15 @@ import (
 	"os"
 	"path/filepath"
 
+	"mission/infrastructure"
 	"mission/infrastructure/broker"
 	"mission/infrastructure/config"
 	"mission/infrastructure/parser"
+	"mission/ports"
 	"mission/usecase"
 )
 
 func main() {
-	setupLogger()
-
 	if len(os.Args) < 2 {
 		log.Fatalf("Usage: %s <config.json>\n", os.Args[0])
 	}
@@ -35,10 +35,12 @@ func main() {
 		log.Fatalf("Failed to initialize mission manager: %v", err)
 	}
 
+	setupLogger(udpBroker, manager.GetConfig().LogsTopic)
+
 	manager.Run()
 }
 
-func setupLogger() {
+func setupLogger(broker ports.Broker, logsTopic string) {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
 
 	outputs := []io.Writer{os.Stdout}
@@ -53,6 +55,11 @@ func setupLogger() {
 		} else {
 			fmt.Printf("Warning: failed to open log file: %v\n", err)
 		}
+	}
+
+	if broker != nil && logsTopic != "" {
+		brokerWriter := infrastructure.NewBrokerLogWriter(broker, logsTopic)
+		outputs = append(outputs, brokerWriter)
 	}
 
 	multi := io.MultiWriter(outputs...)

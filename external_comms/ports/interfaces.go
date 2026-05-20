@@ -21,3 +21,9 @@ type NetSimLink interface {
 	Listen() (<-chan domain.ReceivedNetSimMessage, error)
 	Close() error
 }
+
+// LoggerLink handles raw UDP communication with the Logger microservice
+type LoggerLink interface {
+	SendLog(payload map[string]interface{}) error
+	Close() error
+}

@@ -3,9 +3,12 @@
   "broker_port": 3400,
   "simulator_ip": "netsim_gateway",
   "simulator_port": 3000,
+  "logger_ip": "logger",
+  "logger_port": 5000,
 
   "sub_telemetry_topic": "uav/telemetry",
   "sub_messages_topic": "external/messages",
+  "sub_logs_topic": "uav/logs",
 
   "pub_ext_telemetry_topic": "external/telemetry",
   "pub_ext_messages_topic": "global",

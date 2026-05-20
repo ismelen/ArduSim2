@@ -35,6 +35,10 @@ func NewMissionManager(b ports.Broker, c ports.ConfigLoader, p ports.MissionPars
 	}
 }
 
+func (m *MissionManager) GetConfig() *domain.AppConfig {
+	return m.config
+}
+
 func (m *MissionManager) Initialize(configFile string) error {
 	var err error
 	m.config, err = m.configLoader.LoadAppConfig(configFile)

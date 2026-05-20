@@ -9,12 +9,11 @@ import (
 	"time"
 
 	"external_comms/infrastructure"
+	"external_comms/ports"
 	"external_comms/usecase"
 )
 
 func main() {
-	setupLogger()
-
 	if len(os.Args) < 2 {
 		log.Fatalf("Usage: %s <config.json>\n", os.Args[0])
 	}
@@ -33,6 +32,7 @@ func main() {
 		if err := broker.Connect(config.BrokerIP, config.BrokerPort, []string{
 			config.SubTelemetryTopic,
 			config.SubMessagesTopic,
+			config.SubLogsTopic,
 		}); err != nil {
 			log.Printf("Failed to connect broker: %v", err)
 			time.Sleep(5 * time.Second)
@@ -53,11 +53,26 @@ func main() {
 	}
 	defer netLink.Close()
 
-	bridge := usecase.NewGatewayBridge(config, broker, netLink)
+	var loggerLink *infrastructure.UDPLoggerLink
+	if config.LoggerIP != "" && config.LoggerPort != 0 {
+		var err error
+		loggerLink, err = infrastructure.NewUDPLoggerLink(config.LoggerIP, config.LoggerPort)
+		if err != nil {
+			log.Printf("Failed to connect Logger UDP link: %v", err)
+			// Non-fatal, we just won't forward logs
+		} else {
+			defer loggerLink.Close()
+			log.Printf("Connected Logger UDP link to %s:%d", config.LoggerIP, config.LoggerPort)
+		}
+	}
+
+	setupLogger(loggerLink)
+
+	bridge := usecase.NewGatewayBridge(config, broker, netLink, loggerLink)
 	bridge.Run()
 }
 
-func setupLogger() {
+func setupLogger(loggerLink ports.LoggerLink) {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
 
 	outputs := []io.Writer{os.Stdout}
@@ -72,6 +87,11 @@ func setupLogger() {
 		} else {
 			fmt.Printf("Warning: failed to open log file: %v\n", err)
 		}
+	}
+
+	if loggerLink != nil {
+		directWriter := infrastructure.NewDirectLogWriter(loggerLink)
+		outputs = append(outputs, directWriter)
 	}
 
 	multi := io.MultiWriter(outputs...)
