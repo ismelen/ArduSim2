@@ -2,8 +2,7 @@
 import { create } from "zustand";
 import {
   LoadLogEntries,
-  LoadLogEntry,
-  SearchLogs,
+  SearchLogs
 } from "../../wailsjs/go/main/App";
 import { domain } from "../../wailsjs/go/models";
 
@@ -21,6 +20,7 @@ interface State {
 }
 
 export const useLogs = create<State>((set, get) => ({
+  logPaths: [],
   filter: new domain.LogFilter({}),
   messages: [],
   isLoading: false,

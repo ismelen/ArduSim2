@@ -14,11 +14,11 @@ export function LoadFile(arg1:string):Promise<string>;
 
 export function LoadLogEntries():Promise<Array<string>>;
 
-export function SearchLogs(arg1:string,arg2:domain.LogFilter):Promise<Array<domain.LogMessage>>;
-
 export function LoadSimulationConfig():Promise<domain.SimulationState>;
 
 export function SaveSimulationConfig(arg1:Array<domain.UAV>,arg2:domain.GeneralConfig,arg3:string):Promise<void>;
+
+export function SearchLogs(arg1:string,arg2:domain.LogFilter):Promise<Array<domain.LogMessage>>;
 
 export function SelectFile():Promise<string>;
 

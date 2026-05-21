@@ -82,6 +82,67 @@ export namespace domain {
 	        this.netsimInstances = source["netsimInstances"];
 	    }
 	}
+	export class LogFilter {
+	    InstanceID: string;
+	    ServiceID: string;
+	    Level: string;
+	    EventID: string;
+	    SearchText: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LogFilter(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.InstanceID = source["InstanceID"];
+	        this.ServiceID = source["ServiceID"];
+	        this.Level = source["Level"];
+	        this.EventID = source["EventID"];
+	        this.SearchText = source["SearchText"];
+	    }
+	}
+	export class LogMessage {
+	    InstanceID: string;
+	    ServiceID: string;
+	    Level: string;
+	    // Go type: time
+	    Timestamp: any;
+	    Message: string;
+	    EventID?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LogMessage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.InstanceID = source["InstanceID"];
+	        this.ServiceID = source["ServiceID"];
+	        this.Level = source["Level"];
+	        this.Timestamp = this.convertValues(source["Timestamp"], null);
+	        this.Message = source["Message"];
+	        this.EventID = source["EventID"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class ServiceType {
 	    id: string;
 	    folderName: string;
@@ -166,47 +227,6 @@ export namespace domain {
 		    return a;
 		}
 	}
-	export class LogMessage {
-	    InstanceID: string;
-	    ServiceID: string;
-	    Level: string;
-	    Timestamp: string;
-	    Message: string;
-	    EventID: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new LogMessage(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.InstanceID = source["InstanceID"];
-	        this.ServiceID = source["ServiceID"];
-	        this.Level = source["Level"];
-	        this.Timestamp = source["Timestamp"];
-	        this.Message = source["Message"];
-	        this.EventID = source["EventID"];
-	    }
-	}
-	export class LogFilter {
-	    InstanceID: string;
-	    ServiceID: string;
-	    Level: string;
-	    EventID: string;
-	    SearchText: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new LogFilter(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.InstanceID = source["InstanceID"] || "";
-	        this.ServiceID = source["ServiceID"] || "";
-	        this.Level = source["Level"] || "";
-	        this.EventID = source["EventID"] || "";
-	        this.SearchText = source["SearchText"] || "";
-	    }
-	}
+
 }
 

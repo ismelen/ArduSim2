@@ -26,7 +26,6 @@ export default function LogsPage() {
           {logPaths.map((e, i) => (
             <LogPathCard
               key={e[0]}
-              i={i}
               name={e[0]}
               selected={selectedIdx === i}
               onClick={() => selectLog(selectedIdx === i ? undefined : i)}
@@ -46,12 +45,10 @@ export default function LogsPage() {
 }
 
 function LogPathCard({
-  i,
   name,
   selected,
   onClick,
 }: {
-  i: number;
   name: string;
   selected: boolean;
   onClick(): void;

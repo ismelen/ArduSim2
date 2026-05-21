@@ -26,16 +26,16 @@ export function LoadLogEntries() {
   return window['go']['main']['App']['LoadLogEntries']();
 }
 
-export function SearchLogs(arg1, arg2) {
-  return window['go']['main']['App']['SearchLogs'](arg1, arg2);
-}
-
 export function LoadSimulationConfig() {
   return window['go']['main']['App']['LoadSimulationConfig']();
 }
 
 export function SaveSimulationConfig(arg1, arg2, arg3) {
   return window['go']['main']['App']['SaveSimulationConfig'](arg1, arg2, arg3);
+}
+
+export function SearchLogs(arg1, arg2) {
+  return window['go']['main']['App']['SearchLogs'](arg1, arg2);
 }
 
 export function SelectFile() {
