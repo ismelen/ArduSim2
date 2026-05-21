@@ -21,13 +21,14 @@ func NewDirectLogWriter(loggerLink ports.LoggerLink) *DirectLogWriter {
 func (w *DirectLogWriter) Write(p []byte) (n int, err error) {
 	msg := strings.TrimSpace(string(p))
 	
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "unknown"
+	uavID := os.Getenv("UAV_ID")
+	if uavID == "" {
+		uavID = "unknown"
 	}
+	instanceID := "netsim_" + uavID
 
 	payload := map[string]interface{}{
-		"InstanceID": hostname,
+		"InstanceID": instanceID,
 		"ServiceID":  "external_comms",
 		"Level":      "INFO",
 		"Timestamp":  time.Now().Format(time.RFC3339),

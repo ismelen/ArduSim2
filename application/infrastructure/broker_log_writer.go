@@ -23,13 +23,14 @@ func NewBrokerLogWriter(broker ports.Broker, topic string) *BrokerLogWriter {
 func (w *BrokerLogWriter) Write(p []byte) (n int, err error) {
 	msg := strings.TrimSpace(string(p))
 	
-	hostname, err := os.Hostname()
-	if err != nil {
-		hostname = "unknown"
+	uavID := os.Getenv("UAV_ID")
+	if uavID == "" {
+		uavID = "unknown"
 	}
+	instanceID := "netsim_" + uavID
 
 	payload := map[string]interface{}{
-		"InstanceID": hostname,
+		"InstanceID": instanceID,
 		"ServiceID":  "application",
 		"Level":      "INFO",
 		"Timestamp":  time.Now().Format(time.RFC3339),

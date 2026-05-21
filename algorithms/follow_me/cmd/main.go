@@ -40,8 +40,8 @@ func main() {
 	outputs := []io.Writer{os.Stdout}
 	if cfg.LogsTopic != "" {
 		// Import "follow_me/infrastructure" needed
-		brokerWriter := infrastructure.NewBrokerLogWriter(udpBroker, cfg.LogsTopic)
-		outputs = append(outputs, brokerWriter)
+	brokerWriter := infrastructure.NewBrokerLogWriter(udpBroker, cfg.LogsTopic)
+	outputs = append(outputs, brokerWriter)
 	}
 	log.SetOutput(io.MultiWriter(outputs...))
 

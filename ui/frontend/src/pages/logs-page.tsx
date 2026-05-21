@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { useEffect, useState, useMemo } from "react";
 import { useShallow } from "zustand/shallow";
+import { domain } from "../../wailsjs/go/models";
 import Button from "../components/button";
 import { useLogs } from "../hooks/useLogs";
 import { cn } from "../utils/cn";
-import { useState, useEffect } from "react";
-import { domain } from "../../wailsjs/go/models";
 
 export default function LogsPage() {
   const [loadAll, logPaths, selectLog, selectedIdx] = useLogs(
@@ -15,28 +15,53 @@ export default function LogsPage() {
     loadAll();
   }, [loadAll]);
 
+  const groupedLogs = useMemo(() => {
+    const groups: Record<string, { idx: number; name: string }[]> = {};
+    logPaths.forEach(([name, path], idx) => {
+      // path example: .../simulations/followme_mission/logs/logs_123.zip
+      // replace backwards slashes with forwards slashes for splitting
+      const parts = path.replace(/\\/g, "/").split("/");
+      let simName = "Unknown";
+      if (parts.length >= 3) {
+        simName = parts[parts.length - 3];
+      }
+      if (!groups[simName]) groups[simName] = [];
+      groups[simName].push({ idx, name });
+    });
+    return groups;
+  }, [logPaths]);
+
   return (
     <div className="h-[calc(100vh-60px)] flex overflow-clip">
       <aside className="bg-cwhite border-r border-border h-full flex flex-col overflow-hidden w-70 select-none shrink-0">
-        <header className="bg-gray border-b border-border px-3 py-1.5 flex items-center justify-between">
-          <h4>Logs</h4>
+        <header className="bg-gray border-b border-border px-3 flex items-center justify-between py-2">
+          <h4 className="text-cblack font-medium">Logs</h4>
           <Button icon="refresh" onClick={loadAll} />
         </header>
-        <main className="p-3 flex-1 flex flex-col gap-2 overflow-y-auto">
-          {logPaths.map((e, i) => (
-            <LogPathCard
-              key={e[0]}
-              name={e[0]}
-              selected={selectedIdx === i}
-              onClick={() => selectLog(selectedIdx === i ? undefined : i)}
-            />
+        <main className="p-3 flex-1 flex flex-col gap-4 overflow-y-auto">
+          {Object.entries(groupedLogs).map(([simName, logs]) => (
+            <div key={simName} className="flex flex-col gap-1.5">
+              <h5 className="text-xs font-bold text-dark-gray uppercase tracking-wider px-1">
+                {simName}
+              </h5>
+              <div className="flex flex-col gap-1">
+                {logs.map((log) => (
+                  <LogPathCard
+                    key={log.idx}
+                    name={log.name.replace(".zip", "")}
+                    selected={selectedIdx === log.idx}
+                    onClick={() => selectLog(selectedIdx === log.idx ? undefined : log.idx)}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
           {logPaths.length === 0 && (
-            <p className="text-sm text-gray-500 italic px-2">No logs found.</p>
+            <p className="text-sm text-dark-gray italic px-2">No logs found.</p>
           )}
         </main>
       </aside>
-      <main className="flex-1 flex flex-col overflow-hidden bg-zinc-950 text-gray-300 relative">
+      <main className="flex-1 flex flex-col overflow-hidden bg-cwhite text-cblack relative">
         <FilterBar />
         <LogConsole />
       </main>
@@ -101,13 +126,13 @@ function FilterBar() {
   };
 
   return (
-    <div className="bg-zinc-900 border-b border-zinc-800 p-2 flex items-center gap-3 text-sm shrink-0 flex-wrap">
+    <div className="bg-gray border-b border-border p-2 flex items-center gap-3 text-sm shrink-0 flex-wrap">
       <div className="flex items-center gap-2">
-        <span className="text-zinc-400">Level:</span>
+        <span className="text-dark-gray font-medium">Level:</span>
         <select
           value={localFilter.Level}
           onChange={(e) => updateField("Level", e.target.value)}
-          className="bg-zinc-800 text-zinc-200 border border-zinc-700 rounded px-2 py-1 outline-none focus:border-primary"
+          className="bg-cwhite text-cblack border border-border rounded px-2 py-1 outline-none focus:border-primary"
         >
           <option value="">ALL</option>
           <option value="INFO">INFO</option>
@@ -118,50 +143,50 @@ function FilterBar() {
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-zinc-400">Instance:</span>
+        <span className="text-dark-gray font-medium">Instance:</span>
         <input
           type="text"
           value={localFilter.InstanceID}
           onChange={(e) => updateField("InstanceID", e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="e.g. netsim_1"
-          className="bg-zinc-800 text-zinc-200 border border-zinc-700 rounded px-2 py-1 w-24 outline-none focus:border-primary"
+          className="bg-cwhite text-cblack border border-border rounded px-2 py-1 w-24 outline-none focus:border-primary"
         />
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-zinc-400">Service:</span>
+        <span className="text-dark-gray font-medium">Service:</span>
         <input
           type="text"
           value={localFilter.ServiceID}
           onChange={(e) => updateField("ServiceID", e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="e.g. application"
-          className="bg-zinc-800 text-zinc-200 border border-zinc-700 rounded px-2 py-1 w-28 outline-none focus:border-primary"
+          className="bg-cwhite text-cblack border border-border rounded px-2 py-1 w-28 outline-none focus:border-primary"
         />
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-zinc-400">Event:</span>
+        <span className="text-dark-gray font-medium">Event:</span>
         <input
           type="text"
           value={localFilter.EventID}
           onChange={(e) => updateField("EventID", e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="e.g. CMD_START"
-          className="bg-zinc-800 text-zinc-200 border border-zinc-700 rounded px-2 py-1 w-28 outline-none focus:border-primary"
+          className="bg-cwhite text-cblack border border-border rounded px-2 py-1 w-28 outline-none focus:border-primary"
         />
       </div>
 
       <div className="flex items-center gap-2 flex-1">
-        <span className="text-zinc-400">Search:</span>
+        <span className="text-dark-gray font-medium">Search:</span>
         <input
           type="text"
           value={localFilter.SearchText}
           onChange={(e) => updateField("SearchText", e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Search in message..."
-          className="bg-zinc-800 text-zinc-200 border border-zinc-700 rounded px-2 py-1 w-full outline-none focus:border-primary"
+          className="bg-cwhite text-cblack border border-border rounded px-2 py-1 w-full outline-none focus:border-primary"
         />
       </div>
 
@@ -184,7 +209,7 @@ function LogConsole() {
 
   if (selectedIdx === undefined) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono">
+      <div className="flex-1 flex items-center justify-center text-dark-gray font-mono">
         Select a log archive from the sidebar
       </div>
     );
@@ -192,21 +217,35 @@ function LogConsole() {
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono">
+      <div className="flex-1 flex items-center justify-center text-dark-gray font-mono">
         No logs match the current filters
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 font-mono text-sm leading-relaxed">
+    <div className="flex-1 overflow-y-auto p-4 font-mono text-sm leading-relaxed bg-background text-cblack">
       {messages.map((msg, i) => (
         <LogLine key={i} msg={msg} />
       ))}
     </div>
   );
 }
+function getServiceColor(serviceId: string, isDark: boolean) {
+  let hash = 0;
+  for (let i = 0; i < serviceId.length; i++) {
+    hash = serviceId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  const lightness = isDark ? 30 : 45;
+  const borderLightness = isDark ? 45 : 35;
 
+  return {
+    backgroundColor: `hsl(${hue}, 65%, ${lightness}%)`,
+    color: "#ffffff",
+    borderColor: `hsl(${hue}, 65%, ${borderLightness}%)`,
+  };
+}
 function LogLine({ msg }: { msg: domain.LogMessage }) {
   // Parse date safely
   let dateStr = msg.Timestamp;
@@ -222,43 +261,49 @@ function LogLine({ msg }: { msg: domain.LogMessage }) {
   const isWarn = msg.Level.toUpperCase() === "WARN";
   const isInfo = msg.Level.toUpperCase() === "INFO";
 
+  const isDark = document.documentElement.classList.contains("dark");
+  const serviceStyle = msg.ServiceID ? getServiceColor(msg.ServiceID, isDark) : undefined;
+
   return (
-    <div className="flex gap-3 hover:bg-zinc-900/50 py-0.5 px-2 rounded group">
-      <span className="text-zinc-500 shrink-0 select-none">[{dateStr}]</span>
+    <div className="flex gap-3 hoverable-gray py-1 px-2 rounded group border-l-4 border-transparent hover:border-border transition-colors">
+      <span className="text-dark-gray shrink-0 select-none">[{dateStr}]</span>
       
       <span
         className={cn("w-12 shrink-0 font-bold", {
-          "text-red-400": isError,
-          "text-yellow-400": isWarn,
-          "text-blue-400": isInfo,
-          "text-zinc-400": !isError && !isWarn && !isInfo,
+          "text-red-500 dark:text-red-400": isError,
+          "text-yellow-600 dark:text-yellow-400": isWarn,
+          "text-blue-500 dark:text-blue-400": isInfo,
+          "text-dark-gray": !isError && !isWarn && !isInfo,
         })}
       >
         {msg.Level.toUpperCase().padEnd(5, " ")}
       </span>
 
       <div className="flex flex-col gap-0.5 w-full">
-        <div className="flex items-center gap-2 text-xs opacity-70 group-hover:opacity-100 transition-opacity select-none">
+        <div className="flex items-center gap-2 text-xs opacity-80 group-hover:opacity-100 transition-opacity select-none">
           {msg.InstanceID && (
-            <span className="bg-zinc-800 text-zinc-300 px-1.5 rounded">
+            <span className="bg-gray text-cblack border border-border px-1.5 py-0.5 rounded shadow-sm">
               {msg.InstanceID}
             </span>
           )}
           {msg.ServiceID && (
-            <span className="bg-zinc-800 text-zinc-300 px-1.5 rounded">
+            <span 
+              className="px-1.5 py-0.5 rounded shadow-sm border"
+              style={serviceStyle}
+            >
               {msg.ServiceID}
             </span>
           )}
           {msg.EventID && (
-            <span className="bg-purple-900/50 text-purple-300 px-1.5 rounded border border-purple-800/50">
+            <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/30 shadow-sm">
               {msg.EventID}
             </span>
           )}
         </div>
         <span
-          className={cn("whitespace-pre-wrap break-words", {
-            "text-red-300": isError,
-            "text-zinc-200": !isError,
+          className={cn("whitespace-pre-wrap break-words mt-0.5", {
+            "text-red-700 dark:text-red-300 font-medium": isError,
+            "text-cblack": !isError,
           })}
         >
           {msg.Message}
