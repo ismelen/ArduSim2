@@ -1,0 +1,58 @@
+version: "3.8"
+
+services:
+  # CADVISOR CORRERÁ EN ABSOLUTAMENTE TODOS LOS NODOS
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    networks:
+      - monitoreo_net
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    deploy:
+      mode: global
+      resources:
+        limits:
+          memory: 128M
+
+  # PROMETHEUS CENTRALIZADO
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoreo_net
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+  # GRAFANA CENTRALIZADO
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - monitoreo_net
+    volumes:
+      - grafana_data:/var/lib/grafana
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  monitoreo_net:
+    external: true
