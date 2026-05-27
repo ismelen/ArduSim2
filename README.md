@@ -4,10 +4,10 @@
 ## Pruebas
 - Medir tiempo de setup y simulación v1 vs v2
 - Consumo máximo y consumo medio (GM RAM y %CPU)
-  - **Herramientas**: cAdvisor + Prometheus + Grafana (para Microservicios) y el Monitor del Sistema/VisualVM (para el Monolito).
+  - cAdvisor + Prometheus + Grafana (para Microservicios) y atop en linux (para el Monolito).
   - v1 vs v2
 - Saturacion de red (MB/s)
-  - Wave Scop o tcpdupm sobre docker
+  - cAdvisor + Prometheus + Grafana
 - Pruebas de estrés: 5, 10, 25, 50, 100 UAVs
   - Tener en cuenta las specs de mi portatil
   - v1 vs v2
