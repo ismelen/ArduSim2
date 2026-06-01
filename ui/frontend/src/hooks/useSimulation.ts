@@ -15,6 +15,7 @@ import { useDialog } from "./useDialog";
 import { useFleet, type UAV } from "./useFleet";
 import { useMap } from "./useMap";
 import { useNavigation } from "./useNavigation";
+import { useSimulationLog } from "./useSimulationLog";
 import { useTelemetry } from "./useTelemetry";
 
 interface SimulationState {
@@ -325,6 +326,7 @@ export const useSimulation = create<State>((set, get) => {
       set({ isSimulating: false, simulationTime: 0, setupTime: 0 });
       useTelemetry.getState().reset();
       useMap.getState().reset();
+      useSimulationLog.getState().clear();
 
       return true;
     },

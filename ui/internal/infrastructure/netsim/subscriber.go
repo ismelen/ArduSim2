@@ -121,7 +121,7 @@ func (s *NetsimSubscriber) Start(ctx context.Context) {
 			default:
 			}
 
-			for _, topic := range []string{"telemetry_snapshot", "messages"} {
+			for _, topic := range []string{"telemetry_snapshot", "broadcast"} {
 				p, _ := json.Marshal(map[string]interface{}{
 					"topic": "subscribe",
 					"payload": map[string]interface{}{"topic": topic},
@@ -179,9 +179,7 @@ func (s *NetsimSubscriber) Start(ctx context.Context) {
 				}
 				if len(keys) == s.expectedUAVs {
 					s.ready = true
-					s.ui.EmitEvent("netsim:message", map[string]string{
-						"label": "All Ready",
-					})
+					s.ui.EmitEvent("simulation:ready", nil)
 				}
 			}
 			s.mu.Unlock()
@@ -191,50 +189,62 @@ func (s *NetsimSubscriber) Start(ctx context.Context) {
 					"uavs": snapshotMap,
 				})
 			}
-		case "messages":
-			s.handleMessagesPacket(msg)
+		case "broadcast":
+			s.handleBroadcastPacket(msg)
 		}
 	}
 }
 
-func (s *NetsimSubscriber) handleMessagesPacket(msg struct {
+func (s *NetsimSubscriber) handleBroadcastPacket(msg struct {
 	Topic   string                 `json:"topic"`
 	UavID   string                 `json:"uav_id"`
 	Payload map[string]interface{} `json:"payload"`
 }) {
+	senderID, _ := msg.Payload["sender_id"].(string)
+	innerPayloadRaw, ok := msg.Payload["payload"]
+	if !ok {
+		return
+	}
+
+	var innerPayload map[string]interface{}
+	switch v := innerPayloadRaw.(type) {
+	case string:
+		_ = json.Unmarshal([]byte(v), &innerPayload)
+	case map[string]interface{}:
+		innerPayload = v
+	}
+
+	if innerPayload == nil {
+		return
+	}
+
 	var service, command string
-	if msg.UavID == "" {
-		var content struct {
-			Payload struct{ Command string }
-			Topic   string
+	if senderID == "" {
+		topic, _ := innerPayload["topic"].(string)
+		service = s.serviceNameFromTopic(topic)
+		if p, ok := innerPayload["payload"].(map[string]interface{}); ok {
+			command, _ = p["command"].(string)
 		}
-		_ = mapstructure.Decode(msg.Payload, &content)
-		service = s.serviceNameFromTopic(content.Topic)
-		command = content.Payload.Command
 	} else {
-		var content struct {
-			Command string
-			Source  string
-		}
-		_ = mapstructure.Decode(msg.Payload, &content)
-		service = content.Source
-		command = content.Command
+		command, _ = innerPayload["command"].(string)
+		source, _ := innerPayload["source"].(string)
+		service = source
 	}
 
 	if command == "" {
 		return
 	}
 
-	source := s.formatSource(msg.UavID)
-	logLine := fmt.Sprintf("%s%s: %s", source, service, command)
+	sourceStr := s.formatSource(senderID)
+	logLine := fmt.Sprintf("%s%s: %s", sourceStr, service, command)
 
 	s.ui.EmitEvent("netsim:message", map[string]string{
-		"source":  source,
+		"source":  sourceStr,
 		"label":   logLine,
 	})
 
 	if command == "finish" {
-		s.registerFinish(msg.UavID)
+		s.registerFinish(senderID)
 	}
 }
 

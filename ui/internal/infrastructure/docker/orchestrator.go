@@ -190,7 +190,7 @@ func (o *DockerOrchestrator) StartCompose(composePath string) error {
 
 
 func (o *DockerOrchestrator) StopCompose(composePath string) error {
-	cmd := exec.Command("docker", "compose", "down", "--remove-orphans")
+	cmd := exec.Command("docker", "compose", "down", "--remove-orphans", "--volumes")
 	cmd.Dir = filepath.Dir(composePath)
 	return cmd.Run()
 }

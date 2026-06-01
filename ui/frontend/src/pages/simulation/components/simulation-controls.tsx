@@ -29,13 +29,11 @@ export default function SimulationControls({ className }: Props) {
     // Reset readiness whenever the simulation resets (isSimulating changes)
     setAllReady(false);
 
-    const READY_EVENT = "netsim:message";
-    EventsOn(READY_EVENT, (msg: { label: string }) => {
-      if (msg.label === "All Ready") {
-        setAllReady(true);
-        useSimulation.getState().setupFinished();
-        useMap.getState().flyToFirstUav();
-      }
+    const READY_EVENT = "simulation:ready";
+    EventsOn(READY_EVENT, () => {
+      setAllReady(true);
+      useSimulation.getState().setupFinished();
+      useMap.getState().flyToFirstUav();
     });
     return () => EventsOff(READY_EVENT);
   }, []);

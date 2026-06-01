@@ -52,15 +52,34 @@ export default function SwarmFormation() {
     useServices.getState().loadServices();
   }, []);
 
-  const handleSelectCoordsSrc = async (value: string) => {
-    if (value === "") {
+  // Re-hydrate local kmlCoords so the lat/lon fields are disabled on re-mount
+  // when a KML was already selected. Must NOT call update() here — doing so
+  // would create a reactive loop (update → formationCenterMode ref changes →
+  // effect re-fires) and would race against the user switching back to Custom.
+  useEffect(() => {
+    if (!formationCenterMode) {
       setKmlCoords(undefined);
-    } else {
-      const coords = await GetKmlFirstCoordinate(value);
-      setKmlCoords(coords);
+      return;
     }
 
-    update((s) => ({ ...s, formationCenterMode: value }));
+    GetKmlFirstCoordinate(formationCenterMode).then(setKmlCoords);
+  }, [formationCenterMode]);
+
+  const handleSelectCoordsSrc = async (value: string | undefined) => {
+    if (!value) {
+      setKmlCoords(undefined);
+      update((s) => ({ ...s, formationCenterMode: value }));
+      return;
+    }
+
+    const coords = await GetKmlFirstCoordinate(value);
+    setKmlCoords(coords);
+    update((s) => ({
+      ...s,
+      formationCenterMode: value,
+      formationCenterLat: coords.lat,
+      formationCenterLon: coords.lon,
+    }));
   };
 
   return (
@@ -80,13 +99,14 @@ export default function SwarmFormation() {
             update((s) => ({ ...s, formationSpacing: Number(e) }))
           }
         />
-        <Select<string | undefined>
+        <Select<string>
+          key={kmlFiles.map((e) => e.path).join(",")}
           options={[
-            { label: "Custom", value: undefined },
+            { label: "Custom", value: "" },
             ...kmlFiles.map((e) => ({ label: e.filename, value: e.path })),
           ]}
           label="Get coords from"
-          initValue={formationCenterMode}
+          initValue={formationCenterMode ?? ""}
           onChange={handleSelectCoordsSrc}
         />
         <span className="flex gap-2">
@@ -147,7 +167,7 @@ function getKmlFiles(services: domain.ServiceType[], uavs: UAV[]) {
   const kmlFiles: { filename: string; path: string }[] = [];
 
   const servicesWithKmlFiles = services.filter((e) =>
-    e.schemaRaw.includes("format"),
+    e.schemaRaw.includes('"format"') && e.schemaRaw.includes("kml"),
   );
 
   for (const uav of uavs) {

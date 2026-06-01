@@ -6,6 +6,7 @@ import {
   EventsOnce,
 } from "../../../../wailsjs/runtime/runtime";
 import Button from "../../../components/button";
+import { useSimulationLog } from "../../../hooks/useSimulationLog";
 import { cn } from "../../../utils/cn";
 
 declare global {
@@ -13,13 +14,6 @@ declare global {
     wails?: any;
     runtime?: any;
   }
-}
-
-interface LogEntry {
-  time: string;
-  level: string;
-  msg: string;
-  levelClass: string;
 }
 
 const EVENT_TAGS = [
@@ -35,6 +29,12 @@ const EVENT_TAGS = [
     levelClass: "text-amber-600",
     getMsg: (msg: any) => msg.label as string,
   },
+  {
+    tag: "simulation:ready",
+    level: "[SYS]",
+    levelClass: "text-green-600",
+    getMsg: (_: any) => "All Ready — All UAVs have GPS lock",
+  },
 ];
 
 interface Props {
@@ -44,31 +44,25 @@ interface Props {
 
 export default function LogDisplay({ className, onFinishReceived }: Props) {
   const [isOpen, setIsOpen] = useState(true);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const logs = useSimulationLog((s) => s.logs);
+  const appendLog = useSimulationLog((s) => s.appendLog);
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
+  // Register event listeners once — the log state lives in the Zustand store
+  // and survives tab navigation. We only clear it when the simulation exits.
   useEffect(() => {
     if (!window.wails && !window.runtime) {
-      console.warn(
-        "Wails runtime no detectado. Simulando entorno de navegador.",
-      );
+      console.warn("Wails runtime no detectado. Simulando entorno de navegador.");
       return;
     }
-    
+
     for (const eventType of EVENT_TAGS) {
       EventsOn(eventType.tag, (msg: any) => {
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString([], { hour12: false });
-
-        setLogs((s) => [
-          ...s.slice(-49),
-          {
-            time: timeStr,
-            level: eventType.level,
-            msg: eventType.getMsg(msg),
-            levelClass: eventType.levelClass,
-          },
-        ]);
+        appendLog({
+          level: eventType.level,
+          levelClass: eventType.levelClass,
+          msg: eventType.getMsg(msg),
+        });
       });
     }
 
@@ -79,7 +73,7 @@ export default function LogDisplay({ className, onFinishReceived }: Props) {
         EventsOff(eventType.tag);
       }
     };
-  }, [onFinishReceived]);
+  }, [onFinishReceived, appendLog]);
 
   useEffect(() => {
     if (!isOpen) return;

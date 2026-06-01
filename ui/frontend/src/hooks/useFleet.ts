@@ -34,12 +34,18 @@ export const useFleet = create<State>((set, get) => ({
 
   updateService(idx: number, service: DeployedService) {
     const uavs = get().uavs;
-    const uav = uavs[get().activeUavIdx];
-    uav.services[idx] = service;
-    uavs[get().activeUavIdx] = uav;
+    const activeIdx = get().activeUavIdx;
+    
+    const updatedUavs = uavs.map((uav, uavIdx) => {
+      if (uavIdx !== activeIdx) return uav;
+      const updatedServices = uav.services.map((s, sIdx) => 
+        sIdx === idx ? service : s
+      );
+      return { ...uav, services: updatedServices };
+    });
 
-    set({ uavs: [...uavs] });
-    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
+    set({ uavs: updatedUavs });
+    useSimulation.getState().update((s) => ({ ...s, uavs: updatedUavs }));
   },
 
   setSelectedIdx(idx: number) {
@@ -97,10 +103,16 @@ export const useFleet = create<State>((set, get) => ({
 
   addService(service: DeployedService) {
     const uavs = get().uavs;
-    uavs[get().activeUavIdx].services.push(service);
+    const activeIdx = get().activeUavIdx;
+    
+    const updatedUavs = uavs.map((uav, idx) => 
+      idx === activeIdx 
+        ? { ...uav, services: [...uav.services, service] }
+        : uav
+    );
 
-    set({ uavs });
-    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
+    set({ uavs: updatedUavs });
+    useSimulation.getState().update((s) => ({ ...s, uavs: updatedUavs }));
   },
 
   deleteService(service: DeployedService) {
