@@ -33,6 +33,7 @@ interface State {
   setOnNewRealPoint(
     fn: (uavId: string, lat: number, lon: number, alt: number) => void,
   ): void;
+  notifyAllReady(): void;
   reset(): void;
 }
 
@@ -48,6 +49,10 @@ export const useTelemetry = create<State>((_, get) => {
 
   return {
     interpolatedUavs: () => rawData.current,
+
+    notifyAllReady() {
+      worker?.postMessage({ type: "ALL_READY" });
+    },
 
     setOnNewRealPoint(fn) {
       onNewRealPoint = fn;
@@ -77,7 +82,6 @@ export const useTelemetry = create<State>((_, get) => {
           worker?.postMessage({
             type: "NEW_SNAPSHOT",
             uavs: payload.uavs,
-            now: performance.now(),
           });
         },
       );

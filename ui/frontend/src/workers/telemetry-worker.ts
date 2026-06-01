@@ -3,6 +3,7 @@ import { lerpAngle } from "../utils/lerp-angle";
 
 const nodes: Record<string, InterpolationNode> = {};
 let lastPacketTime: number | undefined;
+let allReady = false;
 
 const requestFrame =
   typeof self.requestAnimationFrame === "function"
@@ -10,8 +11,14 @@ const requestFrame =
     : (callback: FrameRequestCallback) => setTimeout(callback, 16);
 
 self.onmessage = (e) => {
+  if (e.data.type === "ALL_READY") {
+    allReady = true;
+    return;
+  }
+
   if (e.data.type === "NEW_SNAPSHOT") {
-    const { uavs, now } = e.data;
+    const { uavs } = e.data;
+    const now = performance.now();
 
     // Compute duration ONCE per snapshot, before iterating over UAVs.
     // Moving this inside the loop caused duration=0 for the 2nd+ UAV
@@ -28,7 +35,7 @@ self.onmessage = (e) => {
       const savedData = nodes[uavId];
 
       nodes[uavId] = {
-        start: savedData?.end ?? data,
+        start: allReady ? (savedData?.end ?? data) : data,
         end: data,
         startTime: now,
         duration: newDuration,
@@ -52,13 +59,15 @@ const update = () => {
 
     if (!node.trailEmited) {
       node.trailEmited = true;
-      self.postMessage({
-        type: "POINT_REACHED",
-        id,
-        lat: iPos.lat,
-        lon: iPos.lon,
-        alt: iPos.alt,
-      });
+      if (allReady) {
+        self.postMessage({
+          type: "POINT_REACHED",
+          id,
+          lat: iPos.lat,
+          lon: iPos.lon,
+          alt: iPos.alt,
+        });
+      }
     }
     interpolated[id] = {
       ...node.end,

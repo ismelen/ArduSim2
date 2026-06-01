@@ -189,6 +189,9 @@ export const useMap = create<State>((set, get) => ({
   },
 
   updateTrails(uavId: string, lat: number, lon: number, alt: number) {
+    if (lat === 0 && lon === 0 && alt === 0) return;
+    if (isNaN(lat) || isNaN(lon) || isNaN(alt)) return;
+
     if (!trailsData[uavId]) {
       trailsData[uavId] = {
         id: uavId,

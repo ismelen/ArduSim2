@@ -3,6 +3,7 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 import { useShallow } from "zustand/shallow";
+import { EventsOff, EventsOn } from "../../../wailsjs/runtime/runtime";
 import "../../MapLibre.css";
 import { useMap } from "../../hooks/useMap";
 import { useSimulation } from "../../hooks/useSimulation";
@@ -25,15 +26,27 @@ export default function SimulationPage() {
     ]),
   );
 
-  const [interpolatedUavs, setonNewRealPoint, subscribe, unsubscribe] =
+  const [interpolatedUavs, setonNewRealPoint, subscribe, unsubscribe, notifyAllReady] =
     useTelemetry(
       useShallow((s) => [
         s.interpolatedUavs,
         s.setOnNewRealPoint,
         s.subscribe,
         s.unsuscribe,
+        s.notifyAllReady,
       ]),
     );
+
+  useEffect(() => {
+    const READY_EVENT = "simulation:ready";
+    const onReady = () => {
+      notifyAllReady();
+    };
+    EventsOn(READY_EVENT, onReady);
+    return () => {
+      EventsOff(READY_EVENT);
+    };
+  }, [notifyAllReady]);
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
