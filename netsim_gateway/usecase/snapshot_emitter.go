@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 	"time"
 )
@@ -28,6 +29,7 @@ func RunAggregatedSnapshotEmitter(gateway *Gateway) {
 					gateway.uavSender.Send(data, addr)
 					return true
 				})
+				gateway.logger.Info(fmt.Sprintf("Emitted telemetry snapshot with %d UAVs", len(snapshot)))
 			} else {
 				gateway.logger.Error("Failed to marshal snapshot", "error", err)
 			}

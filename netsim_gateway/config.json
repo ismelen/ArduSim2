@@ -1,5 +1,6 @@
 {
   "uav_listen_port": 3000,
   "netsim_listen_port": 3001,
-  "snapshot_interval_s": 1
+  "snapshot_interval_s": 1,
+  "logger_addr": "logger:5000"
 }

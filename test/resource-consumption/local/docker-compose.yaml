@@ -2,13 +2,13 @@ version: "3.8"
 
 services:
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    image: gcr.io/cadvisor/cadvisor:latest
     container_name: cadvisor
     ports:
-      - "8080:8080"
+      - "8081:8080"
     volumes:
       - /:/rootfs:ro
-      - /var/run:/var/run:ro
+      - /var/run:/var/run:rw
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
@@ -34,7 +34,7 @@ services:
     image: grafana/grafana:latest
     container_name: grafana
     ports:
-      - "3000:3000"
+      - "3001:3000"
     volumes:
       - grafana_data:/var/lib/grafana
     networks:
@@ -48,3 +48,4 @@ volumes:
 networks:
   air:
     external: true
+    name: followme_mission_5_air

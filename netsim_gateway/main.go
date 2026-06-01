@@ -13,7 +13,7 @@ import (
 
 func main() {
 	cfg := config.LoadConfig("config.json")
-	log := logger.NewConsoleLogger()
+	log := logger.NewUDPLogger(cfg.LoggerAddr)
 
 	uavConn := udp.NewConnection(cfg.UAVListenPort, log)
 	defer uavConn.Close()

@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"encoding/json"
+	"fmt"
 	"netsim/ports/output"
 	"time"
 )
@@ -25,6 +26,7 @@ func RunSnapshotEmitter(sim *Simulator, sender output.PacketSender, intervalS in
 			}
 			if data, err := json.Marshal(msg); err == nil {
 				sender.Send(data, nil)
+				logger.Info(fmt.Sprintf("Emitted telemetry snapshot with %d UAVs", len(snapshot)))
 			} else {
 				logger.Error("Failed to marshal snapshot", "error", err)
 			}

@@ -12,6 +12,7 @@ type Config struct {
 	UAVListenPort     int      `json:"uav_listen_port"`
 	NetsimListenPort  int      `json:"netsim_listen_port"`
 	SnapshotIntervalS int      `json:"snapshot_interval_s"`
+	LoggerAddr        string   `json:"logger_addr"`
 	Addrs             []string 
 }
 
@@ -22,6 +23,7 @@ func LoadConfig(path string) Config {
 		UAVListenPort:     3000,
 		NetsimListenPort:  3001,
 		SnapshotIntervalS: 1,
+		LoggerAddr:        "logger:5000",
 		Addrs:             strings.Split(addrsStr, ","),
 	}
 

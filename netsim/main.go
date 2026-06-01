@@ -14,7 +14,7 @@ import (
 
 func main() {
 	cfg := config.LoadConfig("config.json")
-	log := logger.NewConsoleLogger(cfg.Log.Level)
+	log := logger.NewUDPLogger(cfg.Log.Level, cfg.Log.LoggerAddr)
 
 	conn := udp.NewConnection(cfg.ListenPort, log)
 	defer conn.Close()

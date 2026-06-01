@@ -34,7 +34,7 @@ func NewSender(conn *net.UDPConn, targetAddrStr string, logger output.Logger) *S
 	return &Sender{
 		conn:       conn,
 		targetAddr: addr,
-		jobs:       make(chan DispatchJob, 4),
+		jobs:       make(chan DispatchJob, 1024),
 		logger:     logger,
 	}
 }

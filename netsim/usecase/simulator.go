@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"encoding/json"
+	"fmt"
 	"netsim/domain/model"
 	"netsim/domain/service"
 	"netsim/ports/input"
@@ -79,6 +80,7 @@ func (s *Simulator) Handle(pkt input.RawPacket) {
 		var tel UAVTelemetryPayload
 		if err := json.Unmarshal(msg.Payload, &tel); err == nil {
 			s.UpdateUAVTelemetry(tel.UAVID, tel.Payload)
+			s.Logger.Info(fmt.Sprintf("Processed telemetry from UAV %s", tel.UAVID))
 		}
 	case "uav_broadcast":
 		var bcast UAVBroadcastPayload
@@ -86,6 +88,7 @@ func (s *Simulator) Handle(pkt input.RawPacket) {
 			payloadStr := string(bcast.Payload)
 			s.EnqueueBroadcast(bcast.UAVID, payloadStr, 0, time.Now())
 			s.NotifyGatewayOfBroadcast(bcast.UAVID, payloadStr)
+			s.Logger.Info(fmt.Sprintf("Processed broadcast from UAV %s", bcast.UAVID))
 		}
 	case "peer_broadcast":
 		var peerBcast PeerBroadcastPayload

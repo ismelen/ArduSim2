@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"fmt"
 	"netsim/domain/model"
 	"netsim/domain/service"
 	"time"
@@ -55,6 +56,7 @@ func (s *Simulator) EnqueueBroadcast(senderID, payload string, retries uint32, n
 	sender.BusyUntil = busyUntil
 
 	receiverIDs := s.Spatial.GetNearbyUAVIDs(sender.ChunkKey, s.Config.ChunkRadius, senderID)
+	s.Logger.Info(fmt.Sprintf("Enqueuing broadcast from %s to %d receivers", senderID, len(receiverIDs)))
 	for _, recID := range receiverIDs {
 		s.processReceiver(senderID, recID, &sender.Position, payload, now, busyUntil, txNs)
 	}

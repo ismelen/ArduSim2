@@ -12,6 +12,7 @@
     "snapshot_interval_s": 1
   },
   "log": {
-    "level": "info"
+    "level": "info",
+    "logger_addr": "logger:5000"
   }
 }

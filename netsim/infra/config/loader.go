@@ -14,7 +14,8 @@ type Config struct {
 }
 
 type LogConfig struct {
-	Level string `json:"level"`
+	Level      string `json:"level"`
+	LoggerAddr string `json:"logger_addr"`
 }
 
 func LoadConfig(path string) Config {
@@ -31,7 +32,10 @@ func LoadConfig(path string) Config {
 			MaxRangeM:         1350.0,
 			SnapshotIntervalS: 1,
 		},
-		Log: LogConfig{Level: "info"},
+		Log: LogConfig{
+			Level:      "info",
+			LoggerAddr: "logger:5000",
+		},
 	}
 
 	if err == nil {
