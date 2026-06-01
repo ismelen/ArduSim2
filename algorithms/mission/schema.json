@@ -1,6 +1,6 @@
 {
   "service_id": "mission",
-  "title": "Mission Algorithm Configuration",
+  "title": "Mission",
   "type": "object",
   "required": [
     "mission_file",

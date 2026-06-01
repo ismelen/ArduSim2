@@ -48,9 +48,6 @@ func main() {
 		break
 	}
 
-	// ---------------------------
-	// Inject Broker into Logger
-	// ---------------------------
 	setupLogger(broker, config.LogsTopic)
 
 	var uavLink *infrastructure.DirectUAVLink
@@ -65,10 +62,8 @@ func main() {
 	}
 	defer uavLink.Close()
 
-	// Core Logic Usecase
 	mixer := usecase.NewMovementMixer(broker, uavLink, config)
 
-	// Block and Run Loop
 	mixer.Run()
 }
 

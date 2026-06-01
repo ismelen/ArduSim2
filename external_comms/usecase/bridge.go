@@ -54,7 +54,7 @@ func (g *GatewayBridge) handleInternalBrokerMessage(msg ports.BrokerMessage) {
 		// Route internal telemetry to swarm
 		extMsg := domain.SendedNetSimMessage{
 			Topic:    "telemetry",
-			Source:  fmt.Sprintf("%d", g.config.UAVId),
+			Source:  g.config.UAVId,
 			Payload: msg.Payload,
 		}
 		g.netLink.Send(extMsg)
@@ -64,7 +64,7 @@ func (g *GatewayBridge) handleInternalBrokerMessage(msg ports.BrokerMessage) {
 		// Route internal P2P message to swarm
 		extMsg := domain.SendedNetSimMessage{
 			Topic:    "broadcast",
-			Source:  fmt.Sprintf("%d", g.config.UAVId),
+			Source:  g.config.UAVId,
 			Payload: msg.Payload,
 		}
 		g.netLink.Send(extMsg)

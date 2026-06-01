@@ -15,6 +15,5 @@ WORKDIR /app
 
 COPY --from=builder /app/followMe .
 COPY schema.json .
-COPY config.json .
 
 ENTRYPOINT ["./followMe", "config.json"]

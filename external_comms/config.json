@@ -11,6 +11,5 @@
   "sub_logs_topic": "uav/logs",
 
   "pub_ext_telemetry_topic": "external/telemetry",
-  "pub_ext_messages_topic": "global",
-  "uav_id": 0
+  "pub_ext_messages_topic": "global"
 }

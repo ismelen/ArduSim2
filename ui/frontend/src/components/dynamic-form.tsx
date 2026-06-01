@@ -22,10 +22,12 @@ export default function DynamicForm({ schemaRaw, values, onChange }: Props) {
     if (!schema.properties) return;
 
     for (const [k, v] of Object.entries(schema.properties)) {
-      if (!v.default) continue;
+      if (v.default === undefined || values[k] !== undefined) continue;
       onChange?.(k, v.default);
+      setCurrentValues((s) => ({ ...s, [k]: v.default }));
     }
-  }, [schema, onChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schema]);
 
   if (!schema.properties) return null;
 

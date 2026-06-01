@@ -19,7 +19,7 @@ type AppConfig struct {
 	// Topics to publish to Local Broker (coming from NetSim)
 	PubExternalTelemetryTopic string `json:"pub_ext_telemetry_topic"`
 	PubExternalMessagesTopic  string `json:"pub_ext_messages_topic"`
-	UAVId                     int    `json:"uav_id"`
+	UAVId                     string
 }
 
 // SendedNetSimMessage envelope for sending/receiving data to the global network simulator

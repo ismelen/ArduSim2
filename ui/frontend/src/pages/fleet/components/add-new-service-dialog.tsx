@@ -63,6 +63,7 @@ export default function AddNewServiceDialog({
             <div className="bg-background flex-1 p-5 overflow-y-auto">
               {serviceIdx !== -1 ? (
                 <DynamicForm
+                  key={serviceIdx}
                   schemaRaw={services[serviceIdx].schemaRaw}
                   values={currentValues}
                   onChange={(key, value) => {

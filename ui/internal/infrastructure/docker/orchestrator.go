@@ -241,8 +241,6 @@ func (o *DockerOrchestrator) isLocalhost(host string) bool {
 // Ported helpers from ui/internal/simulation/orchestrator.go
 
 func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName string, builder *composeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset, pool *subnetPool) {
-	uavNum, _ := strconv.Atoi(uav.ID)
-
 	nContainers := 4 + len(uav.Services)
 	subnet := pool.Next(nContainers)
 	builder.AddUAVNetwork(uav.ID, subnet)
@@ -260,12 +258,9 @@ func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName string, bui
 	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
 	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, ucLimits, config.VerboseLogging)
 
-	ecOverrides := map[string]interface{}{
-		"uav_id":         uavNum,
-	}
 	ecCfg := LoadRawConfig(o.externalCommsConfig)
 	ecLimits := ParseResourceLimits(ecCfg)
-	ecFile, _ := o.writeTemplateConfig("external_comms_config", o.externalCommsConfig, ecOverrides, writer)
+	ecFile, _ := o.writeTemplateConfig("external_comms_config", o.externalCommsConfig, nil, writer)
 	builder.AddExternalComms(uav.ID, ecFile, ecLimits, config.VerboseLogging)
 
 	for _, svc := range uav.Services {

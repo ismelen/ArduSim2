@@ -24,6 +24,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
+	config.UAVId = os.Getenv("UAV_ID")
 
 	broker := infrastructure.NewUDPBroker()
 	defer broker.Close()
