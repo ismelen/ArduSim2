@@ -38,19 +38,7 @@ interface State {
 
 export const useTelemetry = create<State>((_, get) => {
   const rawData = { current: {} as Record<string, TelemetryData> };
-  const worker = new Worker(
-    new URL("../workers/telemetry-worker.ts", import.meta.url),
-    { type: "module" },
-  );
-
-  worker.onmessage = (e) => {
-    if (e.data.type === "TICK") {
-      rawData.current = e.data.interpolated;
-    }
-    if (e.data.type == "POINT_REACHED") {
-      onNewRealPoint?.(e.data.id, e.data.lat, e.data.lon, e.data.alt);
-    }
-  };
+  let worker: Worker | undefined;
 
   let unsuscribeTelemetry: (() => void) | undefined;
   let subscribed = false;
@@ -69,10 +57,24 @@ export const useTelemetry = create<State>((_, get) => {
       if (subscribed) return;
       subscribed = true;
 
+      worker = new Worker(
+        new URL("../workers/telemetry-worker.ts", import.meta.url),
+        { type: "module" },
+      );
+
+      worker.onmessage = (e) => {
+        if (e.data.type === "TICK") {
+          rawData.current = e.data.interpolated;
+        }
+        if (e.data.type == "POINT_REACHED") {
+          onNewRealPoint?.(e.data.id, e.data.lat, e.data.lon, e.data.alt);
+        }
+      };
+
       unsuscribeTelemetry = EventsOn(
         "telemetry_snapshot",
         (payload: { uavs: Record<string, TelemetryData> }) => {
-          worker.postMessage({
+          worker?.postMessage({
             type: "NEW_SNAPSHOT",
             uavs: payload.uavs,
             now: performance.now(),
@@ -86,7 +88,8 @@ export const useTelemetry = create<State>((_, get) => {
       unsuscribeTelemetry = undefined;
       rawData.current = {};
       subscribed = false;
-      worker.terminate();
+      worker?.terminate();
+      worker = undefined;
     },
 
     reset() {
