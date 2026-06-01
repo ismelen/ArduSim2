@@ -1,7 +1,6 @@
 package usecase
 
 import (
-	"fmt"
 	"log"
 
 	"external_comms/domain"
@@ -84,7 +83,7 @@ func (g *GatewayBridge) handleExternalNetMessage(msg domain.ReceivedNetSimMessag
 	// External to Internal
 	// Ignore our own echo if NetSim broadcasts everything back
 	log.Printf("[External->Internal] Forwarding message from %s: %v", msg.Source, msg.Payload)
-	if msg.Source == fmt.Sprintf("%d", g.config.UAVId) {
+	if msg.Source == g.config.UAVId {
 		return
 	}
 	if _, ok := msg.Payload["topic"]; !ok {
