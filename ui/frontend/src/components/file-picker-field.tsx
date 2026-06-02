@@ -7,6 +7,7 @@ interface Props {
   label?: string;
   initValue?: string;
   onChange?(value: string): void;
+  onBrowse?(): Promise<string>;
 }
 
 export default function FilePickerField({
@@ -14,6 +15,7 @@ export default function FilePickerField({
   label,
   initValue,
   onChange,
+  onBrowse,
 }: Props) {
   const handleChange = (value: string) => {
     onChange?.(value);
@@ -30,7 +32,7 @@ export default function FilePickerField({
           type="outlined"
           icon="folder_open"
           onClick={async () => {
-            const file = await SelectFile();
+            const file = await (onBrowse ? onBrowse() : SelectFile());
             handleChange(file);
           }}
         />

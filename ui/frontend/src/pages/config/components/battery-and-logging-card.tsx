@@ -15,7 +15,7 @@ export default function BatteryAndLoggingCard() {
       <CardTitle label="Battery & Logging" icon="checklist_rtl" />
       <span className="flex flex-row items-center justify-between border border-border rounded-md py-1.5 px-3">
         <div>
-          <label className="text-base ">Arducopter logging</label>
+          <label className="text-base ">Arducopter logging <span className="text-dark-gray text-xs">(local only)</span></label>
           <p className="text-dark-gray text-sm">
             Enable detailed telemetry dumps
           </p>

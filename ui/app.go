@@ -92,6 +92,10 @@ func (a *App) SelectFile() (string, error) {
 	return a.simulation.SelectFile(a.ctx)
 }
 
+func (a *App) SelectSpeedProfile() (string, error) {
+	return a.simulation.SelectSpeedProfile(a.ctx)
+}
+
 func (a *App) GetKmlFirstCoordinate(path string) (*domain.Coordinate, error) {
 	return a.simulation.GetKmlFirstCoordinate(path)
 }

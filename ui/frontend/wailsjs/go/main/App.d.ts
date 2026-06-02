@@ -22,6 +22,8 @@ export function SearchLogs(arg1:string,arg2:domain.LogFilter):Promise<Array<doma
 
 export function SelectFile():Promise<string>;
 
+export function SelectSpeedProfile():Promise<string>;
+
 export function SendAlgorithmCommand(arg1:string,arg2:string):Promise<void>;
 
 export function StartSimulation(arg1:Array<domain.UAV>,arg2:domain.GeneralConfig,arg3:boolean):Promise<void>;

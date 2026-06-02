@@ -49,7 +49,14 @@ func (o *DockerOrchestrator) Run(uavs []domain.UAV, config domain.GeneralConfig,
 		return "", fmt.Errorf("create simulation dirs: %w", err)
 	}
 
-	var speeds []float64 //TODO: Simplified: could load from file if needed
+	var speeds []float64
+	if config.SpeedProfilePath != "" {
+		if parsed, err := ParseSpeedProfile(config.SpeedProfilePath); err == nil {
+			speeds = parsed
+		} else {
+			fmt.Printf("[orchestrator] warn: cannot read speed profile %q: %v\n", config.SpeedProfilePath, err)
+		}
+	}
 
 	f := formation.GetFormation(config.GroundFormation)
 	offsets := f.CalculateOffsets(len(uavs), config.FormationSpacing)
@@ -91,6 +98,11 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 	}
 
 	builder.AddLogger(ResourceLimits{})
+
+	for _, uav := range uavs {
+		logDir := filepath.Join(simDir, "uav_logs", uav.ID)
+		os.MkdirAll(logDir, 0755)
+	}
 
 	for i, uav := range uavs {
 		uavSpeed := 10.0

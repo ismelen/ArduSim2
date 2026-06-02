@@ -1,3 +1,4 @@
+import { SelectSpeedProfile } from "../../../../wailsjs/go/main/App";
 import Card from "../../../components/card";
 import CardTitle from "../../../components/card-title";
 import FilePickerField from "../../../components/file-picker-field";
@@ -14,6 +15,7 @@ export default function SpeedProfileCard() {
         hint="PATH/TO/SPEED_PROFILE.DAT"
         initValue={speedProfilePath}
         onChange={(e) => update((s) => ({ ...s, speedProfilePath: e }))}
+        onBrowse={SelectSpeedProfile}
       />
     </Card>
   );

@@ -15,6 +15,7 @@ type SimulationUseCase interface {
 	SaveSimulationConfig(uavs []domain.UAV, config domain.GeneralConfig, mode string) error
 	DiscardCurrentRun(config domain.GeneralConfig) error
 	SelectFile(ctx context.Context) (string, error)
+	SelectSpeedProfile(ctx context.Context) (string, error)
 	GetKmlFirstCoordinate(path string) (*domain.Coordinate, error)
 	LoadLogEntries(ctx context.Context) ([]string, error)
 	SearchLogs(zipPath string, filter domain.LogFilter) ([]domain.LogMessage, error)

@@ -3,10 +3,12 @@ package usecases
 import (
 	"archive/zip"
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -31,6 +33,7 @@ type SimulationInteractor struct {
 	activeStackName       string
 	activeSwarmHost       string
 	activeSimulationName  string
+	activeUAVIDs          []string
 	activeAlgorithmIDs    map[string]bool
 	stoppedAlgorithmIDs   map[string]bool
 }
@@ -64,6 +67,10 @@ func (i *SimulationInteractor) StartSimulation(ctx context.Context, uavs []domai
 	i.activeStackName = ""
 	i.activeSwarmHost = ""
 	i.activeSimulationName = config.SimulationName
+	i.activeUAVIDs = make([]string, len(uavs))
+	for idx, uav := range uavs {
+		i.activeUAVIDs[idx] = uav.ID
+	}
 
 	if isLocal {
 		if err := i.orchestrator.StartCompose(composePath); err != nil {
@@ -167,7 +174,32 @@ func (i *SimulationInteractor) DownloadLogs() error {
 	if i.activeSimulationName == "" {
 		return fmt.Errorf("no active simulation")
 	}
+	simDir := filepath.Join(i.repo.GetSimulationsDir(), i.activeSimulationName)
+	logsDir := filepath.Join(simDir, "logs")
+	os.MkdirAll(logsDir, 0755)
 
+	// PASO 1: Descargar ZIP del logger a memoria
+	loggerZipBytes, err := i.fetchLoggerZip()
+	if err != nil {
+		return fmt.Errorf("fetch logger zip: %w", err)
+	}
+
+	// PASO 2: Recoger rutas de logs de ArduPilot (ya en host via bind-mount)
+	uavLogDirs := map[string]string{}
+	for _, uavID := range i.activeUAVIDs {
+		dir := filepath.Join(simDir, "uav_logs", uavID)
+		if info, err := os.Stat(dir); err == nil && info.IsDir() {
+			uavLogDirs[uavID] = dir
+		}
+	}
+
+	// PASO 3 + 4: Construir y guardar ZIP combinado
+	timestamp := time.Now().Format("20060102_150405")
+	outPath := filepath.Join(logsDir, fmt.Sprintf("logs_%s.zip", timestamp))
+	return i.buildCombinedZip(loggerZipBytes, uavLogDirs, outPath)
+}
+
+func (i *SimulationInteractor) fetchLoggerZip() ([]byte, error) {
 	url := "http://localhost:8080/api/logs/download"
 	if i.activeSwarmHost != "" && !strings.Contains(i.activeSwarmHost, "localhost") && !strings.Contains(i.activeSwarmHost, "127.0.0.1") {
 		host, _, _ := strings.Cut(i.activeSwarmHost, ":")
@@ -176,32 +208,101 @@ func (i *SimulationInteractor) DownloadLogs() error {
 
 	resp, err := http.Get(url)
 	if err != nil {
-		return fmt.Errorf("failed to reach logger service: %v", err)
+		return nil, fmt.Errorf("failed to reach logger service: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("logger service returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("logger service returned status %d", resp.StatusCode)
 	}
 
-	simDir := filepath.Join(i.repo.GetSimulationsDir(), i.activeSimulationName)
-	logsDir := filepath.Join(simDir, "logs")
-	if err := os.MkdirAll(logsDir, 0755); err != nil {
-		return err
-	}
+	return io.ReadAll(resp.Body)
+}
 
-	timestamp := time.Now().Format("20060102_150405")
-	filename := fmt.Sprintf("logs_%s.zip", timestamp)
-	outPath := filepath.Join(logsDir, filename)
-
-	out, err := os.Create(outPath)
+func (i *SimulationInteractor) buildCombinedZip(loggerZipBytes []byte, uavLogDirs map[string]string, outPath string) error {
+	outFile, err := os.Create(outPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("create combined zip: %w", err)
 	}
-	defer out.Close()
+	defer outFile.Close()
 
-	_, err = io.Copy(out, resp.Body)
-	return err
+	zipWriter := zip.NewWriter(outFile)
+	defer zipWriter.Close()
+
+	// 1. Copy original logger zip contents
+	if len(loggerZipBytes) > 0 {
+		loggerReader, err := zip.NewReader(bytes.NewReader(loggerZipBytes), int64(len(loggerZipBytes)))
+		if err != nil {
+			return fmt.Errorf("read logger zip: %w", err)
+		}
+
+		for _, file := range loggerReader.File {
+			rc, err := file.Open()
+			if err != nil {
+				return err
+			}
+			header := file.FileHeader
+			writer, err := zipWriter.CreateHeader(&header)
+			if err != nil {
+				rc.Close()
+				return err
+			}
+			if _, err := io.Copy(writer, rc); err != nil {
+				rc.Close()
+				return err
+			}
+			rc.Close()
+		}
+	}
+
+	// 2. Add ArduPilot logs
+	for uavID, dir := range uavLogDirs {
+		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+
+			relPath, err := filepath.Rel(dir, path)
+			if err != nil {
+				return nil
+			}
+
+			// Clean path for ZIP
+			relPath = filepath.ToSlash(relPath)
+			zipPath := fmt.Sprintf("ardupilot/%s/%s", uavID, relPath)
+
+			fileInfo, err := d.Info()
+			if err != nil {
+				return nil
+			}
+
+			header, err := zip.FileInfoHeader(fileInfo)
+			if err != nil {
+				return nil
+			}
+			header.Name = zipPath
+			header.Method = zip.Deflate
+
+			writer, err := zipWriter.CreateHeader(header)
+			if err != nil {
+				return err
+			}
+
+			file, err := os.Open(path)
+			if err != nil {
+				return nil
+			}
+			defer file.Close()
+
+			_, err = io.Copy(writer, file)
+			return err
+		})
+		if err != nil {
+			fmt.Printf("[interactor] error walking uav_logs for %s: %v\n", uavID, err)
+		}
+	}
+
+	return nil
 }
 
 func (i *SimulationInteractor) SearchLogs(zipPath string, filter domain.LogFilter) ([]domain.LogMessage, error) {
@@ -350,6 +451,13 @@ func (i *SimulationInteractor) DiscardCurrentRun(config domain.GeneralConfig) er
 func (i *SimulationInteractor) SelectFile(ctx context.Context) (string, error) {
 	return i.ui.OpenFileDialog(ctx, "Select Auxiliary File", []ports.FileFilter{
 		{DisplayName: "KML files (*.kml)", Pattern: "*.kml"},
+		{DisplayName: "All files", Pattern: "*.*"},
+	})
+}
+
+func (i *SimulationInteractor) SelectSpeedProfile(ctx context.Context) (string, error) {
+	return i.ui.OpenFileDialog(ctx, "Select Speed Profile", []ports.FileFilter{
+		{DisplayName: "Speed profile files (*.dat)", Pattern: "*.dat"},
 		{DisplayName: "All files", Pattern: "*.*"},
 	})
 }

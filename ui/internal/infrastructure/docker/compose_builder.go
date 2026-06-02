@@ -154,6 +154,7 @@ func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, 
 
 	vols := fmt.Sprintf("      - ./resources/%s:/app/config.json\n", configFileName)
 	vols += fmt.Sprintf("      - ./resources/%s:/app/copter.parm\n", paramFileName)
+	vols += fmt.Sprintf("      - ./uav_logs/%s/:/app/logs/\n", uavID)
 	lims := b.buildLocalLimits(limits)
 
 	fmt.Fprintf(&b.services, `  uav_controller_%s:
