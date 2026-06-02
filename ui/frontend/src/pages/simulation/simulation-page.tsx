@@ -1,83 +1,16 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useRef } from "react";
-import { useShallow } from "zustand/shallow";
-import { EventsOff, EventsOn } from "../../../wailsjs/runtime/runtime";
 import "../../MapLibre.css";
-import { useMap } from "../../hooks/useMap";
-import { useSimulation } from "../../hooks/useSimulation";
-import { useTelemetry } from "../../hooks/useTelemetry";
+import { useSimulationSession } from "../../hooks/useSimulationSession";
+import { useSimulationPageSetup } from "../../hooks/useSimulationPageSetup";
 import LogDisplay from "./components/log-display";
 import MapControls from "./components/map-controls";
 import SimulationControls from "./components/simulation-controls";
 import UavTelemetryDisplay from "./components/uav-telemetry-display";
 
 export default function SimulationPage() {
-  const isSimulating = useSimulation((s) => s.isSimulating);
-  const simulationFinished = useSimulation((s) => s.simulationFinished);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const simulationFinished = useSimulationSession((s) => s.simulationFinished);
+  const { mapContainerRef } = useSimulationPageSetup();
   
-  const [initMap, updateTrails, updateMarkers] = useMap(
-    useShallow((s) => [
-      s.init,
-      s.updateTrails,
-      s.updateMarkers,
-    ]),
-  );
-
-  const [interpolatedUavs, setonNewRealPoint, subscribe, unsubscribe, notifyAllReady] =
-    useTelemetry(
-      useShallow((s) => [
-        s.interpolatedUavs,
-        s.setOnNewRealPoint,
-        s.subscribe,
-        s.unsuscribe,
-        s.notifyAllReady,
-      ]),
-    );
-
-  useEffect(() => {
-    const READY_EVENT = "simulation:ready";
-    const onReady = () => {
-      notifyAllReady();
-    };
-    EventsOn(READY_EVENT, onReady);
-    return () => {
-      EventsOff(READY_EVENT);
-    };
-  }, [notifyAllReady]);
-
-  useEffect(() => {
-    if (!mapContainerRef.current) return;
-    const cleanup = initMap(mapContainerRef.current);
-    return cleanup;
-  }, [initMap]);
-
-  useEffect(() => {
-    if (!isSimulating) return;
-    subscribe();
-    return () => {
-      unsubscribe();
-    };
-  }, [subscribe, unsubscribe, isSimulating]);
-
-  useEffect(() => {
-    setonNewRealPoint(updateTrails);
-  }, [setonNewRealPoint, updateTrails]);
-
-  useEffect(() => {
-    let id: number;
-    const frame = () => {
-      const uavList = Object.values(interpolatedUavs());
-      updateMarkers(uavList);
-      id = requestAnimationFrame(frame);
-    };
-
-    id = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(id);
-  }, [interpolatedUavs, updateMarkers]);
-
   return (
     <main className="flex" style={{ height: "calc(100vh - 60px)" }}>
       <div ref={mapContainerRef} className="h-full relative flex-1 z-30">

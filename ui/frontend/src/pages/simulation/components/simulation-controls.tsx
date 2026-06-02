@@ -6,7 +6,7 @@ import type { SelectableValue } from "../../../components/select";
 import SplitButton from "../../../components/split-button";
 import { useFleet, type UAV } from "../../../hooks/useFleet";
 import { useMap } from "../../../hooks/useMap";
-import { useSimulation } from "../../../hooks/useSimulation";
+import { useSimulationSession } from "../../../hooks/useSimulationSession";
 import { cn } from "../../../utils/cn";
 import { EventsOff, EventsOn } from "../../../../wailsjs/runtime/runtime";
 
@@ -20,7 +20,7 @@ export default function SimulationControls({ className }: Props) {
     () => getAvailabeServices(fleetUavs),
     [fleetUavs],
   );
-  const [start, pause, stop, exit] = useSimulation(
+  const [start, pause, stop, exit] = useSimulationSession(
     useShallow((s) => [s.start, s.pause, s.stop, s.exit]),
   );
   const [allReady, setAllReady] = useState(false);
@@ -32,7 +32,7 @@ export default function SimulationControls({ className }: Props) {
     const READY_EVENT = "simulation:ready";
     EventsOn(READY_EVENT, () => {
       setAllReady(true);
-      useSimulation.getState().setupFinished();
+      useSimulationSession.getState().setupFinished();
       useMap.getState().flyToFirstUav();
     });
     return () => EventsOff(READY_EVENT);

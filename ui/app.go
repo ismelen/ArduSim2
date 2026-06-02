@@ -7,6 +7,7 @@ import (
 	"ui/internal/domain"
 	"ui/internal/infrastructure/docker"
 	"ui/internal/infrastructure/filesystem"
+	"ui/internal/infrastructure/logger"
 	"ui/internal/infrastructure/netsim"
 	"ui/internal/infrastructure/wails"
 	"ui/internal/ports"
@@ -15,10 +16,12 @@ import (
 
 // App is the Wails binding layer. It delegates operations to use cases.
 type App struct {
-	ctx           context.Context
-	simulation    ports.SimulationUseCase
-	discovery     ports.DiscoveryUseCase
-	ui            ports.UIBridge
+	ctx        context.Context
+	simulation ports.SimulationUseCase
+	discovery  ports.DiscoveryUseCase
+	logs       ports.LogUseCase
+	config     ports.ConfigUseCase
+	ui         ports.UIBridge
 }
 
 // NewApp wires the application using Clean Architecture principles.
@@ -33,14 +36,19 @@ func NewApp() *App {
 	bridge := wails.NewWailsBridge()
 	orchestrator := docker.NewDockerOrchestrator(workDir, bridge)
 	subscriber := netsim.NewNetsimSubscriber(bridge)
+	loggerClient := logger.NewHttpLoggerClient()
 
 	// 2. Use Cases (Interactors)
-	simUC := usecases.NewSimulationInteractor(orchestrator, subscriber, repo, bridge)
+	simUC := usecases.NewSimulationInteractor(orchestrator, subscriber, repo, bridge, loggerClient)
 	discUC := usecases.NewDiscoveryInteractor(repo)
+	logUC := usecases.NewLogInteractor(repo)
+	configUC := usecases.NewConfigInteractor(repo, bridge)
 
 	return &App{
 		simulation: simUC,
 		discovery:  discUC,
+		logs:       logUC,
+		config:     configUC,
 		ui:         bridge,
 	}
 }
@@ -60,6 +68,7 @@ func (a *App) GetAvailableServices() []domain.ServiceType {
 	return a.discovery.GetAvailableServices()
 }
 
+// Simulation
 func (a *App) StartSimulation(uavs []domain.UAV, config domain.GeneralConfig, isLocal bool) error {
 	return a.simulation.StartSimulation(a.ctx, uavs, config, isLocal)
 }
@@ -76,38 +85,40 @@ func (a *App) SendAlgorithmCommand(serviceId string, command string) error {
 	return a.simulation.SendAlgorithmCommand(serviceId, command)
 }
 
+// Config
 func (a *App) LoadSimulationConfig() (*domain.SimulationState, error) {
-	return a.simulation.LoadSimulationConfig(a.ctx)
+	return a.config.LoadSimulationConfig(a.ctx)
 }
 
 func (a *App) SaveSimulationConfig(uavs []domain.UAV, config domain.GeneralConfig, mode string) error {
-	return a.simulation.SaveSimulationConfig(uavs, config, mode)
+	return a.config.SaveSimulationConfig(uavs, config, mode)
 }
 
 func (a *App) DiscardCurrentRun(config domain.GeneralConfig) error {
-	return a.simulation.DiscardCurrentRun(config)
+	return a.config.DiscardCurrentRun(config)
 }
 
 func (a *App) SelectFile() (string, error) {
-	return a.simulation.SelectFile(a.ctx)
+	return a.config.SelectFile(a.ctx)
 }
 
 func (a *App) SelectSpeedProfile() (string, error) {
-	return a.simulation.SelectSpeedProfile(a.ctx)
+	return a.config.SelectSpeedProfile(a.ctx)
 }
 
 func (a *App) GetKmlFirstCoordinate(path string) (*domain.Coordinate, error) {
-	return a.simulation.GetKmlFirstCoordinate(path)
-}
-
-func (a *App) LoadLogEntries() ([]string, error) {
-	return a.simulation.LoadLogEntries(a.ctx)
-}
-
-func (a *App) SearchLogs(zipPath string, filter domain.LogFilter) ([]domain.LogMessage, error) {
-	return a.simulation.SearchLogs(zipPath, filter)
+	return a.config.GetKmlFirstCoordinate(path)
 }
 
 func (a *App) LoadFile(path string) (string, error) {
-	return a.simulation.LoadFile(path)
+	return a.config.LoadFile(path)
+}
+
+// Logs
+func (a *App) LoadLogEntries() ([]string, error) {
+	return a.logs.LoadLogEntries(a.ctx)
+}
+
+func (a *App) SearchLogs(zipPath string, filter domain.LogFilter) ([]domain.LogMessage, error) {
+	return a.logs.SearchLogs(zipPath, filter)
 }

@@ -82,7 +82,7 @@ func (s *NetsimSubscriber) SendGlobalBroadcast(payload interface{}) error {
 	return err
 }
 
-func (s *NetsimSubscriber) NotifyUserStoppedAll(ctx context.Context) {
+func (s *NetsimSubscriber) NotifyUserStoppedAll() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.finished {

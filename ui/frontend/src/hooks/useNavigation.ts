@@ -2,7 +2,7 @@ import { type ElementType } from "react";
 import { create } from "zustand";
 import ConfigPage from "../pages/config/config-page";
 import FleetPage from "../pages/fleet/fleet-page";
-import LogsPage from "../pages/logs-page";
+import LogsPage from "../pages/logs/logs-page";
 import SimulationPage from "../pages/simulation/simulation-page";
 
 interface Tab {

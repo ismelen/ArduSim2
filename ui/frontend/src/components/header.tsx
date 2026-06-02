@@ -1,5 +1,7 @@
-import { TABS, useNavigation } from "../hooks/useNavigation";
-import { useSimulation } from "../hooks/useSimulation";
+import { useNavigation, TABS } from "../hooks/useNavigation";
+import { useSimulationConfig } from "../hooks/useSimulationConfig";
+import { useSimulationSession } from "../hooks/useSimulationSession";
+import { useSimulationPersistence } from "../hooks/useSimulationPersistence";
 import { useTheme } from "../hooks/useTheme";
 import { cn } from "../utils/cn";
 import Button from "./button";
@@ -8,19 +10,19 @@ export default function Header() {
   const navigateTo = useNavigation((e) => e.navigateTo);
   const tab = useNavigation((e) => e.current);
 
-  const lastConfig = useSimulation((s) => s.lastConfig);
-  const undos = useSimulation((s) => s.undos);
-  const redos = useSimulation((s) => s.redos);
-  const lastHash = useSimulation((s) => s.lastHash);
-  const undo = useSimulation((s) => s.undo);
-  const redo = useSimulation((s) => s.redo);
-  const saveConfig = useSimulation((s) => s.saveConfig);
-  const newConfig = useSimulation((s) => s.newConfig);
+  const lastConfig = useSimulationConfig((s) => s.lastConfig);
+  const undos = useSimulationConfig((s) => s.undos);
+  const redos = useSimulationConfig((s) => s.redos);
+  const lastHash = useSimulationConfig((s) => s.lastHash);
+  const undo = useSimulationConfig((s) => s.undo);
+  const redo = useSimulationConfig((s) => s.redo);
+  const saveConfig = useSimulationPersistence((s) => s.saveConfig);
+  const newConfig = useSimulationPersistence((s) => s.newConfig);
 
   const isNight = useTheme((s) => s.isNight);
   const toggleTheme = useTheme((s) => s.toggleTheme);
 
-  const startSimulation = useSimulation((s) => s.startSimulation);
+  const startSimulation = useSimulationSession((s) => s.startSimulation);
 
   return (
     <header className="border-b border-border flex gap-4 p-3 items-center bg-cwhite sticky top-0 z-50 h-15">

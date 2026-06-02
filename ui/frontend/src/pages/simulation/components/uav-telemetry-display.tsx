@@ -4,7 +4,7 @@ import Card from "../../../components/card";
 import { getUavColor } from "../../../constants/uav-colors";
 import { useFleet } from "../../../hooks/useFleet";
 import { useMap } from "../../../hooks/useMap";
-import { useSimulation } from "../../../hooks/useSimulation";
+import { useSimulationSession } from "../../../hooks/useSimulationSession";
 import { useTelemetry, type TelemetryData } from "../../../hooks/useTelemetry";
 import { cn } from "../../../utils/cn";
 import { formatTime } from "../../../utils/format-time";
@@ -12,7 +12,7 @@ import { formatTime } from "../../../utils/format-time";
 export default function UavTelemetryDisplay() {
   const fleetUavs = useFleet((s) => s.uavs);
   const getUavs = useTelemetry((s) => s.interpolatedUavs);
-  const [setupTime, simulationTime] = useSimulation(
+  const [setupTime, simulationTime] = useSimulationSession(
     useShallow((s) => [s.setupTime, s.simulationTime]),
   );
   const toggleFollowTarget = useMap((s) => s.toggleFollowTarget);

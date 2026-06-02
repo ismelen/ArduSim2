@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { useSimulation } from "./useSimulation";
+import { useSimulationConfig } from "./useSimulationConfig";
 
 export interface GeneralConfig {
   speedProfilePath?: string;
@@ -37,7 +37,7 @@ export const useConfig = create<State>((set, get) => ({
   update(fn: (config: GeneralConfig) => GeneralConfig) {
     const newConfig = fn(get().config);
     set({ config: newConfig });
-    useSimulation.getState().update((s) => ({
+    useSimulationConfig.getState().update((s) => ({
       ...s,
       generalConfig: newConfig,
     }));
@@ -49,7 +49,7 @@ export const useConfig = create<State>((set, get) => ({
 
   setActieMode(value: string) {
     set({ activeMode: value });
-    useSimulation.getState().update((s) => ({
+    useSimulationConfig.getState().update((s) => ({
       ...s,
       activeMode: value,
     }));

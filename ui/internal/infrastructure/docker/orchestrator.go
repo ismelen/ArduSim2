@@ -276,45 +276,7 @@ func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName string, bui
 	builder.AddExternalComms(uav.ID, ecFile, ecLimits, config.VerboseLogging)
 
 	for _, svc := range uav.Services {
-		var extraVolumes []domain.VolumeMount
-		cfg := make(map[string]interface{})
-		for k, v := range svc.Config {
-			cfg[k] = v
-		}
-		
-		if schema, err := o.getServiceSchema(svc.FolderName); err == nil {
-			if props, ok := schema["properties"].(map[string]interface{}); ok {
-				for key, val := range props {
-					prop, ok := val.(map[string]interface{})
-					if !ok {
-						continue
-					}
-					if format, ok := prop["format"].(string); ok && format == "kml" {
-						if srcPath, ok := cfg[key].(string); ok && srcPath != "" {
-							ext := filepath.Ext(srcPath)
-							hostName := fmt.Sprintf("%s_%s%s", svc.ServiceId, key, ext)
-							if data, err := os.ReadFile(srcPath); err == nil {
-								if err := os.WriteFile(filepath.Join(writer.outputDir, hostName), data, os.ModePerm); err == nil {
-									containerPath := fmt.Sprintf("/app/%s%s", key, ext)
-									cfg[key] = containerPath
-									extraVolumes = append(extraVolumes, domain.VolumeMount{
-										HostPath:      hostName,
-										ContainerPath: containerPath,
-									})
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
-		svcFile, _ := writer.Write(svc.ServiceId+"_config", cfg)
-		
-		schemaPath := filepath.Join(o.algorithmsDir, svc.FolderName, "schema.json")
-		algoSchema := LoadRawConfig(schemaPath)
-		algoLimits := ParseResourceLimits(algoSchema)
-		
+		svcFile, extraVolumes, algoLimits := o.buildServiceResources(svc, writer)
 		builder.AddAlgorithmService(uav.ID, svc, svcFile, extraVolumes, algoLimits, config.VerboseLogging)
 	}
 }
@@ -347,47 +309,52 @@ func (o *DockerOrchestrator) appendSwarmUAV(uav domain.UAV, paramFileName string
 	builder.AddExternalComms(uav.ID, ecFile, ecLimits, config.VerboseLogging)
 
 	for _, svc := range uav.Services {
-		cfg := make(map[string]interface{})
-		for k, v := range svc.Config {
-			cfg[k] = v
-		}
+		svcFile, extraVolumes, algoLimits := o.buildServiceResources(svc, writer)
+		builder.AddAlgorithmService(uav.ID, svc, svcFile, extraVolumes, algoLimits, config.VerboseLogging)
+	}
+}
 
-		var extraVolumes []domain.VolumeMount
-		if schema, err := o.getServiceSchema(svc.FolderName); err == nil {
-			if props, ok := schema["properties"].(map[string]interface{}); ok {
-				for key, val := range props {
-					prop, ok := val.(map[string]interface{})
-					if !ok {
-						continue
-					}
-					if format, ok := prop["format"].(string); ok && format == "kml" {
-						if srcPath, ok := cfg[key].(string); ok && srcPath != "" {
-							ext := filepath.Ext(srcPath)
-							hostName := fmt.Sprintf("%s_%s%s", svc.ServiceId, key, ext)
-							if data, err := os.ReadFile(srcPath); err == nil {
-								if err := os.WriteFile(filepath.Join(writer.outputDir, hostName), data, os.ModePerm); err == nil {
-									containerPath := fmt.Sprintf("/app/%s%s", key, ext)
-									cfg[key] = containerPath
-									extraVolumes = append(extraVolumes, domain.VolumeMount{
-										HostPath:      hostName,
-										ContainerPath: containerPath,
-									})
-								}
+func (o *DockerOrchestrator) buildServiceResources(svc domain.DeployedService, writer *ResourceWriter) (string, []domain.VolumeMount, ResourceLimits) {
+	var extraVolumes []domain.VolumeMount
+	cfg := make(map[string]interface{})
+	for k, v := range svc.Config {
+		cfg[k] = v
+	}
+	
+	if schema, err := o.getServiceSchema(svc.FolderName); err == nil {
+		if props, ok := schema["properties"].(map[string]interface{}); ok {
+			for key, val := range props {
+				prop, ok := val.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				if format, ok := prop["format"].(string); ok && format == "kml" {
+					if srcPath, ok := cfg[key].(string); ok && srcPath != "" {
+						ext := filepath.Ext(srcPath)
+						hostName := fmt.Sprintf("%s_%s%s", svc.ServiceId, key, ext)
+						if data, err := os.ReadFile(srcPath); err == nil {
+							if err := os.WriteFile(filepath.Join(writer.outputDir, hostName), data, os.ModePerm); err == nil {
+								containerPath := fmt.Sprintf("/app/%s%s", key, ext)
+								cfg[key] = containerPath
+								extraVolumes = append(extraVolumes, domain.VolumeMount{
+									HostPath:      hostName,
+									ContainerPath: containerPath,
+								})
 							}
 						}
 					}
 				}
 			}
 		}
-
-		svcFile, _ := writer.Write(svc.ServiceId+"_config", cfg)
-		
-		schemaPath := filepath.Join(o.algorithmsDir, svc.FolderName, "schema.json")
-		algoSchema := LoadRawConfig(schemaPath)
-		algoLimits := ParseResourceLimits(algoSchema)
-		
-		builder.AddAlgorithmService(uav.ID, svc, svcFile, extraVolumes, algoLimits, config.VerboseLogging)
 	}
+
+	svcFile, _ := writer.Write(svc.ServiceId+"_config", cfg)
+	
+	schemaPath := filepath.Join(o.algorithmsDir, svc.FolderName, "schema.json")
+	algoSchema := LoadRawConfig(schemaPath)
+	algoLimits := ParseResourceLimits(algoSchema)
+
+	return svcFile, extraVolumes, algoLimits
 }
 
 func (o *DockerOrchestrator) getServiceSchema(folderName string) (map[string]interface{}, error) {

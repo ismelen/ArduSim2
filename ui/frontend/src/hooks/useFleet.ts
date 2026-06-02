@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from "zustand";
-import { useSimulation } from "./useSimulation";
+import { useSimulationConfig } from "./useSimulationConfig";
 
 export interface DeployedService {
   instanceId: string;
@@ -45,7 +45,7 @@ export const useFleet = create<State>((set, get) => ({
     });
 
     set({ uavs: updatedUavs });
-    useSimulation.getState().update((s) => ({ ...s, uavs: updatedUavs }));
+    useSimulationConfig.getState().update((s) => ({ ...s, uavs: updatedUavs }));
   },
 
   setSelectedIdx(idx: number) {
@@ -58,7 +58,7 @@ export const useFleet = create<State>((set, get) => ({
     }
 
     set({ uavs: uavs });
-    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
+    useSimulationConfig.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 
   addUavs(count: number) {
@@ -76,7 +76,7 @@ export const useFleet = create<State>((set, get) => ({
       });
     }
     set({ uavs: [...uavs] });
-    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
+    useSimulationConfig.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 
   deleteUav() {
@@ -98,7 +98,7 @@ export const useFleet = create<State>((set, get) => ({
     }
 
     set({ uavs: [...uavs] });
-    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
+    useSimulationConfig.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 
   addService(service: DeployedService) {
@@ -112,7 +112,7 @@ export const useFleet = create<State>((set, get) => ({
     );
 
     set({ uavs: updatedUavs });
-    useSimulation.getState().update((s) => ({ ...s, uavs: updatedUavs }));
+    useSimulationConfig.getState().update((s) => ({ ...s, uavs: updatedUavs }));
   },
 
   deleteService(service: DeployedService) {
@@ -122,7 +122,7 @@ export const useFleet = create<State>((set, get) => ({
     ].services.filter((e) => e.instanceId !== service.instanceId);
 
     set({ uavs: [...uavs] });
-    useSimulation.getState().update((s) => ({ ...s, uavs: uavs }));
+    useSimulationConfig.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 
   syncAll() {

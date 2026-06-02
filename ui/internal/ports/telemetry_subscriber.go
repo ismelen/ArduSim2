@@ -9,5 +9,5 @@ type TelemetrySubscriber interface {
 	SetExpectedFleet(uavIDs []string)
 	SetOnFinish(fn func())
 	SendGlobalBroadcast(payload interface{}) error
-	NotifyUserStoppedAll(ctx context.Context)
+	NotifyUserStoppedAll()
 }
