@@ -25,7 +25,7 @@ interface State {
   updateService(idx: number, service: DeployedService): void;
   loadFleet(uavs: UAV[]): void;
   setSelectedIdx(idx: number): void;
-  syncAll(): void;
+  cloneUav(): void;
 }
 
 export const useFleet = create<State>((set, get) => ({
@@ -125,16 +125,31 @@ export const useFleet = create<State>((set, get) => ({
     useSimulationConfig.getState().update((s) => ({ ...s, uavs: uavs }));
   },
 
-  syncAll() {
+  cloneUav() {
     const state = get();
-    const idx = state.activeUavIdx;
-    const uavs = state.uavs;
-    const services = uavs[idx].services;
+    const uavs = [...state.uavs];
+    const activeUav = uavs[state.activeUavIdx];
 
-    for (const uav of uavs) {
-      uav.services = [...services];
+    if (!activeUav) return;
+
+    let lastId: number;
+    if (uavs.length === 0) {
+      lastId = 0;
+    } else {
+      lastId = Number(uavs[uavs.length - 1].id);
     }
 
-    set({ uavs: [...uavs] });
+    const clonedServices = activeUav.services.map((s) => ({
+      ...s,
+      instanceId: crypto.randomUUID(),
+    }));
+
+    uavs.push({
+      id: (lastId + 1).toString(),
+      services: clonedServices,
+    });
+
+    set({ uavs });
+    useSimulationConfig.getState().update((s) => ({ ...s, uavs }));
   },
 }));
