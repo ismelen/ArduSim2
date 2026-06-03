@@ -48,6 +48,7 @@ func (m *MovementMixer) Run() {
 	for {
 		select {
 		case tel := <-telemetryChan:
+			log.Printf("Forwarding UAV telemetry to broker topic: %s", m.config.TelemetryTopic)
 			m.broker.Publish(m.config.TelemetryTopic, tel)
 		case msg := <-msgChan:
 			if msg.Topic == m.config.SuggestionsTopic {
@@ -67,9 +68,12 @@ func (m *MovementMixer) handleSuggestionArrival(payload map[string]interface{}) 
 
 	var sug domain.Suggestion
 	if err := json.Unmarshal(data, &sug); err == nil {
+		log.Printf("Received suggestion: %s (Priority: %v)", sug.Endpoint, sug.IsCritical())
 		m.mu.Lock()
 		m.suggestions = append(m.suggestions, sug)
 		m.mu.Unlock()
+	} else {
+		log.Printf("Failed to unmarshal suggestion: %v", err)
 	}
 }
 
@@ -82,6 +86,8 @@ func (m *MovementMixer) evaluateAndMixWindow() {
 	if len(currentBatch) == 0 {
 		return
 	}
+
+	log.Printf("Processing %d suggestions in current mix window", len(currentBatch))
 
 	// Indices to keep track of the latest suggestion for each movement category (ArduSim Slot Logic)
 	lastMoveToIdx := -1

@@ -1,14 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"time"
 
-	"application/infrastructure"
+	"application/infrastructure/broker"
+	"application/infrastructure/config"
+	"application/infrastructure/uav"
 	"application/ports"
 	"application/usecase"
 )
@@ -21,25 +21,28 @@ func main() {
 	configFile := os.Args[1]
 
 	// Dependency Injection Loaders
-	fileLoader := infrastructure.NewFileLoader()
-	config, err := fileLoader.LoadAppConfig(configFile)
+	log.Println("Starting Application initialization...")
+	log.Println("Loading Configuration...")
+	fileLoader := config.NewFileLoader()
+	appConfig, err := fileLoader.LoadAppConfig(configFile)
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 	
-	if config.MixWindowMs == 0 {
-		config.MixWindowMs = 200 // Default to 5Hz sampling
+	if appConfig.MixWindowMs == 0 {
+		appConfig.MixWindowMs = 200 // Default to 5Hz sampling
 	}
 
 	// Infra
-	broker := infrastructure.NewUDPBroker()
-	defer broker.Close()
+	log.Println("Initializing UDP Broker...")
+	udpBroker := broker.NewUDPBroker()
+	defer udpBroker.Close()
 
 	for {
-		if err := broker.Connect(config.BrokerIP, config.BrokerPort, []string{
-			config.SuggestionsTopic,
-			config.GlobalCommands,
-			config.TelemetryTopic,
+		if err := udpBroker.Connect(appConfig.BrokerIP, appConfig.BrokerPort, []string{
+			appConfig.SuggestionsTopic,
+			appConfig.GlobalCommands,
+			appConfig.TelemetryTopic,
 		}); err != nil {
 			log.Printf("Failed to connect to Broker: %v", err)
 			time.Sleep(5 * time.Second)
@@ -47,12 +50,15 @@ func main() {
 		}
 		break
 	}
+	log.Println("Successfully connected to UDP Broker.")
 
-	setupLogger(broker, config.LogsTopic)
+	setupLogger(udpBroker, appConfig.LogsTopic)
+	log.Println("Logger configured. Logging to stdout and broker.")
 
-	var uavLink *infrastructure.DirectUAVLink
+	log.Println("Establishing direct UDP link to UAV...")
+	var uavLink *uav.DirectUAVLink
 	for {
-		uavLink, err = infrastructure.NewDirectUAVLink(config.UAVControllerIP, config.UAVControllerPort, config.UAVTelemetryPort)
+		uavLink, err = uav.NewDirectUAVLink(appConfig.UAVControllerIP, appConfig.UAVControllerPort, appConfig.UAVTelemetryPort)
 		if err != nil {
 			log.Printf("Failed to establish direct UDP link to UAV: %v", err)
 			time.Sleep(5 * time.Second)
@@ -61,32 +67,22 @@ func main() {
 		break
 	}
 	defer uavLink.Close()
+	log.Println("Successfully connected to UAV telemetry and command ports.")
 
-	mixer := usecase.NewMovementMixer(broker, uavLink, config)
+	log.Println("Initializing Movement Mixer use case...")
+	mixer := usecase.NewMovementMixer(udpBroker, uavLink, appConfig)
 
 	mixer.Run()
 }
 
-func setupLogger(broker ports.Broker, logsTopic string) {
+func setupLogger(b ports.Broker, logsTopic string) {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
 
 	outputs := []io.Writer{os.Stdout}
 
-	// If /app/logs exists, add a file writer
-	logDir := "/app/logs"
-	if info, err := os.Stat(logDir); err == nil && info.IsDir() {
-		logFile, err := os.OpenFile(filepath.Join(logDir, "application.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
-		if err == nil {
-			outputs = append(outputs, logFile)
-			fmt.Printf("Logging to %s/application.log\n", logDir)
-		} else {
-			fmt.Printf("Warning: failed to open log file: %v\n", err)
-		}
-	}
-
 	// Add our custom BrokerLogWriter if broker is connected
-	if broker != nil && logsTopic != "" {
-		brokerWriter := infrastructure.NewBrokerLogWriter(broker, logsTopic)
+	if b != nil && logsTopic != "" {
+		brokerWriter := broker.NewBrokerLogWriter(b, logsTopic)
 		outputs = append(outputs, brokerWriter)
 	}
 

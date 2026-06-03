@@ -1,4 +1,4 @@
-package infrastructure
+package uav
 
 import (
 	"encoding/json"
