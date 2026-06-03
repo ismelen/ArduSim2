@@ -93,7 +93,7 @@ func (i *ConfigInteractor) SelectFile(ctx context.Context) (string, error) {
 
 func (i *ConfigInteractor) SelectSpeedProfile(ctx context.Context) (string, error) {
 	return i.ui.OpenFileDialog(ctx, "Select Speed Profile", []ports.FileFilter{
-		{DisplayName: "Speed profile files (*.dat)", Pattern: "*.dat"},
+		{DisplayName: "Speed profile files (*.csv)", Pattern: "*.csv"},
 		{DisplayName: "All files", Pattern: "*.*"},
 	})
 }

@@ -12,7 +12,7 @@ export default function SpeedProfileCard() {
     <Card className="flex flex-col gap-2">
       <CardTitle label="Speed Profile" icon="speed" />
       <FilePickerField
-        hint="PATH/TO/SPEED_PROFILE.DAT"
+        hint="PATH/TO/SPEED_PROFILE.CSV"
         initValue={speedProfilePath}
         onChange={(e) => update((s) => ({ ...s, speedProfilePath: e }))}
         onBrowse={SelectSpeedProfile}

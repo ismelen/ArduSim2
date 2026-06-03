@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// ParseSpeedProfile reads a .dat file containing one speed value (m/s) per line.
+// ParseSpeedProfile reads a .csv file containing one speed value (m/s) per line.
 // It ignores empty lines and comments starting with '#'.
 func ParseSpeedProfile(path string) ([]float64, error) {
 	file, err := os.Open(path)
