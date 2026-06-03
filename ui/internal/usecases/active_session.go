@@ -33,10 +33,6 @@ func (s *activeSession) loggerHost() string {
 	if s.isLocal() {
 		return ""
 	}
-	// Si el string swarmHost es de la forma "192.168.1.5:2375",
-	// deberíamos devolver solo la IP, pero por ahora podemos
-	// delegar el parsing al LoggerClient o simplemente devolverlo y que
-	// el LoggerClient lo parsee.
 	return s.swarmHost
 }
 
