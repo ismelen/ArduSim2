@@ -330,8 +330,8 @@ func (o *DockerOrchestrator) StopCompose(composePath string) error {
 
 func (o *DockerOrchestrator) StartStack(composePath, swarmHost, stackName string) error {
 	dockerEnv := os.Environ()
-	if !o.isLocalhost(swarmHost) {
-		dockerEnv = append(dockerEnv, "DOCKER_HOST=tcp://"+swarmHost)
+	if !o.isLocalhost(swarmHost) && swarmHost != "" {
+		dockerEnv = append(dockerEnv, "DOCKER_HOST="+swarmHost)
 	}
 
 	cmd := exec.Command("docker", "stack", "deploy", "-c", composePath, stackName)
@@ -356,8 +356,8 @@ func (o *DockerOrchestrator) StartStack(composePath, swarmHost, stackName string
 
 func (o *DockerOrchestrator) StopStack(stackName, swarmHost string) error {
 	cmd := exec.Command("docker", "stack", "rm", stackName)
-	if !o.isLocalhost(swarmHost) {
-		cmd.Env = append(os.Environ(), "DOCKER_HOST=tcp://"+swarmHost)
+	if !o.isLocalhost(swarmHost) && swarmHost != "" {
+		cmd.Env = append(os.Environ(), "DOCKER_HOST="+swarmHost)
 	}
 	return cmd.Run()
 }

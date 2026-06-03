@@ -3,6 +3,7 @@ package usecases
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -88,7 +89,12 @@ func (i *SimulationInteractor) StartSimulation(ctx context.Context, uavs []domai
 			return err
 		}
 
-		swarmIP, _, _ := strings.Cut(config.SwarmHost, ":")
+		var swarmIP string
+		if u, err := url.Parse(config.SwarmHost); err == nil && u.Hostname() != "" {
+			swarmIP = u.Hostname()
+		} else {
+			swarmIP, _, _ = strings.Cut(config.SwarmHost, ":")
+		}
 		i.subscriber.SetRemoteAddr(swarmIP)
 		i.subscriber.SetExpectedFleet(i.session.uavIDs)
 	}

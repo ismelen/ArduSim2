@@ -46,27 +46,13 @@ function DockerSwarmForm() {
   const { swarmHost } = useConfig((s) => s.config);
   const update = useConfig((s) => s.update);
 
-  const parts = (swarmHost ?? "").split(":");
-  const ip = parts[0];
-  const port = parts[1];
-
   return (
     <div className="space-y-2 mt-3">
       <FormField
-        label="Manager IP Address"
-        hint="127.0.0.1"
-        initValue={ip}
-        onChange={(e) =>
-          update((s) => ({ ...s, swarmHost: `${e}:${port ?? ""}` }))
-        }
-      />
-      <FormField
-        label="Swarm Port"
-        hint="2375"
-        initValue={port}
-        onChange={(e) =>
-          update((s) => ({ ...s, swarmHost: `${ip ?? ""}:${e}` }))
-        }
+        label="DOCKER_HOST"
+        hint="tcp://ip:port or ssh://user@ip"
+        initValue={swarmHost ?? ""}
+        onChange={(e) => update((s) => ({ ...s, swarmHost: e }))}
       />
     </div>
   );
