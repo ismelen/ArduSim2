@@ -14,7 +14,7 @@ import (
 
 func main() {
 	cfg := config.LoadConfig("config.json")
-	log := logger.NewUDPLogger(cfg.Log.Level, cfg.Log.LoggerAddr)
+	log := logger.NewUDPLogger(cfg.Level, cfg.LoggerAddr)
 
 	conn := udp.NewConnection(cfg.ListenPort, log)
 	defer conn.Close()
@@ -23,12 +23,13 @@ func main() {
 	receiver := udp.NewReceiver(conn, log)
 
 	nodeId := os.Getenv("NODE_ID")
-	spatial := service.NewSpatialGrid(cfg.Simulation.ChunkSizeM)
-	sim := usecase.NewSimulator(nodeId, cfg.Simulation, spatial, sender, log)
+	simCfg := cfg.SimulationConfig()
+	spatial := service.NewSpatialGrid(simCfg.ChunkSizeM)
+	sim := usecase.NewSimulator(nodeId, simCfg, spatial, sender, log)
 
 	go receiver.Run(sim)
 	go sender.Run()
-	go usecase.RunSnapshotEmitter(sim, sender, cfg.Simulation.SnapshotIntervalS, log)
+	go usecase.RunSnapshotEmitter(sim, sender, simCfg.SnapshotIntervalS, log)
 
 	go func() {
 		ticker := time.NewTicker(time.Millisecond * 1)

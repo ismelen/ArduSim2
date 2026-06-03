@@ -92,7 +92,8 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 	
 	nsCfg := LoadRawConfig(o.netsimConfig)
 	nsLimits := ParseResourceLimits(nsCfg)
-	nsFile, _ := o.writeTemplateConfig("netsim_config", o.netsimConfig, nil, writer)
+	nsOverrides := buildNetsimOverrides(config)
+	nsFile, _ := o.writeTemplateConfig("netsim_config", o.netsimConfig, nsOverrides, writer)
 	for i := 1; i <= netsimInstances; i++ {
 		builder.AddNetsim(i, nsFile, nsLimits, config.VerboseLogging)
 	}
@@ -139,7 +140,8 @@ func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.
 	
 	nsCfg := LoadRawConfig(o.netsimConfig)
 	nsLimits := ParseResourceLimits(nsCfg)
-	nsFile, _ := o.writeTemplateConfig("netsim_config", o.netsimConfig, nil, writer)
+	nsOverrides := buildNetsimOverrides(config)
+	nsFile, _ := o.writeTemplateConfig("netsim_config", o.netsimConfig, nsOverrides, writer)
 	for i := 1; i <= netsimInstances; i++ {
 		builder.AddNetsim(i, nsFile, nsLimits, config.VerboseLogging)
 	}
@@ -159,6 +161,22 @@ func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.
 	composePath := filepath.Join(simDir, "docker-compose.swarm.yaml")
 	_ = os.WriteFile(composePath, []byte(builder.Build()), 0644)
 	return composePath, nil
+}
+
+// buildNetsimOverrides constructs a flat override map for the netsim config.json.
+// It sets loss_mode always (when NetsimMode is set) and max_range_m only when
+// the mode is "fixed_range" and the user has explicitly provided a value.
+func buildNetsimOverrides(config domain.GeneralConfig) map[string]interface{} {
+	if config.NetsimMode == "" {
+		return nil
+	}
+	overrides := map[string]interface{}{
+		"loss_mode": config.NetsimMode,
+	}
+	if config.NetsimMode == "fixed_range" && config.NetsimMaxRangeM != nil {
+		overrides["max_range_m"] = *config.NetsimMaxRangeM
+	}
+	return overrides
 }
 
 

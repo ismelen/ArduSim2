@@ -4,6 +4,7 @@ import PageTitle from "../../components/page-title";
 import { useSimulationPersistence } from "../../hooks/useSimulationPersistence";
 import BatteryAndLoggingCard from "./components/battery-and-logging-card";
 import DeploymentCard from "./components/deployment-card";
+import NetsimCard from "./components/netsim-card";
 import SimNameCard from "./components/sim-name-card";
 import SpeedProfileCard from "./components/speed-profile-card";
 import WindCard from "./components/wind-card";
@@ -31,8 +32,9 @@ export default function ConfigPage() {
           <WindCard />
           <SpeedProfileCard />
         </div>
-        <div className="flex-1/3 flex flex-col gap-3">
+        <div className="flex-1/3 flex flex-col gap-3 pb-5">
           <DeploymentCard />
+          <NetsimCard />
           <BatteryAndLoggingCard />
         </div>
       </div>

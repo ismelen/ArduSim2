@@ -20,6 +20,8 @@ export interface GeneralConfig {
   formationCenterMode?: string;
   swarmHost?: string;
   netsimInstances?: number;
+  netsimMode?: string;
+  netsimMaxRangeM?: number | null;
 }
 
 interface State {

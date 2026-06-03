@@ -55,6 +55,8 @@ export namespace domain {
 	    formationCenterMode: string;
 	    swarmHost: string;
 	    netsimInstances: number;
+	    netsimMode: string;
+	    netsimMaxRangeM?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new GeneralConfig(source);
@@ -80,6 +82,8 @@ export namespace domain {
 	        this.formationCenterMode = source["formationCenterMode"];
 	        this.swarmHost = source["swarmHost"];
 	        this.netsimInstances = source["netsimInstances"];
+	        this.netsimMode = source["netsimMode"];
+	        this.netsimMaxRangeM = source["netsimMaxRangeM"];
 	    }
 	}
 	export class LogFilter {

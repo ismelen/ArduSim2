@@ -12,6 +12,7 @@ import (
 )
 
 type Config struct {
+	LossMode          string
 	BufferSizeBytes   int
 	CsmaRangeM        float64
 	MaxCsmaRetries    uint32
@@ -35,6 +36,7 @@ type Simulator struct {
 }
 
 func NewSimulator(nodeID string, cfg Config, spatial *service.SpatialGrid, sender output.PacketSender, logger output.Logger) *Simulator {
+	service.InitLossFunction(cfg.LossMode)
 	return &Simulator{
 		Config:      cfg,
 		UAVs:        make(map[string]*model.UAV),

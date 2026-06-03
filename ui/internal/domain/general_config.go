@@ -33,6 +33,14 @@ type GeneralConfig struct {
 
 	// NetsimInstances is the number of netsim worker containers to deploy.
 	NetsimInstances int `json:"netsimInstances"`
+
+	// NetsimMode sets the loss_mode for netsim instances ("realistic" or "fixed_range").
+	// Empty string means "use the default from netsim config.json".
+	NetsimMode string `json:"netsimMode"`
+
+	// NetsimMaxRangeM overrides max_range_m in netsim config when NetsimMode is "fixed_range".
+	// Nil means "use the default from netsim config.json".
+	NetsimMaxRangeM *float64 `json:"netsimMaxRangeM,omitempty"`
 }
 
 // SanitizeSimulationName ensures the simulation name is filesystem-friendly.
