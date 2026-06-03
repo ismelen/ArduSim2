@@ -2,24 +2,20 @@ import { useEffect, useRef } from "react";
 import { useShallow } from "zustand/shallow";
 import { EventsOff, EventsOn } from "../../wailsjs/runtime/runtime";
 import { useMap } from "./useMap";
-import { useSimulationSession } from "./useSimulationSession";
 import { useTelemetry } from "./useTelemetry";
 
 export function useSimulationPageSetup() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const isSimulating = useSimulationSession((s) => s.isSimulating);
 
   const [initMap, updateTrails, updateMarkers] = useMap(
     useShallow((s) => [s.init, s.updateTrails, s.updateMarkers]),
   );
 
-  const [interpolatedUavs, setonNewRealPoint, subscribe, unsubscribe, notifyAllReady] =
+  const [interpolatedUavs, setonNewRealPoint, notifyAllReady] =
     useTelemetry(
       useShallow((s) => [
         s.interpolatedUavs,
         s.setOnNewRealPoint,
-        s.subscribe,
-        s.unsuscribe,
         s.notifyAllReady,
       ]),
     );
@@ -41,13 +37,7 @@ export function useSimulationPageSetup() {
     return cleanup;
   }, [initMap]);
 
-  useEffect(() => {
-    if (!isSimulating) return;
-    subscribe();
-    return () => {
-      unsubscribe();
-    };
-  }, [subscribe, unsubscribe, isSimulating]);
+
 
   useEffect(() => {
     setonNewRealPoint(updateTrails);

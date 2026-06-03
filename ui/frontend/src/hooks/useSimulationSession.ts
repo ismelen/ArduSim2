@@ -84,6 +84,7 @@ export const useSimulationSession = create<State>((set, get) => {
         domain.GeneralConfig.createFrom(config.generalConfig),
         config.activeMode === "LOCAL",
       );
+      useTelemetry.getState().subscribe();
       set({ isSimulating: true });
     },
 

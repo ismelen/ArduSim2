@@ -27,9 +27,10 @@ export interface InterpolationNode {
 }
 
 interface State {
+  isReady: boolean;
   interpolatedUavs: () => Record<string, TelemetryData>;
   subscribe(): void;
-  unsuscribe(): void;
+  unsubscribe(): void;
   setOnNewRealPoint(
     fn: (uavId: string, lat: number, lon: number, alt: number) => void,
   ): void;
@@ -37,20 +38,23 @@ interface State {
   reset(): void;
 }
 
-export const useTelemetry = create<State>((_, get) => {
+export const useTelemetry = create<State>((set, get) => {
   const rawData = { current: {} as Record<string, TelemetryData> };
   let worker: Worker | undefined;
 
-  let unsuscribeTelemetry: (() => void) | undefined;
+  let unsubscribeTelemetry: (() => void) | undefined;
   let subscribed = false;
   let onNewRealPoint:
     | ((uavId: string, lat: number, lon: number, alt: number) => void)
     | undefined;
 
   return {
+    isReady: false,
+
     interpolatedUavs: () => rawData.current,
 
     notifyAllReady() {
+      set({ isReady: true });
       worker?.postMessage({ type: "ALL_READY" });
     },
 
@@ -76,7 +80,11 @@ export const useTelemetry = create<State>((_, get) => {
         }
       };
 
-      unsuscribeTelemetry = EventsOn(
+      if (get().isReady) {
+        worker.postMessage({ type: "ALL_READY" });
+      }
+
+      unsubscribeTelemetry = EventsOn(
         "telemetry_snapshot",
         (payload: { uavs: Record<string, TelemetryData> }) => {
           worker?.postMessage({
@@ -87,9 +95,9 @@ export const useTelemetry = create<State>((_, get) => {
       );
     },
 
-    unsuscribe() {
-      unsuscribeTelemetry?.();
-      unsuscribeTelemetry = undefined;
+    unsubscribe() {
+      unsubscribeTelemetry?.();
+      unsubscribeTelemetry = undefined;
       rawData.current = {};
       subscribed = false;
       worker?.terminate();
@@ -97,7 +105,8 @@ export const useTelemetry = create<State>((_, get) => {
     },
 
     reset() {
-      get().unsuscribe();
+      get().unsubscribe();
+      set({ isReady: false });
     },
   };
 });
