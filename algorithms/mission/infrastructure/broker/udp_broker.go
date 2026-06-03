@@ -63,6 +63,11 @@ func (b *UDPBroker) publishJSON(msg interface{}) error {
 	if err != nil {
 		return err
 	}
+	
+	if b.conn == nil {
+		return fmt.Errorf("udp broker not connected")
+	}
+	
 	_, err = b.conn.WriteToUDP(data, b.addr)
 	return err
 }
