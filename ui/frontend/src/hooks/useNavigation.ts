@@ -2,8 +2,8 @@ import { type ElementType } from "react";
 import { create } from "zustand";
 import ConfigPage from "../pages/config/config-page";
 import FleetPage from "../pages/fleet/fleet-page";
-import LogsPage from "../pages/logs/logs-page";
 import SimulationPage from "../pages/simulation/simulation-page";
+import LogsPage from "../pages/logs-page";
 
 interface Tab {
   label: string;
@@ -25,7 +25,7 @@ export const TABS: Tab[] = [
   },
   {
     label: "Logs",
-    page: LogsPage,
+    page: LogsPage
   },
 ];
 
