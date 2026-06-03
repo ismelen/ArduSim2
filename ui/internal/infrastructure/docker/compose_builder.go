@@ -144,7 +144,7 @@ func (b *composeBuilder) AddApplication(uavID, configFileName string, limits Res
 }
 
 // AddUAVController appends the uav_controller (SITL) service for a UAV.
-func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, homeLocation string, limits ResourceLimits, verbose bool) {
+func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, homeLocation string, limits ResourceLimits, verbose bool, loggingEnabled bool) {
 	uavNet := uavNetworkName(uavID)
 
 	var env string
@@ -154,7 +154,9 @@ func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, 
 
 	vols := fmt.Sprintf("      - ./resources/%s:/app/config.json\n", configFileName)
 	vols += fmt.Sprintf("      - ./resources/%s:/app/copter.parm\n", paramFileName)
-	vols += fmt.Sprintf("      - ./uav_logs/%s/:/app/logs/\n", uavID)
+	if loggingEnabled {
+		vols += fmt.Sprintf("      - ./uav_logs/%s/:/app/logs/\n", uavID)
+	}
 	lims := b.buildLocalLimits(limits)
 
 	fmt.Fprintf(&b.services, `  uav_controller_%s:

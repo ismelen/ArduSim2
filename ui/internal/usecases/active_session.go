@@ -11,6 +11,7 @@ type activeSession struct {
 	uavIDs         []string
 	algorithmIDs   map[string]bool
 	stoppedIDs     map[string]bool
+	loggingEnabled bool
 }
 
 func newActiveSession() *activeSession {
@@ -62,4 +63,5 @@ func (s *activeSession) clear() {
 	s.uavIDs = nil
 	s.algorithmIDs = make(map[string]bool)
 	s.stoppedIDs = make(map[string]bool)
+	s.loggingEnabled = false
 }

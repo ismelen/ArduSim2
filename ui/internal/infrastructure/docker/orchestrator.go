@@ -99,9 +99,11 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 
 	builder.AddLogger(ResourceLimits{})
 
-	for _, uav := range uavs {
-		logDir := filepath.Join(simDir, "uav_logs", uav.ID)
-		os.MkdirAll(logDir, 0755)
+	if config.LoggingEnabled {
+		for _, uav := range uavs {
+			logDir := filepath.Join(simDir, "uav_logs", uav.ID)
+			os.MkdirAll(logDir, 0755)
+		}
 	}
 
 	for i, uav := range uavs {
@@ -268,7 +270,7 @@ func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName string, bui
 	ucFile, _ := o.writeTemplateConfig("uav_controller_config", o.uavControllerConfig, nil, writer)
 	homeLat, homeLon := util.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
 	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
-	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, ucLimits, config.VerboseLogging)
+	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, ucLimits, config.VerboseLogging, config.LoggingEnabled)
 
 	ecCfg := LoadRawConfig(o.externalCommsConfig)
 	ecLimits := ParseResourceLimits(ecCfg)
@@ -296,7 +298,7 @@ func (o *DockerOrchestrator) appendSwarmUAV(uav domain.UAV, paramFileName string
 	ucFile, _ := o.writeTemplateConfig("uav_controller_config", o.uavControllerConfig, nil, writer)
 	homeLat, homeLon := util.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
 	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
-	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, ucLimits, config.VerboseLogging)
+	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, ucLimits, config.VerboseLogging, config.LoggingEnabled)
 
 	ecOverrides := map[string]interface{}{
 		"uav_id":         uavNum,

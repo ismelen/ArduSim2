@@ -134,8 +134,7 @@ func (b *swarmComposeBuilder) AddApplication(uavID, configFileName string, limit
 `, uavID, env, configName, lims, uavNet)
 }
 
-// AddUAVController appends the uav_controller (SITL) service for a UAV.
-func (b *swarmComposeBuilder) AddUAVController(uavID, configFileName, paramFileName, homeLocation string, limits ResourceLimits, verbose bool) {
+func (b *swarmComposeBuilder) AddUAVController(uavID, configFileName, paramFileName, homeLocation string, limits ResourceLimits, verbose bool, loggingEnabled bool) {
 	uavNet := uavNetworkName(uavID)
 	configName := b.declareConfig(configFileName)
 	paramName := b.declareConfig(paramFileName)

@@ -56,6 +56,7 @@ func (i *SimulationInteractor) StartSimulation(ctx context.Context, uavs []domai
 	for idx, uav := range uavs {
 		i.session.uavIDs[idx] = uav.ID
 	}
+	i.session.loggingEnabled = config.LoggingEnabled
 
 	if isLocal {
 		if err := i.orchestrator.StartCompose(composePath); err != nil {
@@ -138,22 +139,21 @@ func (i *SimulationInteractor) DownloadLogs() error {
 	logsDir := filepath.Join(simDir, "logs")
 	os.MkdirAll(logsDir, 0755)
 
-	// PASO 1: Descargar ZIP del logger a memoria
 	loggerZipBytes, err := i.logger.DownloadZip(i.session.loggerHost())
 	if err != nil {
 		return fmt.Errorf("fetch logger zip: %w", err)
 	}
 
-	// PASO 2: Recoger rutas de logs de ArduPilot (ya en host via bind-mount)
 	uavLogDirs := map[string]string{}
-	for _, uavID := range i.session.uavIDs {
-		dir := filepath.Join(simDir, "uav_logs", uavID)
-		if info, err := os.Stat(dir); err == nil && info.IsDir() {
-			uavLogDirs[uavID] = dir
+	if i.session.loggingEnabled {
+		for _, uavID := range i.session.uavIDs {
+			dir := filepath.Join(simDir, "uav_logs", uavID)
+			if info, err := os.Stat(dir); err == nil && info.IsDir() {
+				uavLogDirs[uavID] = dir
+			}
 		}
 	}
 
-	// PASO 3 + 4: Construir y guardar ZIP combinado
 	timestamp := time.Now().Format("20060102_150405")
 	outPath := filepath.Join(logsDir, fmt.Sprintf("logs_%s.zip", timestamp))
 	return buildCombinedZip(loggerZipBytes, uavLogDirs, outPath)
