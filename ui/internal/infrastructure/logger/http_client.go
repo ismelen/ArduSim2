@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 type HttpLoggerClient struct{}
@@ -13,8 +14,13 @@ func NewHttpLoggerClient() *HttpLoggerClient {
 }
 
 func (c *HttpLoggerClient) DownloadZip(remoteHost string) ([]byte, error) {
+	parts := strings.Split(remoteHost, ":")
+	remoteIp := ""
+	if(len(parts) > 0) {
+		remoteIp = parts[0]
+	}
 	url := "http://localhost:8080/api/logs/download"
-	if remoteHost != "" && remoteHost != "localhost" && remoteHost != "127.0.0.1" {
+	if remoteIp != "" && remoteIp != "localhost" && remoteIp != "127.0.0.1" {
 		url = fmt.Sprintf("http://%s:8080/api/logs/download", remoteHost)
 	}
 
