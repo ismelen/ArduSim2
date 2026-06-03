@@ -85,7 +85,7 @@ func (b *swarmComposeBuilder) AddNetsim(instanceID int, configFileName string, l
 %s    networks:
       - air
 
-`, instanceID, instanceID, env, configName, lims)
+`, instanceID, env, configName, lims)
 }
 
 // AddUAVNetwork registers the per-UAV overlay network.
