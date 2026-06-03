@@ -98,19 +98,11 @@ func (i *SimulationInteractor) StartSimulation(ctx context.Context, uavs []domai
 }
 
 func (i *SimulationInteractor) BuildImages(ctx context.Context, uavs []domain.UAV, config domain.GeneralConfig, isLocal bool) error {
-	if !isLocal {
-		return fmt.Errorf("build images is only supported in local mode")
-	}
-
 	config.SanitizeSimulationName()
 	simDir := filepath.Join(i.repo.GetSimulationsDir(), config.SimulationName)
 
-	composePath, err := i.orchestrator.Run(uavs, config, isLocal, simDir)
-	if err != nil {
-		return fmt.Errorf("prepare simulation for build: %w", err)
-	}
-
-	return i.orchestrator.BuildCompose(composePath)
+	// Build all known images and all local algorithms, independent of simulation size/mode
+	return i.orchestrator.BuildAllImages(simDir)
 }
 
 

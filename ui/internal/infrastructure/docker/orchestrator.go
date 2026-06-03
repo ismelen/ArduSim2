@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"ui/internal/domain"
@@ -260,6 +259,68 @@ func (o *DockerOrchestrator) BuildCompose(composePath string) error {
 	return nil
 }
 
+func (o *DockerOrchestrator) BuildAllImages(simDir string) error {
+	composeStr := `services:
+  netsim_gateway:
+    image: netsim_gateway
+    build:
+      context: ../../netsim_gateway
+      dockerfile: Dockerfile
+  netsim:
+    image: netsim
+    build:
+      context: ../../netsim
+      dockerfile: Dockerfile
+  logger:
+    image: logger
+    build:
+      context: ../../logger
+      dockerfile: Dockerfile
+  communication_module:
+    image: communication_module
+    build:
+      context: ../../communication_module
+      dockerfile: Dockerfile
+  application:
+    image: application
+    build:
+      context: ../../application
+      dockerfile: Dockerfile
+  copter453:
+    image: copter453
+    build:
+      context: ../../uav_controller/ardupilot4_5_3
+      dockerfile: SITL
+  external_comms:
+    image: external_comms
+    build:
+      context: ../../external_comms
+      dockerfile: Dockerfile
+`
+	if entries, err := os.ReadDir(o.algorithmsDir); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				algoName := entry.Name()
+				composeStr += fmt.Sprintf(`  %s:
+    image: %s
+    build:
+      context: ../../algorithms/%s
+      dockerfile: Dockerfile
+`, algoName, algoName, algoName)
+			}
+		}
+	}
+
+	resDir := filepath.Join(simDir, "resources")
+	os.MkdirAll(resDir, 0755)
+	
+	composePath := filepath.Join(simDir, "docker-compose.build.yaml")
+	if err := os.WriteFile(composePath, []byte(composeStr), 0644); err != nil {
+		return fmt.Errorf("failed to write build compose file: %w", err)
+	}
+
+	return o.BuildCompose(composePath)
+}
 
 func (o *DockerOrchestrator) StopCompose(composePath string) error {
 	cmd := exec.Command("docker", "compose", "down", "--remove-orphans", "--volumes")
@@ -342,7 +403,6 @@ func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName string, bui
 }
 
 func (o *DockerOrchestrator) appendSwarmUAV(uav domain.UAV, paramFileName string, builder *swarmComposeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset) {
-	uavNum, _ := strconv.Atoi(uav.ID)
 	builder.AddUAVNetwork(uav.ID)
 	builder.AddCommunicationModule(uav.ID, ResourceLimits{}, config.VerboseLogging)
 
@@ -358,14 +418,9 @@ func (o *DockerOrchestrator) appendSwarmUAV(uav domain.UAV, paramFileName string
 	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
 	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, ucLimits, config.VerboseLogging, config.LoggingEnabled)
 
-	ecOverrides := map[string]interface{}{
-		"uav_id":         uavNum,
-		"simulator_ip":   "netsim_gateway",
-		"simulator_port": 3000,
-	}
 	ecCfg := LoadRawConfig(o.externalCommsConfig)
 	ecLimits := ParseResourceLimits(ecCfg)
-	ecFile, _ := o.writeTemplateConfig("external_comms_config", o.externalCommsConfig, ecOverrides, writer)
+	ecFile, _ := o.writeTemplateConfig("external_comms_config", o.externalCommsConfig, nil, writer)
 	builder.AddExternalComms(uav.ID, ecFile, ecLimits, config.VerboseLogging)
 
 	for _, svc := range uav.Services {
