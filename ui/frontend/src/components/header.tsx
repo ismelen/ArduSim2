@@ -2,7 +2,6 @@ import { useNavigation, TABS } from "../hooks/useNavigation";
 import { useSimulationConfig } from "../hooks/useSimulationConfig";
 import { useSimulationSession } from "../hooks/useSimulationSession";
 import { useSimulationPersistence } from "../hooks/useSimulationPersistence";
-import { useTheme } from "../hooks/useTheme";
 import { cn } from "../utils/cn";
 import Button from "./button";
 
@@ -19,10 +18,8 @@ export default function Header() {
   const saveConfig = useSimulationPersistence((s) => s.saveConfig);
   const newConfig = useSimulationPersistence((s) => s.newConfig);
 
-  const isNight = useTheme((s) => s.isNight);
-  const toggleTheme = useTheme((s) => s.toggleTheme);
-
   const startSimulation = useSimulationSession((s) => s.startSimulation);
+  const buildImages = useSimulationSession((s) => s.buildImages);
 
   return (
     <header className="border-b border-border flex gap-4 p-3 items-center bg-cwhite sticky top-0 z-50 h-15">
@@ -58,7 +55,11 @@ export default function Header() {
           type="filled"
           onClick={startSimulation}
         />
-        <Button icon={!isNight ? "bedtime" : "sunny"} onClick={toggleTheme} />
+        <Button
+          label="Build images"
+          type="filled"
+          onClick={buildImages}
+        />
       </span>
     </header>
   );

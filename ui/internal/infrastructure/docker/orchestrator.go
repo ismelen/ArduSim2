@@ -186,7 +186,7 @@ func (o *DockerOrchestrator) StartCompose(composePath string) error {
 		return fmt.Errorf("DOCKER_NOT_RUNNING")
 	}
 
-	cmd := exec.Command("docker", "compose", "up", "--build", "-d")
+	cmd := exec.Command("docker", "compose", "up", "-d")
 	cmd.Dir = filepath.Dir(composePath)
 
 	var stderrBuf bytes.Buffer
@@ -217,6 +217,46 @@ func (o *DockerOrchestrator) StartCompose(composePath string) error {
 		}
 		return fmt.Errorf("docker compose: %w", waitErr)
 	}
+	return nil
+}
+
+func (o *DockerOrchestrator) BuildCompose(composePath string) error {
+	checkCmd := exec.Command("docker", "info")
+	if err := checkCmd.Run(); err != nil {
+		return fmt.Errorf("DOCKER_NOT_RUNNING")
+	}
+
+	cmd := exec.Command("docker", "compose", "build")
+	cmd.Dir = filepath.Dir(composePath)
+
+	var stderrBuf bytes.Buffer
+	stdout, _ := cmd.StdoutPipe()
+	stderrPipe, _ := cmd.StderrPipe()
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		scanner := NewLogScanner(stdout, io.TeeReader(stderrPipe, &stderrBuf))
+		for scanner.Scan() {
+			o.ui.EmitEvent("simulation:log", scanner.Text())
+		}
+	}()
+
+	waitErr := cmd.Wait()
+	<-done // ensure all output has been flushed before reading the buffer
+
+	if waitErr != nil {
+		details := strings.TrimSpace(stderrBuf.String())
+		if details != "" {
+			return fmt.Errorf("docker compose build: %w\n%s", waitErr, details)
+		}
+		return fmt.Errorf("docker compose build: %w", waitErr)
+	}
+	o.ui.EmitEvent("simulation:log", "[Build] Images successfully built.")
 	return nil
 }
 

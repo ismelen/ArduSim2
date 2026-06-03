@@ -73,6 +73,10 @@ func (a *App) StartSimulation(uavs []domain.UAV, config domain.GeneralConfig, is
 	return a.simulation.StartSimulation(a.ctx, uavs, config, isLocal)
 }
 
+func (a *App) BuildImages(uavs []domain.UAV, config domain.GeneralConfig, isLocal bool) error {
+	return a.simulation.BuildImages(a.ctx, uavs, config, isLocal)
+}
+
 func (a *App) StopSimulation() {
 	a.simulation.StopSimulation()
 }

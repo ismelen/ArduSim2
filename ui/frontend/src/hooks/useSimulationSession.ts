@@ -5,6 +5,7 @@ import {
   StartSimulation,
   StopSimulation,
   DownloadLogs,
+  BuildImages,
 } from "../../wailsjs/go/main/App";
 import { domain } from "../../wailsjs/go/models";
 import { useDialog } from "./useDialog";
@@ -23,6 +24,7 @@ interface State {
   setupFinished(): void;
   simulationFinished(): void;
   startSimulation(): Promise<void>;
+  buildImages(): Promise<void>;
 
   start(targets: string[]): void;
   pause(targets: string[]): void;
@@ -86,6 +88,22 @@ export const useSimulationSession = create<State>((set, get) => {
       );
       useTelemetry.getState().subscribe();
       set({ isSimulating: true });
+    },
+
+    async buildImages() {
+      const simConfig = useSimulationConfig.getState();
+      if (simConfig.lastConfig.hash !== "") {
+        await useSimulationPersistence.getState().saveConfig();
+      }
+
+      const config = simConfig.lastConfig.value;
+
+      useNavigation.getState().navigateToPath("Simulation");
+      await BuildImages(
+        config.uavs.map((e) => domain.UAV.createFrom(e)),
+        domain.GeneralConfig.createFrom(config.generalConfig),
+        config.activeMode === "LOCAL",
+      );
     },
 
     async start(targets: string[]) {
