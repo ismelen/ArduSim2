@@ -33,10 +33,19 @@ type Simulator struct {
 	Cache       sync.Map // string -> json.RawMessage
 	mu          sync.Mutex
 	NodeID      string
+	Strategy    BroadcastStrategy
 }
 
 func NewSimulator(nodeID string, cfg Config, spatial *service.SpatialGrid, sender output.PacketSender, logger output.Logger) *Simulator {
 	service.InitLossFunction(cfg.LossMode)
+
+	var strategy BroadcastStrategy
+	if cfg.LossMode == "unrestricted" {
+		strategy = unrestrictedStrategy{}
+	} else {
+		strategy = csmaStrategy{}
+	}
+
 	return &Simulator{
 		Config:      cfg,
 		UAVs:        make(map[string]*model.UAV),
@@ -45,6 +54,7 @@ func NewSimulator(nodeID string, cfg Config, spatial *service.SpatialGrid, sende
 		Sender:      sender,
 		Logger:      logger,
 		NodeID:      nodeID,
+		Strategy:    strategy,
 	}
 }
 
