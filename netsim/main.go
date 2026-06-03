@@ -18,7 +18,7 @@ func main() {
 
 	conn := udp.NewConnection(cfg.ListenPort, log)
 	defer conn.Close()
-	
+
 	sender := udp.NewSender(conn, cfg.GatewayAddr, log)
 	receiver := udp.NewReceiver(conn, log)
 

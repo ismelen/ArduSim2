@@ -1,5 +1,4 @@
 {
-  "node_id": "netsim_1",
   "listen_port": 3000,
   "gateway_addr": "netsim_gateway:3001",
   "simulation": {
