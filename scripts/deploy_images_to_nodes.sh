@@ -36,17 +36,13 @@ if [ -n "$SSH_KEY" ]; then
     echo "Usando clave privada SSH: $SSH_KEY"
 fi
 
-echo "================================================="
-echo " ArduSim2 - Construcción y Empaquetado de Imágenes"
-echo "================================================="
+echo "ArduSim2 - Construcción y Empaquetado de Imágenes"
 
-# 1. Ir a la raíz del proyecto (asumiendo que el script está en installation_scripts)
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/src/.." && pwd)"
 cd "$PROJECT_ROOT"
 
 echo "Construyendo imágenes desde el código local en: $PROJECT_ROOT"
 
-# Construir imágenes principales
 docker build -t netsim_gateway -f netsim_gateway/Dockerfile netsim_gateway/
 docker build -t netsim -f netsim/Dockerfile netsim/
 docker build -t logger -f logger/Dockerfile logger/
@@ -57,7 +53,6 @@ docker build -t external_comms -f external_comms/Dockerfile external_comms/
 
 CORE_IMAGES="netsim_gateway netsim logger communication_module application copter453 external_comms"
 
-# Construir dinámicamente imágenes de algoritmos
 ALGORITHM_IMAGES=""
 echo "Buscando algoritmos dinámicamente en /algorithms..."
 for dir in algorithms/*/; do
@@ -71,23 +66,18 @@ done
 
 # 2. Empaquetar las imágenes en un archivo .tar
 TAR_FILE="/tmp/ardusim2_images.tar"
-echo "================================================="
-echo " Empaquetando las imágenes en $TAR_FILE..."
-echo " Este proceso puede tardar unos minutos."
-echo "================================================="
+echo "Empaquetando las imágenes en $TAR_FILE..."
+echo "Este proceso puede tardar unos minutos."
 
 docker save -o "$TAR_FILE" $CORE_IMAGES $ALGORITHM_IMAGES
 
 echo "Empaquetado completado. Tamaño del archivo:"
 du -h "$TAR_FILE"
 
-# 3. Enviar y cargar en cada nodo
 for NODE in "$@"; do
-    echo "================================================="
-    echo " Procesando nodo: $NODE"
-    echo "================================================="
+    echo "Procesando nodo: $NODE"
     
-    echo " Verificando el estado de Docker en $NODE..."
+    echo "Verificando el estado de Docker en $NODE..."
     ssh $SSH_OPTS "$NODE" '
         if ! command -v docker &> /dev/null; then
             echo "ERROR: Docker no está instalado en este nodo."
@@ -108,20 +98,16 @@ for NODE in "$@"; do
         fi
     ' || { echo "Fallo al verificar Docker en $NODE. Saltando nodo..."; continue; }
 
-    echo " Enviando archivo tar por SCP a $NODE..."
+    echo "Enviando archivo tar por SCP a $NODE..."
     scp $SCP_OPTS "$TAR_FILE" "$NODE:/tmp/ardusim2_images.tar"
     
-    echo " Cargando imágenes en el Docker de $NODE..."
+    echo "Cargando imágenes en el Docker de $NODE..."
     ssh $SSH_OPTS "$NODE" "docker load -i /tmp/ardusim2_images.tar && rm /tmp/ardusim2_images.tar"
     
-    echo " ✓ Imágenes cargadas exitosamente en $NODE"
+    echo "Imágenes cargadas exitosamente en $NODE"
 done
 
-echo "================================================="
-echo " Limpiando archivo local temporal..."
-echo "================================================="
+echo "Limpiando archivo local temporal..."
 rm "$TAR_FILE"
 
-echo "================================================="
-echo " ¡Terminado! Las imágenes se han distribuido y cargado."
-echo "================================================="
+echo "¡Terminado! Las imágenes se han distribuido y cargado."
