@@ -20,7 +20,8 @@
       "title": "Role",
       "type": "string",
       "enum": ["master", "slave"],
-      "description": "Current role of the UAV in the Follow Me protocol. Must be set manually."
+      "description": "Current role of the UAV in the Follow Me protocol. Must be set manually.",
+      "default": "master"
     },
     "broker_ip": {
       "type": "string",
