@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/GRCDEV/ArduSim2/logger/infra/config"
 	"github.com/GRCDEV/ArduSim2/logger/infra/http"
 	"github.com/GRCDEV/ArduSim2/logger/infra/storage"
 	"github.com/GRCDEV/ArduSim2/logger/infra/udp"
@@ -15,16 +16,20 @@ import (
 )
 
 func main() {
-	// Configuration (could be loaded from env vars)
-	udpAddr := getEnv("UDP_ADDR", "0.0.0.0:5000")
-	httpAddr := getEnv("HTTP_ADDR", "0.0.0.0:8080")
-	logsDir := getEnv("LOGS_DIR", "./data/logs")
-	
-	// Max lines per file before truncating 50%
-	maxLines := 10000
-	bufferSize := 5000
-	workersCount := 5
-	truncationInterval := 10 * time.Second
+	configFile := "config.json"
+	if len(os.Args) > 1 {
+		configFile = os.Args[1]
+	}
+
+	cfg := config.LoadConfig(configFile)
+
+	udpAddr := cfg.UdpAddr
+	httpAddr := cfg.HttpAddr
+	logsDir := cfg.LogsDir
+	maxLines := cfg.MaxLines
+	bufferSize := cfg.BufferSize
+	workersCount := cfg.WorkersCount
+	truncationInterval := time.Duration(cfg.TruncationIntervalS) * time.Second
 
 	fmt.Println("[Logger] Starting ArduSim2 Logger Microservice")
 
@@ -72,18 +77,11 @@ func main() {
 	fmt.Println("[Logger] Shutting down server...")
 
 	// Graceful shutdown
-	cancel()               // Stops UDP read loop
-	udpServer.Stop()       // Closes UDP connection
-	processUC.Close()      // Closes log channel
-	truncateUC.Stop()      // Stops truncation worker
-	httpServer.Stop()      // Gracefully stops HTTP server
+	cancel()          // Stops UDP read loop
+	udpServer.Stop()  // Closes UDP connection
+	processUC.Close() // Closes log channel
+	truncateUC.Stop() // Stops truncation worker
+	httpServer.Stop() // Gracefully stops HTTP server
 
 	fmt.Println("[Logger] Server stopped cleanly")
-}
-
-func getEnv(key, fallback string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return fallback
 }

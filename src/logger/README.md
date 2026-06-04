@@ -84,26 +84,24 @@ The zip contains one `.jsonl` file per unique `ServiceID`/`InstanceID` combinati
 
 ## Configuration
 
-All configuration is through environment variables. There is no `config.json` for this service.
+Configuration is loaded from `config.json` at startup. If the file is absent or a field is missing, built-in defaults are used.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `UDP_ADDR` | `0.0.0.0:5000` | Address and port the UDP server binds to. |
-| `HTTP_ADDR` | `0.0.0.0:8080` | Address and port the HTTP server listens on. |
-| `LOGS_DIR` | `./data/logs` | Directory where JSONL log files are stored. Created on startup if it doesn't exist. |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `udp_addr` | `0.0.0.0:5000` | Address and port the UDP server binds to. |
+| `http_addr` | `0.0.0.0:8080` | Address and port the HTTP server listens on. |
+| `logs_dir` | `./data/logs` | Directory where JSONL log files are stored. Created on startup if it doesn't exist. |
+| `max_lines` | `10000` | Max lines per file before truncating the oldest 50%. |
+| `buffer_size` | `5000` | Capacity of the internal log processing queue. |
+| `workers_count` | `5` | Number of goroutines processing incoming logs to disk. |
+| `truncation_interval_s` | `10` | Interval in seconds for the background log rotation job. |
 
 ---
 
 ## Running locally
 
 ```bash
-go run ./cmd/logger
-```
-
-Or with custom configuration:
-
-```bash
-UDP_ADDR=0.0.0.0:5001 HTTP_ADDR=0.0.0.0:9090 LOGS_DIR=/tmp/logs go run ./cmd/logger
+go run ./cmd/logger config.json
 ```
 
 ---
@@ -122,6 +120,7 @@ logger/
 │   ├── download_logs.go                   Zip generation use case.
 │   └── truncate_logs.go                   Background log rotation (drops oldest 50% when file exceeds maxLines).
 └── infra/
+    ├── config/loader.go                   Loads and merges config.json with defaults.
     ├── udp/server.go                      UDP listener that enqueues incoming LogMessage packets.
     ├── http/server.go                     HTTP server with the /api/logs/download endpoint.
     └── storage/local_file_storage.go      JSONL file storage with per-file locking and rotation.
