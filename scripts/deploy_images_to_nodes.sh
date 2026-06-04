@@ -41,6 +41,26 @@ echo "ArduSim2 - Construcción y Empaquetado de Imágenes"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/src/.." && pwd)"
 cd "$PROJECT_ROOT"
 
+# Selección del tipo de SITL
+echo ""
+echo "¿Qué Dockerfile deseas usar para la imagen SITL del UAV?"
+echo "  1) SITL          (estándar)"
+echo "  2) SITL.ADAPTIVE (adaptativo) (13')"
+echo ""
+read -rp "Introduce tu elección [1/2] (por defecto: 1): " SITL_CHOICE
+
+case "$SITL_CHOICE" in
+    2)
+        SITL_DOCKERFILE="uav_controller/ardupilot4_5_3/SITL.ADAPTIVE"
+        echo "→ Usando Dockerfile: SITL.ADAPTIVE"
+        ;;
+    *)
+        SITL_DOCKERFILE="uav_controller/ardupilot4_5_3/SITL"
+        echo "→ Usando Dockerfile: SITL (estándar)"
+        ;;
+esac
+echo ""
+
 echo "Construyendo imágenes desde el código local en: $PROJECT_ROOT"
 
 docker build -t netsim_gateway -f netsim_gateway/Dockerfile netsim_gateway/
@@ -48,7 +68,7 @@ docker build -t netsim -f netsim/Dockerfile netsim/
 docker build -t logger -f logger/Dockerfile logger/
 docker build -t communication_module -f communication_module/Dockerfile communication_module/
 docker build -t application -f application/Dockerfile application/
-docker build -t copter453 -f uav_controller/ardupilot4_5_3/SITL uav_controller/ardupilot4_5_3/
+docker build -t copter453 -f "$SITL_DOCKERFILE" uav_controller/ardupilot4_5_3/
 docker build -t external_comms -f external_comms/Dockerfile external_comms/
 
 CORE_IMAGES="netsim_gateway netsim logger communication_module application copter453 external_comms"
