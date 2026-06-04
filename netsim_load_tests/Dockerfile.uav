@@ -1,9 +1,0 @@
-FROM python:3.11-slim
-
-WORKDIR /app
-COPY uav_simulator.py .
-
-RUN useradd -m uav && chown -R uav /app
-USER uav
-
-CMD ["python", "-u", "uav_simulator.py"]
