@@ -270,37 +270,37 @@ func (o *DockerOrchestrator) BuildAllImages(simDir string) error {
   netsim_gateway:
     image: netsim_gateway
     build:
-      context: ../../netsim_gateway
+      context: ../../src/netsim_gateway
       dockerfile: Dockerfile
   netsim:
     image: netsim
     build:
-      context: ../../netsim
+      context: ../../src/netsim
       dockerfile: Dockerfile
   logger:
     image: logger
     build:
-      context: ../../logger
+      context: ../../src/logger
       dockerfile: Dockerfile
   communication_module:
     image: communication_module
     build:
-      context: ../../communication_module
+      context: ../../src/communication_module
       dockerfile: Dockerfile
   application:
     image: application
     build:
-      context: ../../application
+      context: ../../src/application
       dockerfile: Dockerfile
   copter453:
     image: copter453
     build:
-      context: ../../uav_controller/ardupilot4_5_3
+      context: ../../src/uav_controller/ardupilot4_5_3
       dockerfile: SITL
   external_comms:
     image: external_comms
     build:
-      context: ../../external_comms
+      context: ../../src/external_comms
       dockerfile: Dockerfile
 `
 	if entries, err := os.ReadDir(o.algorithmsDir); err == nil {
@@ -310,7 +310,7 @@ func (o *DockerOrchestrator) BuildAllImages(simDir string) error {
 				composeStr += fmt.Sprintf(`  %s:
     image: %s
     build:
-      context: ../../algorithms/%s
+      context: ../../src/algorithms/%s
       dockerfile: Dockerfile
 `, algoName, algoName, algoName)
 			}

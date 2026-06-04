@@ -43,7 +43,7 @@ func (b *composeBuilder) AddNetsimGateway(configFileName string, netsimAddrs []s
 	fmt.Fprintf(&b.services, `  netsim_gateway:
     image: netsim_gateway
     build:
-      context: ../../netsim_gateway
+      context: ../../src/netsim_gateway
       dockerfile: Dockerfile
     container_name: netsim_gateway
     extra_hosts:
@@ -72,7 +72,7 @@ func (b *composeBuilder) AddNetsim(instanceID int, configFileName string, limits
 	fmt.Fprintf(&b.services, `  netsim_%d:
     image: netsim
     build:
-      context: ../../netsim
+      context: ../../src/netsim
       dockerfile: Dockerfile
     container_name: netsim_%d
     depends_on:
@@ -102,7 +102,7 @@ func (b *composeBuilder) AddCommunicationModule(uavID string, limits ResourceLim
 	fmt.Fprintf(&b.services, `  communication_module_%s:
     image: communication_module
     build:
-      context: ../../communication_module
+      context: ../../src/communication_module
       dockerfile: Dockerfile
     container_name: communication_module_%s
 %s%s    networks:
@@ -128,7 +128,7 @@ func (b *composeBuilder) AddApplication(uavID, configFileName string, limits Res
 	fmt.Fprintf(&b.services, `  application_%s:
     image: application
     build:
-      context: ../../application
+      context: ../../src/application
       dockerfile: Dockerfile
     container_name: application_%s
     depends_on:
@@ -162,7 +162,7 @@ func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, 
 	fmt.Fprintf(&b.services, `  uav_controller_%s:
     image: copter453
     build:
-      context: ../../uav_controller/ardupilot4_5_3
+      context: ../../src/uav_controller/ardupilot4_5_3
       dockerfile: SITL
     container_name: uav_controller_%s
     depends_on:
@@ -195,7 +195,7 @@ func (b *composeBuilder) AddExternalComms(uavID, configFileName string, limits R
 	fmt.Fprintf(&b.services, `  external_comms_%s:
     image: external_comms
     build:
-      context: ../../external_comms
+      context: ../../src/external_comms
       dockerfile: Dockerfile
     container_name: external_comms_%s
     depends_on:
@@ -236,7 +236,7 @@ func (b *composeBuilder) AddAlgorithmService(uavID string, svc domain.DeployedSe
 	fmt.Fprintf(&b.services, `  %s_%s:
     image: %s
     build:
-      context: ../../algorithms/%s
+      context: ../../src/algorithms/%s
       dockerfile: Dockerfile
     container_name: %s_%s
     depends_on:
@@ -272,7 +272,7 @@ func (b *composeBuilder) AddLogger(configFileName string, limits ResourceLimits)
 	fmt.Fprintf(&b.services, `  logger:
     image: logger
     build:
-      context: ../../logger
+      context: ../../src/logger
       dockerfile: Dockerfile
     container_name: logger
     ports:
