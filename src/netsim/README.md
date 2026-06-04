@@ -127,6 +127,7 @@ Configuration is loaded from `config.json` at startup. If the file is absent or 
 | `chunk_radius` | `2` | How many chunks away from the sender to consider as potential receivers. |
 | `max_range_m` | `1350.0` | Maximum distance at which a message can be received at all. |
 | `snapshot_interval_s` | `1` | How often (seconds) the node emits a telemetry snapshot. |
+| `flush_interval_ms` | `1` | How often (milliseconds) the simulator flushes pending messages to the gateway. |
 | `level` | `info` | Log level for the internal UDP logger (`debug`, `info`, `warn`, `error`). |
 | `logger_addr` | `logger:5000` | Address of the logger microservice for sending internal logs. |
 
@@ -178,5 +179,4 @@ netsim/
 
 ## Known limitations
 
-- **Flush loop runs every millisecond.** `SendMessages()` is called on a 1 ms ticker, which means up to 1 ms of latency is added to every delivered message. In practice this is negligible for UAV simulations, but it is a fixed overhead.
 - **Retry logic has a locking gap.** `flush_messages.go` unlocks the mutex before calling `EnqueueBroadcast` for retried messages. There is a brief window between unlock and re-lock where the state could change.

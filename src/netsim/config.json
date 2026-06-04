@@ -9,6 +9,7 @@
   "chunk_radius": 2,
   "max_range_m": 1350.0,
   "snapshot_interval_s": 1,
+  "flush_interval_ms": 1,
   "level": "info",
   "logger_addr": "logger:5000"
 }

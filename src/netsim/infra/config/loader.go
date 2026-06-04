@@ -18,6 +18,7 @@ type Config struct {
 	ChunkRadius       int64   `json:"chunk_radius"`
 	MaxRangeM         float64 `json:"max_range_m"`
 	SnapshotIntervalS int     `json:"snapshot_interval_s"`
+	FlushIntervalMs   int     `json:"flush_interval_ms"`
 	Level             string  `json:"level"`
 	LoggerAddr        string  `json:"logger_addr"`
 }
@@ -49,6 +50,7 @@ func LoadConfig(path string) Config {
 		ChunkRadius:       2,
 		MaxRangeM:         1350.0,
 		SnapshotIntervalS: 1,
+		FlushIntervalMs:   1,
 		Level:             "info",
 		LoggerAddr:        "logger:5000",
 	}

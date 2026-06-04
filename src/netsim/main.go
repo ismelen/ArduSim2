@@ -32,7 +32,11 @@ func main() {
 	go usecase.RunSnapshotEmitter(sim, sender, simCfg.SnapshotIntervalS, log)
 
 	go func() {
-		ticker := time.NewTicker(time.Millisecond * 1)
+		flushInterval := cfg.FlushIntervalMs
+		if flushInterval <= 0 {
+			flushInterval = 1
+		}
+		ticker := time.NewTicker(time.Millisecond * time.Duration(flushInterval))
 		for range ticker.C {
 			sim.SendMessages()
 		}
