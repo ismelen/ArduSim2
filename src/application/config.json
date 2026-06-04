@@ -6,8 +6,6 @@
   "uav_telemetry_port": 3500,
   "telemetry_topic": "uav/telemetry",
   "suggestions_topic": "uav/suggestions",
-  "external_telemetry": "external/telemetry",
-  "external_messages": "external/messages",
   "global_commands": "global/commands",
   "logs_topic": "uav/logs",
   "mix_window_ms": 200

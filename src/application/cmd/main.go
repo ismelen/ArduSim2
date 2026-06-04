@@ -28,7 +28,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
-	
+
 	if appConfig.MixWindowMs == 0 {
 		appConfig.MixWindowMs = 200 // Default to 5Hz sampling
 	}
@@ -88,8 +88,4 @@ func setupLogger(b ports.Broker, logsTopic string) {
 
 	multi := io.MultiWriter(outputs...)
 	log.SetOutput(multi)
-
-	if os.Getenv("DEBUG") == "true" {
-		log.Println("Verbose logging enabled (DEBUG=true)")
-	}
 }

@@ -22,12 +22,12 @@ func NewBrokerLogWriter(broker ports.CommunicationProvider, topic string) *Broke
 
 func (w *BrokerLogWriter) Write(p []byte) (n int, err error) {
 	msg := strings.TrimSpace(string(p))
-	
+
 	uavID := os.Getenv("UAV_ID")
 	if uavID == "" {
 		uavID = "unknown"
 	}
-	instanceID := "netsim_" + uavID
+	instanceID := "uav_" + uavID
 
 	payload := map[string]interface{}{
 		"InstanceID": instanceID,

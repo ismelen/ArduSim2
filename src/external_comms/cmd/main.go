@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"time"
 
 	"external_comms/infrastructure"
@@ -47,7 +45,7 @@ func main() {
 		netLink, err = infrastructure.NewUDPNetSimLink(config.NetSimIP, config.NetSimPort)
 		if err != nil {
 			log.Printf("Failed to connect NetSim: %v", err)
-			time.Sleep(5 *time.Second)
+			time.Sleep(5 * time.Second)
 			continue
 		}
 		break
@@ -72,18 +70,6 @@ func setupLogger(loggerLink ports.LoggerLink) {
 
 	outputs := []io.Writer{os.Stdout}
 
-	// If /app/logs exists, add a file writer
-	logDir := "/app/logs"
-	if info, err := os.Stat(logDir); err == nil && info.IsDir() {
-		logFile, err := os.OpenFile(filepath.Join(logDir, "external_comms.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
-		if err == nil {
-			outputs = append(outputs, logFile)
-			fmt.Printf("Logging to %s/external_comms.log\n", logDir)
-		} else {
-			fmt.Printf("Warning: failed to open log file: %v\n", err)
-		}
-	}
-
 	if loggerLink != nil {
 		directWriter := infrastructure.NewDirectLogWriter(loggerLink)
 		outputs = append(outputs, directWriter)
@@ -91,8 +77,4 @@ func setupLogger(loggerLink ports.LoggerLink) {
 
 	multi := io.MultiWriter(outputs...)
 	log.SetOutput(multi)
-
-	if os.Getenv("DEBUG") == "true" {
-		log.Println("Verbose logging enabled (DEBUG=true)")
-	}
 }

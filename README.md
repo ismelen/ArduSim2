@@ -1,18 +1,3 @@
-- [ ] Cambiar tiempos en simulation view console
-- [ ] Añadir modos a netsim: no restrictions, only distance limit
-
-## Pruebas
-- Medir tiempo de setup y simulación v1 vs v2
-- Consumo máximo y consumo medio (GM RAM y %CPU)
-  - cAdvisor + Prometheus + Grafana (para Microservicios) y atop en linux (para el Monolito).
-  - v1 vs v2
-- Saturacion de red (MB/s)
-  - cAdvisor + Prometheus + Grafana
-- Pruebas de estrés: 5, 10, 25, 50, 100 UAVs
-  - Tener en cuenta las specs de mi portatil
-  - v1 vs v2
-
-  
 # ArduSim2
 
 ## ArduSim2 - The new modular drone control software:
@@ -71,3 +56,14 @@ It includes two branches:
 1. **main**: This branch represents versions of ArduSim2 that are fully working and ready for 'production'.
 2. **develop**: This branch is the branch that is used for active development. The code here, is the newest code but might still have bugs that need to be fixed. Hence, it is not ready to be put on the main branch. Only after thorough implementation testing, and tests on real UAVs, the code can to the main branch.  
 3. **feature**: Since multiple people might want to develop new code at the same time (although at the moment I am alone), a new sub-branch has to be created for each new feature. This sub-branch must have a descriptive name, and will be used to track small changes on the feature under development. Once a feature has been implemented, the code should go to the develop branch in order for it to be tested.  
+
+## Implemented Algorithms
+
+The following algorithms are available under `src/algorithms/`. Each one runs as an independent container and is configurable through the GUI.
+
+| Algorithm | Description |
+|-----------|-------------|
+| [Mission](src/algorithms/mission/README.md) | Follows a predefined KML route, sending waypoints to the UAV controller. |
+| [Follow Me](src/algorithms/follow_me/README.md) | Master/slave swarm behaviour where slave UAVs maintain formation around a designated master. |
+
+To add a new algorithm, see the [Adding Algorithms guide](docs/adding_algorithms.md).

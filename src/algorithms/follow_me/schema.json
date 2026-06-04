@@ -1,56 +1,33 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "service_id": "followme",
   "title": "FollowMe",
-  "description": "Configuration schema for the ArduSim2 FollowMe algorithm with specific topic routing.",
-  "type": "object",
-  "required": [
-    "role",
-    "broker_ip",
-    "broker_port",
-    "telemetry_topic",
-    "suggestions_topic",
-    "broadcast_topic",
-    "subscription_topic",
-    "slaves_takeoff_altitude",
-    "send_period_ms"
-  ],
   "properties": {
     "role": {
       "title": "Role",
       "type": "string",
-      "enum": ["master", "slave"],
+      "enum": [
+        "master",
+        "slave"
+      ],
       "description": "Current role of the UAV in the Follow Me protocol. Must be set manually.",
       "default": "master"
     },
     "broker_ip": {
-      "type": "string",
-      "description": "IP of the Communication Module.",
       "default": "communication_module"
     },
     "broker_port": {
-      "type": "integer",
-      "description": "UDP port of the Communication Module.",
       "default": 3400
     },
     "telemetry_topic": {
-      "type": "string",
-      "description": "Topic to receive own telemetry from uav_controller.",
       "default": "uav/telemetry"
     },
     "suggestions_topic": {
-      "type": "string",
-      "description": "Topic to publish movement suggestions to uav_controller.",
       "default": "uav/suggestions"
     },
     "broadcast_topic": {
-      "type": "string",
-      "description": "Topic for Master to broadcast its position to the swarm.",
       "default": "external/messages"
     },
     "subscription_topic": {
-      "type": "string",
-      "description": "Topic to receive control commands (start, stop, pause, resume).",
       "default": "algo/followme"
     },
     "slaves_takeoff_altitude": {
@@ -66,7 +43,6 @@
       "default": 1000
     },
     "logs_topic": {
-      "type": "string",
       "default": "uav/logs"
     }
   }

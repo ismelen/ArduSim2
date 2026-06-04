@@ -51,8 +51,6 @@ type AppConfig struct {
 
 	TelemetryTopic   string `json:"telemetry_topic"`
 	SuggestionsTopic string `json:"suggestions_topic"`
-	SwarmTelemetry   string `json:"external_telemetry"`
-	SwarmMessages    string `json:"external_messages"`
 	GlobalCommands   string `json:"global_commands"`
 	LogsTopic        string `json:"logs_topic"`
 
