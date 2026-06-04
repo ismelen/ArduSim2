@@ -231,7 +231,8 @@ func (b *swarmComposeBuilder) Build() string {
 }
 
 // AddLogger appends the central logger service.
-func (b *swarmComposeBuilder) AddLogger(limits ResourceLimits) {
+func (b *swarmComposeBuilder) AddLogger(configFileName string, limits ResourceLimits) {
+	configName := b.declareConfig(configFileName)
 	lims := b.buildSwarmDeployBlock(limits, "")
 
 	fmt.Fprintf(&b.services, `  logger:
@@ -245,10 +246,13 @@ func (b *swarmComposeBuilder) AddLogger(limits ResourceLimits) {
         published: 8080
         protocol: tcp
         mode: host
+    configs:
+      - source: %s
+        target: /app/config.json
     networks:
       - air
 
-`, lims)
+`, lims, configName)
 }
 
 // declareConfig registers a file as a Docker Swarm config (idempotent) and

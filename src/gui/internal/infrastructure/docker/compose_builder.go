@@ -265,8 +265,9 @@ func (b *composeBuilder) Build() string {
 }
 
 // AddLogger appends the central logger service.
-func (b *composeBuilder) AddLogger(limits ResourceLimits) {
+func (b *composeBuilder) AddLogger(configFileName string, limits ResourceLimits) {
 	lims := b.buildLocalLimits(limits)
+	vols := fmt.Sprintf("    volumes:\n      - ./resources/%s:/app/config.json\n", configFileName)
 
 	fmt.Fprintf(&b.services, `  logger:
     image: logger
@@ -277,10 +278,10 @@ func (b *composeBuilder) AddLogger(limits ResourceLimits) {
     ports:
       - 5000:5000/udp
       - 8080:8080/tcp
-%s    networks:
+%s%s    networks:
       - air
 
-`, lims)
+`, vols, lims)
 }
 
 // addNetwork appends a bridge network definition if not already present.

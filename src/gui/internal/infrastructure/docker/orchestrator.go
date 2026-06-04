@@ -25,6 +25,7 @@ type DockerOrchestrator struct {
 	externalCommsConfig string
 	netsimGatewayConfig string
 	netsimConfig        string
+	loggerConfig        string
 	algorithmsDir       string
 }
 
@@ -38,6 +39,7 @@ func NewDockerOrchestrator(projectRoot string, ui ports.UIBridge) *DockerOrchest
 		externalCommsConfig: filepath.Join(base, "..", "external_comms", "config.json"),
 		netsimGatewayConfig: filepath.Join(base, "..", "netsim_gateway", "config.json"),
 		netsimConfig:        filepath.Join(base, "..", "netsim", "config.json"),
+		loggerConfig:        filepath.Join(base, "..", "logger", "config.json"),
 		algorithmsDir:       filepath.Join(base, "..", "algorithms"),
 	}
 }
@@ -88,7 +90,7 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 	gwLimits := ParseResourceLimits(gwCfg)
 	gwFile, _ := o.writeTemplateConfig("netsim_gateway_config", o.netsimGatewayConfig, nil, writer)
 	builder.AddNetsimGateway(gwFile, netsimAddrs, gwLimits, config.VerboseLogging)
-	
+
 	nsCfg := LoadRawConfig(o.netsimConfig)
 	nsLimits := ParseResourceLimits(nsCfg)
 	nsOverrides := buildNetsimOverrides(config)
@@ -97,7 +99,10 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 		builder.AddNetsim(i, nsFile, nsLimits, config.VerboseLogging)
 	}
 
-	builder.AddLogger(ResourceLimits{})
+	loggerCfg := LoadRawConfig(o.loggerConfig)
+	loggerLimits := ParseResourceLimits(loggerCfg)
+	loggerFile, _ := o.writeTemplateConfig("logger_config", o.loggerConfig, nil, writer)
+	builder.AddLogger(loggerFile, loggerLimits)
 
 	if config.LoggingEnabled {
 		for _, uav := range uavs {
@@ -121,7 +126,6 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 	return composePath, nil
 }
 
-
 func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.GeneralConfig, speeds []float64, offsets []formation.Offset, resDir, simDir string) (string, error) {
 	writer := NewResourceWriter(resDir)
 	builder := newSwarmComposeBuilder()
@@ -136,7 +140,7 @@ func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.
 	gwLimits := ParseResourceLimits(gwCfg)
 	gwFile, _ := o.writeTemplateConfig("netsim_gateway_config", o.netsimGatewayConfig, nil, writer)
 	builder.AddNetsimGateway(gwFile, netsimAddrs, gwLimits, config.VerboseLogging)
-	
+
 	nsCfg := LoadRawConfig(o.netsimConfig)
 	nsLimits := ParseResourceLimits(nsCfg)
 	nsOverrides := buildNetsimOverrides(config)
@@ -145,7 +149,10 @@ func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.
 		builder.AddNetsim(i, nsFile, nsLimits, config.VerboseLogging)
 	}
 
-	builder.AddLogger(ResourceLimits{})
+	loggerCfg := LoadRawConfig(o.loggerConfig)
+	loggerLimits := ParseResourceLimits(loggerCfg)
+	loggerFile, _ := o.writeTemplateConfig("logger_config", o.loggerConfig, nil, writer)
+	builder.AddLogger(loggerFile, loggerLimits)
 
 	for i, uav := range uavs {
 		uavSpeed := 10.0
@@ -177,7 +184,6 @@ func buildNetsimOverrides(config domain.GeneralConfig) map[string]interface{} {
 	}
 	return overrides
 }
-
 
 func (o *DockerOrchestrator) StartCompose(composePath string) error {
 	checkCmd := exec.Command("docker", "info")
@@ -313,7 +319,7 @@ func (o *DockerOrchestrator) BuildAllImages(simDir string) error {
 
 	resDir := filepath.Join(simDir, "resources")
 	os.MkdirAll(resDir, 0755)
-	
+
 	composePath := filepath.Join(simDir, "docker-compose.build.yaml")
 	if err := os.WriteFile(composePath, []byte(composeStr), 0644); err != nil {
 		return fmt.Errorf("failed to write build compose file: %w", err)
@@ -435,7 +441,7 @@ func (o *DockerOrchestrator) buildServiceResources(svc domain.DeployedService, w
 	for k, v := range svc.Config {
 		cfg[k] = v
 	}
-	
+
 	if schema, err := o.getServiceSchema(svc.FolderName); err == nil {
 		if props, ok := schema["properties"].(map[string]interface{}); ok {
 			for key, val := range props {
@@ -464,7 +470,7 @@ func (o *DockerOrchestrator) buildServiceResources(svc domain.DeployedService, w
 	}
 
 	svcFile, _ := writer.Write(svc.ServiceId+"_config", cfg)
-	
+
 	schemaPath := filepath.Join(o.algorithmsDir, svc.FolderName, "schema.json")
 	algoSchema := LoadRawConfig(schemaPath)
 	algoLimits := ParseResourceLimits(algoSchema)
