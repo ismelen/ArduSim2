@@ -3,6 +3,7 @@ import { useSimulationConfig } from "./useSimulationConfig";
 
 export interface GeneralConfig {
   defaultUAVSpeed?: number;
+  defaultArduPilotInstance?: string;
   loggingEnabled?: boolean;
   batteryRestricted?: boolean;
   batteryCapacity?: number;

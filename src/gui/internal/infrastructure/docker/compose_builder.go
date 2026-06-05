@@ -42,9 +42,6 @@ func (b *composeBuilder) AddNetsimGateway(configFileName string, netsimAddrs []s
 
 	fmt.Fprintf(&b.services, `  netsim_gateway:
     image: netsim_gateway
-    build:
-      context: ../../src/netsim_gateway
-      dockerfile: Dockerfile
     container_name: netsim_gateway
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -71,9 +68,6 @@ func (b *composeBuilder) AddNetsim(instanceID int, configFileName string, limits
 
 	fmt.Fprintf(&b.services, `  netsim_%d:
     image: netsim
-    build:
-      context: ../../src/netsim
-      dockerfile: Dockerfile
     container_name: netsim_%d
     depends_on:
       - netsim_gateway
@@ -101,9 +95,6 @@ func (b *composeBuilder) AddCommunicationModule(uavID string, limits ResourceLim
 
 	fmt.Fprintf(&b.services, `  communication_module_%s:
     image: communication_module
-    build:
-      context: ../../src/communication_module
-      dockerfile: Dockerfile
     container_name: communication_module_%s
 %s%s    networks:
       %s:
@@ -127,9 +118,6 @@ func (b *composeBuilder) AddApplication(uavID, configFileName string, limits Res
 
 	fmt.Fprintf(&b.services, `  application_%s:
     image: application
-    build:
-      context: ../../src/application
-      dockerfile: Dockerfile
     container_name: application_%s
     depends_on:
       - communication_module_%s
@@ -144,16 +132,22 @@ func (b *composeBuilder) AddApplication(uavID, configFileName string, limits Res
 }
 
 // AddUAVController appends the uav_controller (SITL) service for a UAV.
-func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, homeLocation string, limits ResourceLimits, verbose bool, loggingEnabled bool) {
+func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, homeLocation, arduPilotInstanceFile string, limits ResourceLimits, verbose bool, loggingEnabled bool) {
 	uavNet := uavNetworkName(uavID)
 
 	var env string
 	if verbose {
 		env = "      - DEBUG=true\n"
 	}
+	if arduPilotInstanceFile != "" {
+		env += fmt.Sprintf("      - ARDUPILOT_INSTANCE=/app/%s\n", arduPilotInstanceFile)
+	}
 
 	vols := fmt.Sprintf("      - ./resources/%s:/app/config.json\n", configFileName)
 	vols += fmt.Sprintf("      - ./resources/%s:/app/copter.parm\n", paramFileName)
+	if arduPilotInstanceFile != "" {
+		vols += fmt.Sprintf("      - ./resources/%s:/app/%s\n", arduPilotInstanceFile, arduPilotInstanceFile)
+	}
 	if loggingEnabled {
 		vols += fmt.Sprintf("      - ./uav_logs/%s/:/app/logs/\n", uavID)
 	}
@@ -161,9 +155,6 @@ func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, 
 
 	fmt.Fprintf(&b.services, `  uav_controller_%s:
     image: copter453
-    build:
-      context: ../../src/uav_controller/ardupilot4_5_3
-      dockerfile: SITL
     container_name: uav_controller_%s
     depends_on:
       - communication_module_%s
@@ -194,9 +185,6 @@ func (b *composeBuilder) AddExternalComms(uavID, configFileName string, limits R
 
 	fmt.Fprintf(&b.services, `  external_comms_%s:
     image: external_comms
-    build:
-      context: ../../src/external_comms
-      dockerfile: Dockerfile
     container_name: external_comms_%s
     depends_on:
       - communication_module_%s
@@ -235,9 +223,6 @@ func (b *composeBuilder) AddAlgorithmService(uavID string, svc domain.DeployedSe
 
 	fmt.Fprintf(&b.services, `  %s_%s:
     image: %s
-    build:
-      context: ../../src/algorithms/%s
-      dockerfile: Dockerfile
     container_name: %s_%s
     depends_on:
       - communication_module_%s
@@ -271,9 +256,6 @@ func (b *composeBuilder) AddLogger(configFileName string, limits ResourceLimits)
 
 	fmt.Fprintf(&b.services, `  logger:
     image: logger
-    build:
-      context: ../../src/logger
-      dockerfile: Dockerfile
     container_name: logger
     ports:
       - 5000:5000/udp

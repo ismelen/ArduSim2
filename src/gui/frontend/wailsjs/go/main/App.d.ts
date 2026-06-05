@@ -22,6 +22,8 @@ export function SaveSimulationConfig(arg1:Array<domain.UAV>,arg2:domain.GeneralC
 
 export function SearchLogs(arg1:string,arg2:domain.LogFilter):Promise<Array<domain.LogMessage>>;
 
+export function SelectArduPilotInstance():Promise<string>;
+
 export function SelectFile():Promise<string>;
 
 export function SendAlgorithmCommand(arg1:string,arg2:string):Promise<void>;

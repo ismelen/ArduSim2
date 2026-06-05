@@ -15,6 +15,7 @@ export interface UAV {
   services: DeployedService[];
   speed?: number | null;
   homeOverride?: { lat: number; lon: number } | null;
+  arduPilotInstance?: string | null;
 }
 
 interface State {

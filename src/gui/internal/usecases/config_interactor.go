@@ -91,6 +91,12 @@ func (i *ConfigInteractor) SelectFile(ctx context.Context) (string, error) {
 	})
 }
 
+func (i *ConfigInteractor) SelectArduPilotInstance(ctx context.Context) (string, error) {
+	return i.ui.OpenFileDialog(ctx, "Select ArduPilot Instance", []ports.FileFilter{
+		{DisplayName: "Executables (*)", Pattern: "*"},
+		{DisplayName: "All files", Pattern: "*.*"},
+	})
+}
 
 func (i *ConfigInteractor) GetKmlFirstCoordinate(path string) (*domain.Coordinate, error) {
 	return kml.GetFirstCoordinate(path)

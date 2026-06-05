@@ -7,6 +7,7 @@ import DeploymentCard from "./components/deployment-card";
 import NetsimCard from "./components/netsim-card";
 import SimNameCard from "./components/sim-name-card";
 import DefaultSpeedCard from "./components/default-speed-card";
+import DefaultArduPilotCard from "./components/default-ardupilot-card";
 import WindCard from "./components/wind-card";
 
 export default function ConfigPage() {
@@ -31,6 +32,7 @@ export default function ConfigPage() {
           <SimNameCard />
           <WindCard />
           <DefaultSpeedCard />
+          <DefaultArduPilotCard />
         </div>
         <div className="flex-1/3 flex flex-col gap-3 pb-5">
           <DeploymentCard />

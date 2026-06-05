@@ -42,6 +42,10 @@ export function SearchLogs(arg1, arg2) {
   return window['go']['main']['App']['SearchLogs'](arg1, arg2);
 }
 
+export function SelectArduPilotInstance() {
+  return window['go']['main']['App']['SelectArduPilotInstance']();
+}
+
 export function SelectFile() {
   return window['go']['main']['App']['SelectFile']();
 }

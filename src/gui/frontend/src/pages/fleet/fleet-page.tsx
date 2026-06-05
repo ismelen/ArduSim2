@@ -7,7 +7,9 @@ import UavsList from "./components/uavs-list";
 import ServiceCard from "./components/service-card";
 import FormField from "../../components/form-field";
 import Checkbox from "../../components/checkbox";
+import FilePickerField from "../../components/file-picker-field";
 import { useConfig } from "../../hooks/useConfig";
+import { SelectArduPilotInstance } from "../../../wailsjs/go/main/App";
 
 export default function FleetPage() {
   const uavs = useFleet((s) => s.uavs);
@@ -18,7 +20,7 @@ export default function FleetPage() {
   const deleteUav = useFleet((s) => s.deleteUav);
   const activeUavIdx = useFleet((s) => s.activeUavIdx);
   const cloneUav = useFleet((s) => s.cloneUav);
-  const { defaultUAVSpeed } = useConfig((s) => s.config);
+  const { defaultUAVSpeed, defaultArduPilotInstance } = useConfig((s) => s.config);
 
   const [serviceIdx, setServiceIdx] = useState<number | undefined>(undefined);
 
@@ -84,6 +86,29 @@ export default function FleetPage() {
                   <label className="text-dark-gray text-sm">Auto</label>
                 </span>
               </div>
+            </div>
+
+            <div className="flex flex-col gap-2 mt-2">
+              <span className="flex items-end gap-2">
+                <div className="flex-1">
+                  <div className={uavs[activeUavIdx].arduPilotInstance === null || uavs[activeUavIdx].arduPilotInstance === undefined ? "opacity-50 pointer-events-none" : ""}>
+                    <FilePickerField
+                      label="ArduPilot Instance Override"
+                      hint="Default SITL instance will be used if empty"
+                      initValue={uavs[activeUavIdx].arduPilotInstance ?? defaultArduPilotInstance ?? ""}
+                      onChange={(val) => updateUav(activeUavIdx, { arduPilotInstance: val })}
+                      onBrowse={SelectArduPilotInstance}
+                    />
+                  </div>
+                </div>
+                <span className="flex items-center gap-2 mb-2">
+                  <Checkbox
+                    value={uavs[activeUavIdx].arduPilotInstance === null || uavs[activeUavIdx].arduPilotInstance === undefined}
+                    onChange={(auto) => updateUav(activeUavIdx, { arduPilotInstance: auto ? null : (defaultArduPilotInstance ?? "") })}
+                  />
+                  <label className="text-dark-gray text-sm">Auto</label>
+                </span>
+              </span>
             </div>
           </div>
         </div>

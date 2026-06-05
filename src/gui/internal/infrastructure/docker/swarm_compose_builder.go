@@ -134,16 +134,29 @@ func (b *swarmComposeBuilder) AddApplication(uavID, configFileName string, limit
 `, uavID, env, configName, lims, uavNet)
 }
 
-func (b *swarmComposeBuilder) AddUAVController(uavID, configFileName, paramFileName, homeLocation string, limits ResourceLimits, verbose bool, loggingEnabled bool) {
+func (b *swarmComposeBuilder) AddUAVController(uavID, configFileName, paramFileName, homeLocation, arduPilotInstanceFile string, limits ResourceLimits, verbose bool, loggingEnabled bool) {
 	uavNet := uavNetworkName(uavID)
 	configName := b.declareConfig(configFileName)
 	paramName := b.declareConfig(paramFileName)
+
+	var arduPilotConfig string
+	if arduPilotInstanceFile != "" {
+		arduPilotConfig = b.declareConfig(arduPilotInstanceFile)
+	}
 
 	envLines := fmt.Sprintf("    environment:\n      - UAV_HOME_LOCATION=%s\n      - UAV_ID=%s\n", homeLocation, uavID)
 	if verbose {
 		envLines += "      - DEBUG=true\n"
 	}
+	if arduPilotInstanceFile != "" {
+		envLines += fmt.Sprintf("      - ARDUPILOT_INSTANCE=/app/%s\n", arduPilotInstanceFile)
+	}
 	lims := b.buildSwarmDeployBlock(limits, "")
+
+	var extraConfigs string
+	if arduPilotInstanceFile != "" {
+		extraConfigs = fmt.Sprintf("      - source: %s\n        target: /app/%s\n", arduPilotConfig, arduPilotInstanceFile)
+	}
 
 	fmt.Fprintf(&b.services, `  uav_controller_%s:
     image: copter453
@@ -152,12 +165,12 @@ func (b *swarmComposeBuilder) AddUAVController(uavID, configFileName, paramFileN
         target: /app/config.json
       - source: %s
         target: /app/copter.parm
-%s    networks:
+%s%s    networks:
       %s:
         aliases:
           - uav_controller
 
-`, uavID, envLines, configName, paramName, lims, uavNet)
+`, uavID, envLines, configName, paramName, extraConfigs, lims, uavNet)
 }
 
 // AddExternalComms appends the external_comms service for a UAV.

@@ -106,6 +106,10 @@ func (a *App) SelectFile() (string, error) {
 	return a.config.SelectFile(a.ctx)
 }
 
+func (a *App) SelectArduPilotInstance() (string, error) {
+	return a.config.SelectArduPilotInstance(a.ctx)
+}
+
 
 func (a *App) GetKmlFirstCoordinate(path string) (*domain.Coordinate, error) {
 	return a.config.GetKmlFirstCoordinate(path)

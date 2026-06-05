@@ -111,8 +111,19 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 			uavSpeed = *uav.Speed
 		}
 
+		arduPilotInstance := config.DefaultArduPilotInstance
+		if uav.ArduPilotInstance != nil {
+			arduPilotInstance = *uav.ArduPilotInstance
+		}
+		var arduPilotInstanceFile string
+		if arduPilotInstance != "" {
+			arduPilotInstanceFile = filepath.Base(arduPilotInstance)
+			destPath := filepath.Join(resDir, arduPilotInstanceFile)
+			_ = copyFile(arduPilotInstance, destPath)
+		}
+
 		paramFile, _ := o.generateUAVParams(uav.ID, uavSpeed, config, resDir)
-		o.appendUAV(uav, paramFile, builder, writer, config, offsets[i], pool)
+		o.appendUAV(uav, paramFile, arduPilotInstanceFile, builder, writer, config, offsets[i], pool)
 	}
 
 	composePath := filepath.Join(simDir, "docker-compose.yaml")
@@ -157,8 +168,19 @@ func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.
 			uavSpeed = *uav.Speed
 		}
 
+		arduPilotInstance := config.DefaultArduPilotInstance
+		if uav.ArduPilotInstance != nil {
+			arduPilotInstance = *uav.ArduPilotInstance
+		}
+		var arduPilotInstanceFile string
+		if arduPilotInstance != "" {
+			arduPilotInstanceFile = filepath.Base(arduPilotInstance)
+			destPath := filepath.Join(resDir, arduPilotInstanceFile)
+			_ = copyFile(arduPilotInstance, destPath)
+		}
+
 		paramFile, _ := o.generateUAVParams(uav.ID, uavSpeed, config, resDir)
-		o.appendSwarmUAV(uav, paramFile, builder, writer, config, offsets[i])
+		o.appendSwarmUAV(uav, paramFile, arduPilotInstanceFile, builder, writer, config, offsets[i])
 	}
 
 	composePath := filepath.Join(simDir, "docker-compose.swarm.yaml")
@@ -376,7 +398,7 @@ func (o *DockerOrchestrator) isLocalhost(host string) bool {
 
 // Ported helpers from ui/internal/simulation/orchestrator.go
 
-func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName string, builder *composeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset, pool *subnetPool) {
+func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName, arduPilotInstanceFile string, builder *composeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset, pool *subnetPool) {
 	nContainers := 4 + len(uav.Services)
 	subnet := pool.Next(nContainers)
 	builder.AddUAVNetwork(uav.ID, subnet)
@@ -397,7 +419,7 @@ func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName string, bui
 		homeLat, homeLon = util.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
 	}
 	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
-	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, ucLimits, config.VerboseLogging, config.LoggingEnabled)
+	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, arduPilotInstanceFile, ucLimits, config.VerboseLogging, config.LoggingEnabled)
 
 	ecCfg := LoadRawConfig(o.externalCommsConfig)
 	ecLimits := ParseResourceLimits(ecCfg)
@@ -410,7 +432,7 @@ func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName string, bui
 	}
 }
 
-func (o *DockerOrchestrator) appendSwarmUAV(uav domain.UAV, paramFileName string, builder *swarmComposeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset) {
+func (o *DockerOrchestrator) appendSwarmUAV(uav domain.UAV, paramFileName, arduPilotInstanceFile string, builder *swarmComposeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset) {
 	builder.AddUAVNetwork(uav.ID)
 	builder.AddCommunicationModule(uav.ID, ResourceLimits{}, config.VerboseLogging)
 
@@ -429,7 +451,7 @@ func (o *DockerOrchestrator) appendSwarmUAV(uav domain.UAV, paramFileName string
 		homeLat, homeLon = util.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
 	}
 	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
-	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, ucLimits, config.VerboseLogging, config.LoggingEnabled)
+	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, arduPilotInstanceFile, ucLimits, config.VerboseLogging, config.LoggingEnabled)
 
 	ecCfg := LoadRawConfig(o.externalCommsConfig)
 	ecLimits := ParseResourceLimits(ecCfg)
@@ -536,4 +558,24 @@ func (o *DockerOrchestrator) writeTemplateConfig(baseName, templatePath string, 
 		cfg[key] = value
 	}
 	return writer.Write(baseName, cfg)
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	if err != nil {
+		return err
+	}
+	return out.Sync()
 }
