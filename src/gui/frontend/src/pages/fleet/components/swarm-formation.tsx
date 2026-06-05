@@ -85,7 +85,7 @@ export default function SwarmFormation() {
   return (
     <aside className="border-l border-border min-w-70 max-w-90 flex-1/4 bg-cwhite">
       <span className="border-b border-border flex flex-row items-center justify-between px-3 py-3 bg-gray">
-        <CardTitle label="Swarm Formation" icon="grid_3x3" />
+        <CardTitle label="Ground Formation" icon="grid_3x3" />
       </span>
       <div className="p-2 flex flex-col gap-2">
         <FormationModeSelection />

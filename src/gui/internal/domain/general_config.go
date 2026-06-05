@@ -8,7 +8,7 @@ import (
 
 // GeneralConfig contains simulation-wide parameters like wind and battery.
 type GeneralConfig struct {
-	SpeedProfilePath  string  `json:"speedProfilePath"`
+	DefaultUAVSpeed   float64 `json:"defaultUAVSpeed"`
 	LoggingEnabled    bool    `json:"loggingEnabled"`
 	BatteryRestricted bool    `json:"batteryRestricted"`
 	BatteryCapacity   int     `json:"batteryCapacity"`

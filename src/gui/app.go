@@ -106,9 +106,6 @@ func (a *App) SelectFile() (string, error) {
 	return a.config.SelectFile(a.ctx)
 }
 
-func (a *App) SelectSpeedProfile() (string, error) {
-	return a.config.SelectSpeedProfile(a.ctx)
-}
 
 func (a *App) GetKmlFirstCoordinate(path string) (*domain.Coordinate, error) {
 	return a.config.GetKmlFirstCoordinate(path)

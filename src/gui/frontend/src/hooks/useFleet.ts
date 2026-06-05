@@ -13,6 +13,8 @@ export interface DeployedService {
 export interface UAV {
   id: string;
   services: DeployedService[];
+  speed?: number | null;
+  homeOverride?: { lat: number; lon: number } | null;
 }
 
 interface State {
@@ -23,6 +25,7 @@ interface State {
   addService(service: DeployedService): void;
   deleteService(service: DeployedService): void;
   updateService(idx: number, service: DeployedService): void;
+  updateUav(idx: number, patch: Partial<UAV>): void;
   loadFleet(uavs: UAV[]): void;
   setSelectedIdx(idx: number): void;
   cloneUav(): void;
@@ -42,6 +45,17 @@ export const useFleet = create<State>((set, get) => ({
         sIdx === idx ? service : s
       );
       return { ...uav, services: updatedServices };
+    });
+
+    set({ uavs: updatedUavs });
+    useSimulationConfig.getState().update((s) => ({ ...s, uavs: updatedUavs }));
+  },
+
+  updateUav(idx: number, patch: Partial<UAV>) {
+    const uavs = get().uavs;
+    const updatedUavs = uavs.map((uav, uavIdx) => {
+      if (uavIdx !== idx) return uav;
+      return { ...uav, ...patch };
     });
 
     set({ uavs: updatedUavs });

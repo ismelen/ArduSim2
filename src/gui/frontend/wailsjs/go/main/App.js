@@ -46,10 +46,6 @@ export function SelectFile() {
   return window['go']['main']['App']['SelectFile']();
 }
 
-export function SelectSpeedProfile() {
-  return window['go']['main']['App']['SelectSpeedProfile']();
-}
-
 export function SendAlgorithmCommand(arg1, arg2) {
   return window['go']['main']['App']['SendAlgorithmCommand'](arg1, arg2);
 }

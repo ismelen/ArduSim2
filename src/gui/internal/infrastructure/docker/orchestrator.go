@@ -50,22 +50,13 @@ func (o *DockerOrchestrator) Run(uavs []domain.UAV, config domain.GeneralConfig,
 		return "", fmt.Errorf("create simulation dirs: %w", err)
 	}
 
-	var speeds []float64
-	if config.SpeedProfilePath != "" {
-		if parsed, err := ParseSpeedProfile(config.SpeedProfilePath); err == nil {
-			speeds = parsed
-		} else {
-			fmt.Printf("[orchestrator] warn: cannot read speed profile %q: %v\n", config.SpeedProfilePath, err)
-		}
-	}
-
 	f := formation.GetFormation(config.GroundFormation)
 	offsets := f.CalculateOffsets(len(uavs), config.FormationSpacing)
 
 	if isLocal {
-		return o.buildLocalCompose(uavs, config, speeds, offsets, resDir, simDir)
+		return o.buildLocalCompose(uavs, config, offsets, resDir, simDir)
 	}
-	return o.buildSwarmCompose(uavs, config, speeds, offsets, resDir, simDir)
+	return o.buildSwarmCompose(uavs, config, offsets, resDir, simDir)
 }
 
 func normalizeNetsimInstances(n int) int {
@@ -75,7 +66,7 @@ func normalizeNetsimInstances(n int) int {
 	return n
 }
 
-func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.GeneralConfig, speeds []float64, offsets []formation.Offset, resDir, simDir string) (string, error) {
+func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.GeneralConfig, offsets []formation.Offset, resDir, simDir string) (string, error) {
 	writer := NewResourceWriter(resDir)
 	builder := newComposeBuilder()
 	pool := newSubnetPool()
@@ -112,9 +103,12 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 	}
 
 	for i, uav := range uavs {
-		uavSpeed := 10.0
-		if i < len(speeds) {
-			uavSpeed = speeds[i]
+		uavSpeed := config.DefaultUAVSpeed
+		if uavSpeed <= 0 {
+			uavSpeed = 10.0
+		}
+		if uav.Speed != nil {
+			uavSpeed = *uav.Speed
 		}
 
 		paramFile, _ := o.generateUAVParams(uav.ID, uavSpeed, config, resDir)
@@ -126,7 +120,7 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 	return composePath, nil
 }
 
-func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.GeneralConfig, speeds []float64, offsets []formation.Offset, resDir, simDir string) (string, error) {
+func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.GeneralConfig, offsets []formation.Offset, resDir, simDir string) (string, error) {
 	writer := NewResourceWriter(resDir)
 	builder := newSwarmComposeBuilder()
 
@@ -155,9 +149,12 @@ func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.
 	builder.AddLogger(loggerFile, loggerLimits)
 
 	for i, uav := range uavs {
-		uavSpeed := 10.0
-		if i < len(speeds) {
-			uavSpeed = speeds[i]
+		uavSpeed := config.DefaultUAVSpeed
+		if uavSpeed <= 0 {
+			uavSpeed = 10.0
+		}
+		if uav.Speed != nil {
+			uavSpeed = *uav.Speed
 		}
 
 		paramFile, _ := o.generateUAVParams(uav.ID, uavSpeed, config, resDir)
@@ -393,7 +390,12 @@ func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName string, bui
 	ucCfg := LoadRawConfig(o.uavControllerConfig)
 	ucLimits := ParseResourceLimits(ucCfg)
 	ucFile, _ := o.writeTemplateConfig("uav_controller_config", o.uavControllerConfig, nil, writer)
-	homeLat, homeLon := util.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
+	var homeLat, homeLon float64
+	if uav.HomeOverride != nil {
+		homeLat, homeLon = uav.HomeOverride.Lat, uav.HomeOverride.Lon
+	} else {
+		homeLat, homeLon = util.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
+	}
 	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
 	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, ucLimits, config.VerboseLogging, config.LoggingEnabled)
 
@@ -420,7 +422,12 @@ func (o *DockerOrchestrator) appendSwarmUAV(uav domain.UAV, paramFileName string
 	ucCfg := LoadRawConfig(o.uavControllerConfig)
 	ucLimits := ParseResourceLimits(ucCfg)
 	ucFile, _ := o.writeTemplateConfig("uav_controller_config", o.uavControllerConfig, nil, writer)
-	homeLat, homeLon := util.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
+	var homeLat, homeLon float64
+	if uav.HomeOverride != nil {
+		homeLat, homeLon = uav.HomeOverride.Lat, uav.HomeOverride.Lon
+	} else {
+		homeLat, homeLon = util.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
+	}
 	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
 	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, ucLimits, config.VerboseLogging, config.LoggingEnabled)
 

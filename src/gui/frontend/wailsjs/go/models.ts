@@ -37,7 +37,7 @@ export namespace domain {
 	    }
 	}
 	export class GeneralConfig {
-	    speedProfilePath: string;
+	    defaultUAVSpeed: number;
 	    loggingEnabled: boolean;
 	    batteryRestricted: boolean;
 	    batteryCapacity: number;
@@ -64,7 +64,7 @@ export namespace domain {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.speedProfilePath = source["speedProfilePath"];
+	        this.defaultUAVSpeed = source["defaultUAVSpeed"];
 	        this.loggingEnabled = source["loggingEnabled"];
 	        this.batteryRestricted = source["batteryRestricted"];
 	        this.batteryCapacity = source["batteryCapacity"];
@@ -168,6 +168,8 @@ export namespace domain {
 	export class UAV {
 	    id: string;
 	    services: DeployedService[];
+	    speed?: number;
+	    homeOverride?: Coordinate;
 	
 	    static createFrom(source: any = {}) {
 	        return new UAV(source);
@@ -177,6 +179,8 @@ export namespace domain {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.services = this.convertValues(source["services"], DeployedService);
+	        this.speed = source["speed"];
+	        this.homeOverride = this.convertValues(source["homeOverride"], Coordinate);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

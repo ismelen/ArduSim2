@@ -5,15 +5,20 @@ import AddNewServiceDialog from "./components/add-new-service-dialog";
 import SwarmFormation from "./components/swarm-formation";
 import UavsList from "./components/uavs-list";
 import ServiceCard from "./components/service-card";
+import FormField from "../../components/form-field";
+import Checkbox from "../../components/checkbox";
+import { useConfig } from "../../hooks/useConfig";
 
 export default function FleetPage() {
   const uavs = useFleet((s) => s.uavs);
   const deleteService = useFleet((s) => s.deleteService);
   const addService = useFleet((s) => s.addService);
   const updateService = useFleet((s) => s.updateService);
+  const updateUav = useFleet((s) => s.updateUav);
   const deleteUav = useFleet((s) => s.deleteUav);
   const activeUavIdx = useFleet((s) => s.activeUavIdx);
   const cloneUav = useFleet((s) => s.cloneUav);
+  const { defaultUAVSpeed } = useConfig((s) => s.config);
 
   const [serviceIdx, setServiceIdx] = useState<number | undefined>(undefined);
 
@@ -28,6 +33,60 @@ export default function FleetPage() {
             <Button icon="delete" type="outlined" onClick={deleteUav} />
           </span>
         </span>
+        <div className="flex flex-col gap-4 mt-4 border border-border p-4 rounded-md shadow-sm">
+          <h4 className="font-semibold text-xl text-dark-gray">UAV Configuration</h4>
+          <div className="flex flex-col gap-2">
+            <span className="flex items-end gap-2">
+              <div className="flex-1">
+                <FormField
+                  type="number"
+                  label="Speed (m/s)"
+                  enabled={uavs[activeUavIdx].speed !== null && uavs[activeUavIdx].speed !== undefined}
+                  initValue={`${uavs[activeUavIdx].speed ?? defaultUAVSpeed ?? 10}`}
+                  onChange={(val) => updateUav(activeUavIdx, { speed: Number(val) })}
+                />
+              </div>
+              <span className="flex items-center gap-2 mb-2">
+                <Checkbox
+                  value={uavs[activeUavIdx].speed === null || uavs[activeUavIdx].speed === undefined}
+                  onChange={(auto) => updateUav(activeUavIdx, { speed: auto ? null : (defaultUAVSpeed ?? 10) })}
+                />
+                <label className="text-dark-gray text-sm">Auto</label>
+              </span>
+            </span>
+
+            <div className="flex flex-col gap-2 mt-2">
+              <label className="text-dark-gray">Home Location Override</label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <FormField
+                    type="number"
+                    label="Latitude"
+                    enabled={uavs[activeUavIdx].homeOverride !== null && uavs[activeUavIdx].homeOverride !== undefined}
+                    initValue={`${uavs[activeUavIdx].homeOverride?.lat ?? 0}`}
+                    onChange={(val) => updateUav(activeUavIdx, { homeOverride: { lat: Number(val), lon: uavs[activeUavIdx].homeOverride?.lon ?? 0 } })}
+                  />
+                </div>
+                <div className="flex-1">
+                  <FormField
+                    type="number"
+                    label="Longitude"
+                    enabled={uavs[activeUavIdx].homeOverride !== null && uavs[activeUavIdx].homeOverride !== undefined}
+                    initValue={`${uavs[activeUavIdx].homeOverride?.lon ?? 0}`}
+                    onChange={(val) => updateUav(activeUavIdx, { homeOverride: { lat: uavs[activeUavIdx].homeOverride?.lat ?? 0, lon: Number(val) } })}
+                  />
+                </div>
+                <span className="flex items-center gap-2 mb-2 self-end">
+                  <Checkbox
+                    value={uavs[activeUavIdx].homeOverride === null || uavs[activeUavIdx].homeOverride === undefined}
+                    onChange={(auto) => updateUav(activeUavIdx, { homeOverride: auto ? null : { lat: 0, lon: 0 } })}
+                  />
+                  <label className="text-dark-gray text-sm">Auto</label>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
         <span className="flex justify-between items-center mt-5">
           <h5 className="font-semibold text-2xl text-dark-gray">
             Active Services
