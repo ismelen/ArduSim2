@@ -48,7 +48,7 @@
       "default": 1000.0
     },
     "PUBLISHING_IP": {
-      "default": "application"
+      "default": "mixer"
     },
     "PUBLISHING_PORT": {
       "type": "integer",

@@ -16,6 +16,7 @@ export interface UAV {
   mixer?: DeployedService | null;
   controller?: DeployedService | null;
   speed?: number | null;
+  batteryCapacity?: number | null;
   homeOverride?: { lat: number; lon: number } | null;
   arduPilotInstance?: string | null;
 }

@@ -87,7 +87,7 @@ export default function DynamicForm({ schemaRaw, values, onChange }: Props) {
             type={isNumeric ? "number" : "text"}
             initValue={currentValues[key] ?? prop.default}
             label={prop.title || key}
-            onChange={(e) => handleOnChange(key, e)}
+            onChange={(e) => handleOnChange(key, isNumeric ? Number(e) : e)}
           />
         );
       })}

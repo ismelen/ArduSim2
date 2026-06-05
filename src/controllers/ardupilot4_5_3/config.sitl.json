@@ -8,6 +8,6 @@
   "SERIAL_PORT": "/dev/ttyAMA0",
   "BAUDRATE": 57600,
   "PUBLISHING_PERIOD": 1000.0,
-  "PUBLISHING_IP": "application",
+  "PUBLISHING_IP": "mixer",
   "PUBLISHING_PORT": 3500
 }

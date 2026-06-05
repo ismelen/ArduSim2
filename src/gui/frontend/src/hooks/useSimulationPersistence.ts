@@ -51,12 +51,19 @@ export const useSimulationPersistence = create<State>((_set, get) => ({
     const simConfig = useSimulationConfig.getState();
     const state = simConfig.lastConfig;
     console.log(state.value.uavs);
-    await SaveSimulationConfig(
+    const savedState = await SaveSimulationConfig(
       state.value.uavs.map((e) => domain.UAV.createFrom(e)),
       domain.GeneralConfig.createFrom(state.value.generalConfig),
       state.value.activeMode,
     );
-    simConfig.setLastHash(state.hash);
+    useFleet.getState().loadFleet(savedState.uavs as any[]);
+    useConfig.getState().loadConfig(savedState.generalConfig as any, savedState.activeMode);
+    const code = hash(savedState);
+    useSimulationConfig.getState().setFullState(
+      { value: savedState as any, hash: code },
+      code,
+      false
+    );
   },
 
   async newConfig() {

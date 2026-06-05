@@ -1,16 +1,16 @@
 import { useState } from "react";
-import Button from "../../components/button";
-import { useFleet } from "../../hooks/useFleet";
+import { SelectArduPilotInstance } from "../../../wailsjs/go/main/App";
 import AddNewServiceDialog from "../../components/add-new-service-dialog";
-import SwarmFormation from "./components/swarm-formation";
-import UavsList from "./components/uavs-list";
-import ServiceCard from "../../components/service-card";
-import FormField from "../../components/form-field";
+import Button from "../../components/button";
 import Checkbox from "../../components/checkbox";
 import FilePickerField from "../../components/file-picker-field";
+import FormField from "../../components/form-field";
+import ServiceCard from "../../components/service-card";
 import { useConfig } from "../../hooks/useConfig";
-import { SelectArduPilotInstance } from "../../../wailsjs/go/main/App";
+import { useFleet } from "../../hooks/useFleet";
 import { useServices } from "../../hooks/useServices";
+import SwarmFormation from "./components/swarm-formation";
+import UavsList from "./components/uavs-list";
 
 export default function FleetPage() {
   const uavs = useFleet((s) => s.uavs);
@@ -21,16 +21,17 @@ export default function FleetPage() {
   const deleteUav = useFleet((s) => s.deleteUav);
   const activeUavIdx = useFleet((s) => s.activeUavIdx);
   const cloneUav = useFleet((s) => s.cloneUav);
-  const { defaultUAVSpeed, defaultArduPilotInstance, defaultMixer, defaultController } = useConfig((s) => s.config);
+  const { defaultUAVSpeed, defaultArduPilotInstance, defaultMixer, defaultController, batteryCapacity } = useConfig((s) => s.config);
   const { services, mixers, controllers } = useServices();
 
   const [serviceIdx, setServiceIdx] = useState<number | undefined>(undefined);
   const [baseServiceType, setBaseServiceType] = useState<"mixer" | "controller" | undefined>(undefined);
+  const [isConfigCollapsed, setIsConfigCollapsed] = useState(true);
 
   return (
     <div className="flex h-full">
       <UavsList />
-      <div className="flex-1/2 px-3 pt-3 flex flex-col gap-2">
+      <div className="flex-1/2 px-3 pt-3 flex flex-col gap-2 pb-5">
         <span className="flex justify-between items-center">
           <h3 className="font-bold text-4xl">Uav {uavs[activeUavIdx].id}</h3>
           <span className="flex gap-2">
@@ -39,8 +40,17 @@ export default function FleetPage() {
           </span>
         </span>
         <div className="flex flex-col gap-4 mt-4 border border-border p-4 rounded-md shadow-sm">
-          <h4 className="font-semibold text-xl text-dark-gray">UAV Configuration</h4>
-          <div className="flex flex-col gap-2">
+          <span 
+            className="flex justify-between items-center cursor-pointer select-none"
+            onClick={() => setIsConfigCollapsed(!isConfigCollapsed)}
+          >
+            <h4 className="font-semibold text-xl text-dark-gray">UAV Configuration</h4>
+            <span className="material-symbols-outlined text-dark-gray">
+              {isConfigCollapsed ? "expand_more" : "expand_less"}
+            </span>
+          </span>
+          {!isConfigCollapsed && (
+            <div className="flex flex-col gap-2">
             <span className="flex items-end gap-2">
               <div className="flex-1">
                 <FormField
@@ -55,6 +65,25 @@ export default function FleetPage() {
                 <Checkbox
                   value={uavs[activeUavIdx].speed === null || uavs[activeUavIdx].speed === undefined}
                   onChange={(auto) => updateUav(activeUavIdx, { speed: auto ? null : (defaultUAVSpeed ?? 10) })}
+                />
+                <label className="text-dark-gray text-sm">Auto</label>
+              </span>
+            </span>
+
+            <span className="flex items-end gap-2">
+              <div className="flex-1">
+                <FormField
+                  type="number"
+                  label="Battery (mAh)"
+                  enabled={uavs[activeUavIdx].batteryCapacity !== null && uavs[activeUavIdx].batteryCapacity !== undefined}
+                  initValue={`${uavs[activeUavIdx].batteryCapacity ?? batteryCapacity ?? 5000}`}
+                  onChange={(val) => updateUav(activeUavIdx, { batteryCapacity: Number(val) })}
+                />
+              </div>
+              <span className="flex items-center gap-2 mb-2">
+                <Checkbox
+                  value={uavs[activeUavIdx].batteryCapacity === null || uavs[activeUavIdx].batteryCapacity === undefined}
+                  onChange={(auto) => updateUav(activeUavIdx, { batteryCapacity: auto ? null : (batteryCapacity ?? 5000) })}
                 />
                 <label className="text-dark-gray text-sm">Auto</label>
               </span>
@@ -114,6 +143,7 @@ export default function FleetPage() {
               </span>
             </div>
           </div>
+          )}
         </div>
         <span className="flex justify-between items-center mt-5">
           <h5 className="font-semibold text-2xl text-dark-gray">

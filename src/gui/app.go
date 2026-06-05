@@ -102,7 +102,7 @@ func (a *App) LoadSimulationConfig() (*domain.SimulationState, error) {
 	return a.config.LoadSimulationConfig(a.ctx)
 }
 
-func (a *App) SaveSimulationConfig(uavs []domain.UAV, config domain.GeneralConfig, mode string) error {
+func (a *App) SaveSimulationConfig(uavs []domain.UAV, config domain.GeneralConfig, mode string) (*domain.SimulationState, error) {
 	return a.config.SaveSimulationConfig(uavs, config, mode)
 }
 

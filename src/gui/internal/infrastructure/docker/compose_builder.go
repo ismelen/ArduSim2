@@ -93,9 +93,9 @@ func (b *composeBuilder) AddCommunicationModule(uavID string, limits ResourceLim
 	
 	lims := b.buildLocalLimits(limits)
 
-	fmt.Fprintf(&b.services, `  communication_module_%s:
+	fmt.Fprintf(&b.services, `  uav_%s_communication_module:
     image: communication_module
-    container_name: communication_module_%s
+    container_name: uav_%s_communication_module
 %s%s    networks:
       %s:
         aliases:
@@ -104,8 +104,8 @@ func (b *composeBuilder) AddCommunicationModule(uavID string, limits ResourceLim
 `, uavID, uavID, env, lims, uavNet)
 }
 
-// AddApplication appends the application service for a UAV.
-func (b *composeBuilder) AddApplication(uavID, image, configFileName string, limits ResourceLimits, verbose bool) {
+// AddMixer appends the mixer service for a UAV.
+func (b *composeBuilder) AddMixer(uavID, image, configFileName string, limits ResourceLimits, verbose bool) {
 	uavNet := uavNetworkName(uavID)
 
 	env := fmt.Sprintf("    environment:\n      - UAV_ID=%s\n", uavID)
@@ -116,17 +116,17 @@ func (b *composeBuilder) AddApplication(uavID, image, configFileName string, lim
 	vols := fmt.Sprintf("      - ./resources/%s:/app/config.json\n", configFileName)
 	lims := b.buildLocalLimits(limits)
 
-	fmt.Fprintf(&b.services, `  application_%s:
+	fmt.Fprintf(&b.services, `  uav_%s_mixer:
     image: %s
-    container_name: application_%s
+    container_name: uav_%s_mixer
     depends_on:
-      - communication_module_%s
-      - uav_controller_%s
+      - uav_%s_communication_module
+      - uav_%s_controller
 %s    volumes:
 %s%s    networks:
       %s:
         aliases:
-          - application
+          - mixer
 
 `, uavID, image, uavID, uavID, uavID, env, vols, lims, uavNet)
 }
@@ -153,11 +153,11 @@ func (b *composeBuilder) AddUAVController(uavID, controllerFolderName, configFil
 	}
 	lims := b.buildLocalLimits(limits)
 
-	fmt.Fprintf(&b.services, `  uav_controller_%s:
+	fmt.Fprintf(&b.services, `  uav_%s_controller:
     image: %s
-    container_name: uav_controller_%s
+    container_name: uav_%s_controller
     depends_on:
-      - communication_module_%s
+      - uav_%s_communication_module
     environment:
       - UAV_HOME_LOCATION=%s
       - UAV_ID=%s
@@ -183,11 +183,11 @@ func (b *composeBuilder) AddExternalComms(uavID, configFileName string, limits R
 	vols := fmt.Sprintf("      - ./resources/%s:/app/config.json\n", configFileName)
 	lims := b.buildLocalLimits(limits)
 
-	fmt.Fprintf(&b.services, `  external_comms_%s:
+	fmt.Fprintf(&b.services, `  uav_%s_external_comms:
     image: external_comms
-    container_name: external_comms_%s
+    container_name: uav_%s_external_comms
     depends_on:
-      - communication_module_%s
+      - uav_%s_communication_module
       - netsim_gateway
 %s    volumes:
 %s%s    networks:
@@ -214,28 +214,22 @@ func (b *composeBuilder) AddAlgorithmService(uavID string, svc domain.DeployedSe
 		fmt.Fprintf(&vols, "      - ./resources/%s:%s\n", v.HostPath, v.ContainerPath)
 	}
 
-	folderName := svc.FolderName
-	if folderName == "" {
-		folderName = svc.ServiceId
-	}
-	
 	lims := b.buildLocalLimits(limits)
 
-	fmt.Fprintf(&b.services, `  %s_%s:
+	fmt.Fprintf(&b.services, `  uav_%s_%s:
     image: %s
-    container_name: %s_%s
+    container_name: uav_%s_%s
     depends_on:
-      - communication_module_%s
+      - uav_%s_communication_module
 %s    volumes:
 %s%s    networks:
       %s:
         aliases:
           - %s
 
-`, svc.ServiceId, uavID,
+`, uavID, svc.ServiceId,
 		svc.ServiceId,
-		folderName,
-		svc.ServiceId, uavID,
+		uavID, svc.ServiceId,
 		uavID,
 		env,
 		vols.String(),

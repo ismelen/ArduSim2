@@ -99,7 +99,7 @@ func (b *swarmComposeBuilder) AddCommunicationModule(uavID string, limits Resour
 	env := b.buildUAVEnvBlock("    ", uavID, verbose)
 	lims := b.buildSwarmDeployBlock(limits, "")
 
-	fmt.Fprintf(&b.services, `  communication_module_%s:
+	fmt.Fprintf(&b.services, `  uav_%s_communication_module:
     image: communication_module
 %s%s    networks:
       %s:
@@ -109,8 +109,8 @@ func (b *swarmComposeBuilder) AddCommunicationModule(uavID string, limits Resour
 `, uavID, env, lims, uavNet)
 }
 
-// AddApplication appends the application service for a UAV in swarm mode.
-func (b *swarmComposeBuilder) AddApplication(uavID, image, configFileName string, limits ResourceLimits, verbose bool) {
+// AddMixer appends the mixer service for a UAV in swarm mode.
+func (b *swarmComposeBuilder) AddMixer(uavID, image, configFileName string, limits ResourceLimits, verbose bool) {
 	uavNet := uavNetworkName(uavID)
 	env := b.buildUAVEnvBlock("    ", uavID, verbose)
 	configName := b.declareConfig(configFileName)
@@ -121,7 +121,7 @@ func (b *swarmComposeBuilder) AddApplication(uavID, image, configFileName string
         window: "120s"
 `)
 
-	fmt.Fprintf(&b.services, `  application_%s:
+	fmt.Fprintf(&b.services, `  uav_%s_mixer:
     image: 127.0.0.1:5000/%s
 %s    configs:
       - source: %s
@@ -129,7 +129,7 @@ func (b *swarmComposeBuilder) AddApplication(uavID, image, configFileName string
 %s    networks:
       %s:
         aliases:
-          - application
+          - mixer
 
 `, uavID, image, env, configName, lims, uavNet)
 }
@@ -158,7 +158,7 @@ func (b *swarmComposeBuilder) AddUAVController(uavID, controllerFolderName, conf
 		extraConfigs = fmt.Sprintf("      - source: %s\n        target: /app/%s\n", arduPilotConfig, arduPilotInstanceFile)
 	}
 
-	fmt.Fprintf(&b.services, `  uav_controller_%s:
+	fmt.Fprintf(&b.services, `  uav_%s_controller:
     image: 127.0.0.1:5000/%s
 %s    configs:
       - source: %s
@@ -186,7 +186,7 @@ func (b *swarmComposeBuilder) AddExternalComms(uavID, configFileName string, lim
         window: "120s"
 `)
 
-	fmt.Fprintf(&b.services, `  external_comms_%s:
+	fmt.Fprintf(&b.services, `  uav_%s_external_comms:
     image: external_comms
 %s    configs:
       - source: %s
@@ -221,7 +221,7 @@ func (b *swarmComposeBuilder) AddAlgorithmService(uavID string, svc domain.Deplo
         window: "120s"
 `)
 
-	fmt.Fprintf(&b.services, `  %s_%s:
+	fmt.Fprintf(&b.services, `  uav_%s_%s:
     image: %s
 %s    configs:
 %s    networks:
@@ -229,7 +229,7 @@ func (b *swarmComposeBuilder) AddAlgorithmService(uavID string, svc domain.Deplo
         aliases:
           - %s
 %s
-`, svc.ServiceId, uavID,
+`, uavID, svc.ServiceId,
 		svc.ServiceId,
 		env,
 		configMounts.String(),

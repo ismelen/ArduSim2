@@ -12,8 +12,9 @@ import (
 
 type FollowMeAsMaster struct {
 	FollowMeBase
-	lastTelemetry *domain.Telemetry
-	chronosned *chronjob.ChronJob
+	lastTelemetry  *domain.Telemetry
+	chronosned     *chronjob.ChronJob
+	alreadyTakeOff bool
 }
 
 func NewFollowMeAsMaster(cfg domain.Config, broker ports.CommunicationProvider) *FollowMeAsMaster {
@@ -39,8 +40,11 @@ func (f *FollowMeAsMaster) HandleTelemetryTopic(payload any) {
 		return
 	}
 
+	if tel.Position.RelativeAlt > 0.5 {
+		f.alreadyTakeOff = true
+	}
+
 	if !f.isLanding(&tel) {
-		log.Printf("landing")
 		f.lastTelemetry = &tel
 		return
 	}
@@ -60,8 +64,15 @@ func (f *FollowMeAsMaster) HandleTelemetryTopic(payload any) {
 }
 
 func (f *FollowMeAsMaster) isLanding(current *domain.Telemetry) bool {
-	if current.Position.RelativeAlt > 0.5 { return false }
-	if f.lastTelemetry == nil { return false }
+	if !f.alreadyTakeOff {
+		return false
+	}
+	if current.Position.RelativeAlt > 0.5 {
+		return false
+	}
+	if f.lastTelemetry == nil {
+		return false
+	}
 	return f.lastTelemetry.Position.RelativeAlt > current.Position.RelativeAlt
 }
 

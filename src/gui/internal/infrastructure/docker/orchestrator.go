@@ -103,14 +103,6 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 	}
 
 	for i, uav := range uavs {
-		uavSpeed := config.DefaultUAVSpeed
-		if uavSpeed <= 0 {
-			uavSpeed = 10.0
-		}
-		if uav.Speed != nil {
-			uavSpeed = *uav.Speed
-		}
-
 		arduPilotInstance := config.DefaultArduPilotInstance
 		if uav.ArduPilotInstance != nil {
 			arduPilotInstance = *uav.ArduPilotInstance
@@ -122,7 +114,8 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 			_ = copyFile(arduPilotInstance, destPath)
 		}
 
-		paramFile, _ := o.generateUAVParams(uav.ID, uavSpeed, config, resDir)
+		controller := o.resolveController(uav, config)
+		paramFile, _ := o.generateUAVParams(uav, config, controller.FolderName, resDir)
 		o.appendUAV(uav, paramFile, arduPilotInstanceFile, builder, writer, config, offsets[i], pool)
 	}
 
@@ -160,14 +153,6 @@ func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.
 	builder.AddLogger(loggerFile, loggerLimits)
 
 	for i, uav := range uavs {
-		uavSpeed := config.DefaultUAVSpeed
-		if uavSpeed <= 0 {
-			uavSpeed = 10.0
-		}
-		if uav.Speed != nil {
-			uavSpeed = *uav.Speed
-		}
-
 		arduPilotInstance := config.DefaultArduPilotInstance
 		if uav.ArduPilotInstance != nil {
 			arduPilotInstance = *uav.ArduPilotInstance
@@ -179,7 +164,8 @@ func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.
 			_ = copyFile(arduPilotInstance, destPath)
 		}
 
-		paramFile, _ := o.generateUAVParams(uav.ID, uavSpeed, config, resDir)
+		controller := o.resolveController(uav, config)
+		paramFile, _ := o.generateUAVParams(uav, config, controller.FolderName, resDir)
 		o.appendSwarmUAV(uav, paramFile, arduPilotInstanceFile, builder, writer, config, offsets[i])
 	}
 
@@ -210,7 +196,7 @@ func (o *DockerOrchestrator) StartCompose(composePath string) error {
 		return fmt.Errorf("DOCKER_NOT_RUNNING")
 	}
 
-	cmd := exec.Command("docker", "compose", "up", "-d")
+	cmd := exec.Command("docker", "compose", "-f", filepath.Base(composePath), "up", "-d")
 	cmd.Dir = filepath.Dir(composePath)
 
 	var stderrBuf bytes.Buffer
@@ -250,7 +236,7 @@ func (o *DockerOrchestrator) BuildCompose(composePath string) error {
 		return fmt.Errorf("DOCKER_NOT_RUNNING")
 	}
 
-	cmd := exec.Command("docker", "compose", "build")
+	cmd := exec.Command("docker", "compose", "-f", filepath.Base(composePath), "build")
 	cmd.Dir = filepath.Dir(composePath)
 
 	var stderrBuf bytes.Buffer
@@ -344,7 +330,7 @@ func (o *DockerOrchestrator) BuildAllImages(simDir string) error {
 }
 
 func (o *DockerOrchestrator) StopCompose(composePath string) error {
-	cmd := exec.Command("docker", "compose", "down", "--remove-orphans", "--volumes")
+	cmd := exec.Command("docker", "compose", "-f", filepath.Base(composePath), "down", "--remove-orphans", "--volumes")
 	cmd.Dir = filepath.Dir(composePath)
 	return cmd.Run()
 }
@@ -402,7 +388,7 @@ func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName, arduPilotI
 
 	mixer := o.resolveMixer(uav, config)
 	appFile, _, appLimits := o.buildServiceResources(mixer, writer)
-	builder.AddApplication(uav.ID, mixer.FolderName, appFile, appLimits, config.VerboseLogging)
+	builder.AddMixer(uav.ID, mixer.FolderName, appFile, appLimits, config.VerboseLogging)
 
 	controller := o.resolveController(uav, config)
 	ucFile, _, ucLimits := o.buildServiceResources(controller, writer)
@@ -432,7 +418,7 @@ func (o *DockerOrchestrator) appendSwarmUAV(uav domain.UAV, paramFileName, arduP
 
 	mixer := o.resolveMixer(uav, config)
 	appFile, _, appLimits := o.buildServiceResources(mixer, writer)
-	builder.AddApplication(uav.ID, mixer.FolderName, appFile, appLimits, config.VerboseLogging)
+	builder.AddMixer(uav.ID, mixer.FolderName, appFile, appLimits, config.VerboseLogging)
 
 	controller := o.resolveController(uav, config)
 	ucFile, _, ucLimits := o.buildServiceResources(controller, writer)
@@ -528,8 +514,8 @@ func (o *DockerOrchestrator) getServiceSchema(folderName string) (map[string]int
 	return nil, fmt.Errorf("schema not found for %s", folderName)
 }
 
-func (o *DockerOrchestrator) generateUAVParams(uavID string, speed float64, config domain.GeneralConfig, resDir string) (string, error) {
-	baseParmPath := filepath.Join(o.projectRoot, "..", "uav_controller", "ardupilot4_5_3", "ardupilot", "copter.parm")
+func (o *DockerOrchestrator) generateUAVParams(uav domain.UAV, config domain.GeneralConfig, controllerFolderName string, resDir string) (string, error) {
+	baseParmPath := filepath.Join(o.projectRoot, "..", "controllers", controllerFolderName, "ardupilot", "copter.parm")
 	content, _ := os.ReadFile(baseParmPath)
 	params := string(content)
 	if !strings.HasSuffix(params, "\n") {
@@ -538,20 +524,33 @@ func (o *DockerOrchestrator) generateUAVParams(uavID string, speed float64, conf
 	if !config.LoggingEnabled {
 		params += "LOG_BITMASK 0\n"
 	}
-	if config.BatteryRestricted {
-		params += fmt.Sprintf("BATT_CAPACITY %d\n", config.BatteryCapacity)
-		params += fmt.Sprintf("FS_BATT_MAH %d\n", config.BatteryCapacity*20/100)
-		params += "FS_BATT_ENABLE 2\n"
+	uavBattery := config.BatteryCapacity
+	if uavBattery <= 0 {
+		uavBattery = 5000
 	}
+	if uav.BatteryCapacity != nil {
+		uavBattery = *uav.BatteryCapacity
+	}
+	params += fmt.Sprintf("BATT_CAPACITY %d\n", uavBattery)
+	params += fmt.Sprintf("FS_BATT_MAH %d\n", uavBattery*20/100)
+	params += "FS_BATT_ENABLE 2\n"
+	params += "BATT_MONITOR 4\n"
 	if config.WindEnabled {
 		params += fmt.Sprintf("SIM_WIND_DIR %.2f\n", config.WindDirection)
 		params += fmt.Sprintf("SIM_WIND_SPD %.2f\n", config.WindSpeed)
 	}
-	params += fmt.Sprintf("WPNAV_SPEED %d\n", int(speed*100))
-	params += fmt.Sprintf("WPNAV_SPEED_UP %d\n", int(speed*100))
-	params += fmt.Sprintf("WPNAV_SPEED_DN %d\n", int(speed*100))
+	uavSpeed := config.DefaultUAVSpeed
+	if uavSpeed <= 0 {
+		uavSpeed = 10.0
+	}
+	if uav.Speed != nil {
+		uavSpeed = *uav.Speed
+	}
+	params += fmt.Sprintf("WPNAV_SPEED %d\n", int(uavSpeed*100))
+	params += fmt.Sprintf("WPNAV_SPEED_UP %d\n", int(uavSpeed*100))
+	params += fmt.Sprintf("WPNAV_SPEED_DN %d\n", int(uavSpeed*100))
 
-	fileName := fmt.Sprintf("uav_%s_params.param", uavID)
+	fileName := fmt.Sprintf("uav_%s_params.param", uav.ID)
 	_ = os.WriteFile(filepath.Join(resDir, fileName), []byte(params), 0644)
 	return fileName, nil
 }

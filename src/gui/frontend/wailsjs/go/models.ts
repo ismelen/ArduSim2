@@ -195,6 +195,7 @@ export namespace domain {
 	    mixer?: DeployedService;
 	    controller?: DeployedService;
 	    speed?: number;
+	    batteryCapacity?: number;
 	    homeOverride?: Coordinate;
 	    arduPilotInstance?: string;
 	
@@ -209,6 +210,7 @@ export namespace domain {
 	        this.mixer = this.convertValues(source["mixer"], DeployedService);
 	        this.controller = this.convertValues(source["controller"], DeployedService);
 	        this.speed = source["speed"];
+	        this.batteryCapacity = source["batteryCapacity"];
 	        this.homeOverride = this.convertValues(source["homeOverride"], Coordinate);
 	        this.arduPilotInstance = source["arduPilotInstance"];
 	    }
