@@ -1,16 +1,16 @@
 import hash from "object-hash";
 import { create } from "zustand";
 import { useConfig, type GeneralConfig } from "./useConfig";
-import { useFleet, type UAV } from "./useFleet";
+import { useSwarms, type Swarm } from "./useSwarms";
 
 export interface SimulationState {
-  uavs: UAV[];
+  swarms: Swarm[];
   generalConfig: GeneralConfig;
   activeMode: string;
 }
 
 export const DEFAULT_SIMULATION_STATE: SimulationState = {
-  uavs: [],
+  swarms: [],
   generalConfig: {} as GeneralConfig,
   activeMode: "LOCAL",
 };
@@ -58,7 +58,7 @@ export const useSimulationConfig = create<State>((set, get) => ({
       skipNextUpdate: true,
     });
 
-    useFleet.getState().loadFleet(prevConfig.value.uavs);
+    useSwarms.getState().loadSwarms(prevConfig.value.swarms);
     useConfig
       .getState()
       .loadConfig(
@@ -81,7 +81,7 @@ export const useSimulationConfig = create<State>((set, get) => ({
       skipNextUpdate: true,
     });
 
-    useFleet.getState().loadFleet(nextConfig.value.uavs);
+    useSwarms.getState().loadSwarms(nextConfig.value.swarms);
     useConfig
       .getState()
       .loadConfig(

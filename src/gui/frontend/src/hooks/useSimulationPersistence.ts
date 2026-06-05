@@ -4,7 +4,7 @@ import { LoadSimulationConfig, SaveSimulationConfig } from "../../wailsjs/go/mai
 import { domain } from "../../wailsjs/go/models";
 import { useConfig } from "./useConfig";
 import { useDialog } from "./useDialog";
-import { useFleet } from "./useFleet";
+import { useSwarms } from "./useSwarms";
 import { useSimulationConfig, DEFAULT_SIMULATION_STATE } from "./useSimulationConfig";
 
 interface State {
@@ -37,7 +37,7 @@ export const useSimulationPersistence = create<State>((_set, get) => ({
     const state = await LoadSimulationConfig();
     const code = hash(state);
 
-    useFleet.getState().loadFleet(state.uavs as any[]);
+    useSwarms.getState().loadSwarms(state.swarms as any[]);
     useConfig.getState().loadConfig(state.generalConfig as any, state.activeMode);
 
     useSimulationConfig.getState().setFullState(
@@ -50,13 +50,12 @@ export const useSimulationPersistence = create<State>((_set, get) => ({
   async saveConfig() {
     const simConfig = useSimulationConfig.getState();
     const state = simConfig.lastConfig;
-    console.log(state.value.uavs);
     const savedState = await SaveSimulationConfig(
-      state.value.uavs.map((e) => domain.UAV.createFrom(e)),
+      state.value.swarms.map((e) => domain.Swarm.createFrom(e)),
       domain.GeneralConfig.createFrom(state.value.generalConfig),
       state.value.activeMode,
     );
-    useFleet.getState().loadFleet(savedState.uavs as any[]);
+    useSwarms.getState().loadSwarms(savedState.swarms as any[]);
     useConfig.getState().loadConfig(savedState.generalConfig as any, savedState.activeMode);
     const code = hash(savedState);
     useSimulationConfig.getState().setFullState(
@@ -88,7 +87,7 @@ export const useSimulationPersistence = create<State>((_set, get) => ({
 
     if (simConfig.lastConfig.hash !== "") await get().saveConfig();
 
-    const { uavs, generalConfig, activeMode } = DEFAULT_SIMULATION_STATE;
+    const { swarms, generalConfig, activeMode } = DEFAULT_SIMULATION_STATE;
     
     useSimulationConfig.getState().setFullState(
       { value: DEFAULT_SIMULATION_STATE, hash: "" },
@@ -96,7 +95,7 @@ export const useSimulationPersistence = create<State>((_set, get) => ({
       true
     );
 
-    useFleet.getState().loadFleet(uavs);
+    useSwarms.getState().loadSwarms(swarms);
     useConfig.getState().loadConfig(generalConfig, activeMode);
   },
 }));

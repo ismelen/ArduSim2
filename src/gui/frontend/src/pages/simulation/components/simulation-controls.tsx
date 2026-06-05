@@ -4,7 +4,7 @@ import Button from "../../../components/button";
 import Card from "../../../components/card";
 import type { SelectableValue } from "../../../components/select";
 import SplitButton from "../../../components/split-button";
-import { useFleet, type UAV } from "../../../hooks/useFleet";
+import { useSwarms, type UAV } from "../../../hooks/useSwarms";
 import { useMap } from "../../../hooks/useMap";
 import { useSimulationSession } from "../../../hooks/useSimulationSession";
 import { cn } from "../../../utils/cn";
@@ -15,7 +15,8 @@ interface Props {
 }
 
 export default function SimulationControls({ className }: Props) {
-  const fleetUavs = useFleet((s) => s.uavs);
+  const swarms = useSwarms((s) => s.swarms);
+  const fleetUavs = swarms.flatMap(s => s.uavs);
   const availableServices = useMemo(
     () => getAvailabeServices(fleetUavs),
     [fleetUavs],

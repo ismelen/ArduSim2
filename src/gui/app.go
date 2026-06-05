@@ -77,12 +77,12 @@ func (a *App) GetAvailableControllers() []domain.ServiceType {
 }
 
 // Simulation
-func (a *App) StartSimulation(uavs []domain.UAV, config domain.GeneralConfig, isLocal bool) error {
-	return a.simulation.StartSimulation(a.ctx, uavs, config, isLocal)
+func (a *App) StartSimulation(swarms []domain.Swarm, config domain.GeneralConfig, isLocal bool) error {
+	return a.simulation.StartSimulation(a.ctx, swarms, config, isLocal)
 }
 
-func (a *App) BuildImages(uavs []domain.UAV, config domain.GeneralConfig, isLocal bool) error {
-	return a.simulation.BuildImages(a.ctx, uavs, config, isLocal)
+func (a *App) BuildImages(swarms []domain.Swarm, config domain.GeneralConfig, isLocal bool) error {
+	return a.simulation.BuildImages(a.ctx, swarms, config, isLocal)
 }
 
 func (a *App) StopSimulation() {
@@ -102,8 +102,8 @@ func (a *App) LoadSimulationConfig() (*domain.SimulationState, error) {
 	return a.config.LoadSimulationConfig(a.ctx)
 }
 
-func (a *App) SaveSimulationConfig(uavs []domain.UAV, config domain.GeneralConfig, mode string) (*domain.SimulationState, error) {
-	return a.config.SaveSimulationConfig(uavs, config, mode)
+func (a *App) SaveSimulationConfig(swarms []domain.Swarm, config domain.GeneralConfig, mode string) (*domain.SimulationState, error) {
+	return a.config.SaveSimulationConfig(swarms, config, mode)
 }
 
 func (a *App) DiscardCurrentRun(config domain.GeneralConfig) error {

@@ -49,14 +49,16 @@ func (i *ConfigInteractor) LoadSimulationConfig(ctx context.Context) (*domain.Si
 		svcMap[s.ID] = s.FolderName
 	}
 
-	for idxUAV := range state.UAVs {
-		for idxSvc := range state.UAVs[idxUAV].Services {
-			svc := &state.UAVs[idxUAV].Services[idxSvc]
-			if svc.FolderName == "" {
-				if folder, ok := svcMap[svc.ServiceId]; ok {
-					svc.FolderName = folder
-				} else {
-					svc.FolderName = svc.ServiceId
+	for idxSwarm := range state.Swarms {
+		for idxUAV := range state.Swarms[idxSwarm].UAVs {
+			for idxSvc := range state.Swarms[idxSwarm].UAVs[idxUAV].Services {
+				svc := &state.Swarms[idxSwarm].UAVs[idxUAV].Services[idxSvc]
+				if svc.FolderName == "" {
+					if folder, ok := svcMap[svc.ServiceId]; ok {
+						svc.FolderName = folder
+					} else {
+						svc.FolderName = svc.ServiceId
+					}
 				}
 			}
 		}
@@ -70,13 +72,13 @@ func (i *ConfigInteractor) LoadSimulationConfig(ctx context.Context) (*domain.Si
 	return state, nil
 }
 
-func (i *ConfigInteractor) SaveSimulationConfig(uavs []domain.UAV, config domain.GeneralConfig, mode string) (*domain.SimulationState, error) {
+func (i *ConfigInteractor) SaveSimulationConfig(swarms []domain.Swarm, config domain.GeneralConfig, mode string) (*domain.SimulationState, error) {
 	i.populateDefaults(&config)
 	config.SanitizeSimulationName()
 	simDir := filepath.Join(i.repo.GetSimulationsDir(), config.SimulationName)
 
 	state := domain.SimulationState{
-		UAVs:          uavs,
+		Swarms:        swarms,
 		GeneralConfig: config,
 		ActiveMode:    mode,
 	}

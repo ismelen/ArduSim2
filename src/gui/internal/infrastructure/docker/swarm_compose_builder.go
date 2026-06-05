@@ -89,30 +89,30 @@ func (b *swarmComposeBuilder) AddNetsim(instanceID int, configFileName string, l
 }
 
 // AddUAVNetwork registers the per-UAV overlay network.
-func (b *swarmComposeBuilder) AddUAVNetwork(uavID string) {
-	b.addNetwork(uavNetworkName(uavID))
+func (b *swarmComposeBuilder) AddUAVNetwork(swarmID, uavID string) {
+	b.addNetwork(uavNetworkName(swarmID, uavID))
 }
 
 // AddCommunicationModule appends the communication_module service for a UAV.
-func (b *swarmComposeBuilder) AddCommunicationModule(uavID string, limits ResourceLimits, verbose bool) {
-	uavNet := uavNetworkName(uavID)
-	env := b.buildUAVEnvBlock("    ", uavID, verbose)
+func (b *swarmComposeBuilder) AddCommunicationModule(swarmID, uavID string, limits ResourceLimits, verbose bool) {
+	uavNet := uavNetworkName(swarmID, uavID)
+	env := b.buildUAVEnvBlock("    ", swarmID, uavID, verbose)
 	lims := b.buildSwarmDeployBlock(limits, "")
 
-	fmt.Fprintf(&b.services, `  uav_%s_communication_module:
+	fmt.Fprintf(&b.services, `  swarm_%s_uav_%s_communication_module:
     image: communication_module
 %s%s    networks:
       %s:
         aliases:
           - communication_module
 
-`, uavID, env, lims, uavNet)
+`, swarmID, uavID, env, lims, uavNet)
 }
 
 // AddMixer appends the mixer service for a UAV in swarm mode.
-func (b *swarmComposeBuilder) AddMixer(uavID, image, configFileName string, limits ResourceLimits, verbose bool) {
-	uavNet := uavNetworkName(uavID)
-	env := b.buildUAVEnvBlock("    ", uavID, verbose)
+func (b *swarmComposeBuilder) AddMixer(swarmID, uavID, image, configFileName string, limits ResourceLimits, verbose bool) {
+	uavNet := uavNetworkName(swarmID, uavID)
+	env := b.buildUAVEnvBlock("    ", swarmID, uavID, verbose)
 	configName := b.declareConfig(configFileName)
 	lims := b.buildSwarmDeployBlock(limits, `      restart_policy:
         condition: on-failure
@@ -121,7 +121,7 @@ func (b *swarmComposeBuilder) AddMixer(uavID, image, configFileName string, limi
         window: "120s"
 `)
 
-	fmt.Fprintf(&b.services, `  uav_%s_mixer:
+	fmt.Fprintf(&b.services, `  swarm_%s_uav_%s_mixer:
     image: 127.0.0.1:5000/%s
 %s    configs:
       - source: %s
@@ -131,11 +131,11 @@ func (b *swarmComposeBuilder) AddMixer(uavID, image, configFileName string, limi
         aliases:
           - mixer
 
-`, uavID, image, env, configName, lims, uavNet)
+`, swarmID, uavID, image, env, configName, lims, uavNet)
 }
 
-func (b *swarmComposeBuilder) AddUAVController(uavID, controllerFolderName, configFileName, paramFileName, homeLocation, arduPilotInstanceFile string, limits ResourceLimits, verbose bool, loggingEnabled bool) {
-	uavNet := uavNetworkName(uavID)
+func (b *swarmComposeBuilder) AddUAVController(swarmID, uavID, controllerFolderName, configFileName, paramFileName, homeLocation, arduPilotInstanceFile string, limits ResourceLimits, verbose bool, loggingEnabled bool) {
+	uavNet := uavNetworkName(swarmID, uavID)
 	configName := b.declareConfig(configFileName)
 	paramName := b.declareConfig(paramFileName)
 
@@ -144,7 +144,7 @@ func (b *swarmComposeBuilder) AddUAVController(uavID, controllerFolderName, conf
 		arduPilotConfig = b.declareConfig(arduPilotInstanceFile)
 	}
 
-	envLines := fmt.Sprintf("    environment:\n      - UAV_HOME_LOCATION=%s\n      - UAV_ID=%s\n", homeLocation, uavID)
+	envLines := fmt.Sprintf("    environment:\n      - UAV_HOME_LOCATION=%s\n      - UAV_ID=%s\n      - SWARM_ID=%s\n", homeLocation, uavID, swarmID)
 	if verbose {
 		envLines += "      - DEBUG=true\n"
 	}
@@ -158,7 +158,7 @@ func (b *swarmComposeBuilder) AddUAVController(uavID, controllerFolderName, conf
 		extraConfigs = fmt.Sprintf("      - source: %s\n        target: /app/%s\n", arduPilotConfig, arduPilotInstanceFile)
 	}
 
-	fmt.Fprintf(&b.services, `  uav_%s_controller:
+	fmt.Fprintf(&b.services, `  swarm_%s_uav_%s_controller:
     image: 127.0.0.1:5000/%s
 %s    configs:
       - source: %s
@@ -170,14 +170,14 @@ func (b *swarmComposeBuilder) AddUAVController(uavID, controllerFolderName, conf
         aliases:
           - uav_controller
 
-`, uavID, controllerFolderName, envLines, configName, paramName, extraConfigs, lims, uavNet)
+`, swarmID, uavID, controllerFolderName, envLines, configName, paramName, extraConfigs, lims, uavNet)
 }
 
 // AddExternalComms appends the external_comms service for a UAV.
 // This service bridges the per-UAV network and the shared air network.
-func (b *swarmComposeBuilder) AddExternalComms(uavID, configFileName string, limits ResourceLimits, verbose bool) {
-	uavNet := uavNetworkName(uavID)
-	env := b.buildUAVEnvBlock("    ", uavID, verbose)
+func (b *swarmComposeBuilder) AddExternalComms(swarmID, uavID, configFileName string, limits ResourceLimits, verbose bool) {
+	uavNet := uavNetworkName(swarmID, uavID)
+	env := b.buildUAVEnvBlock("    ", swarmID, uavID, verbose)
 	configName := b.declareConfig(configFileName)
 	lims := b.buildSwarmDeployBlock(limits, `      restart_policy:
         condition: on-failure
@@ -186,7 +186,7 @@ func (b *swarmComposeBuilder) AddExternalComms(uavID, configFileName string, lim
         window: "120s"
 `)
 
-	fmt.Fprintf(&b.services, `  uav_%s_external_comms:
+	fmt.Fprintf(&b.services, `  swarm_%s_uav_%s_external_comms:
     image: external_comms
 %s    configs:
       - source: %s
@@ -197,14 +197,14 @@ func (b *swarmComposeBuilder) AddExternalComms(uavID, configFileName string, lim
           - external_comms
       air:
 
-`, uavID, env, configName, lims, uavNet)
+`, swarmID, uavID, env, configName, lims, uavNet)
 }
 
 // AddAlgorithmService appends a user-deployed algorithm service for a UAV.
 // Extra volumes (e.g. KML files) are also promoted to Docker configs.
-func (b *swarmComposeBuilder) AddAlgorithmService(uavID string, svc domain.DeployedService, configFileName string, extraVolumes []domain.VolumeMount, limits ResourceLimits, verbose bool) {
-	uavNet := uavNetworkName(uavID)
-	env := b.buildUAVEnvBlock("    ", uavID, verbose)
+func (b *swarmComposeBuilder) AddAlgorithmService(swarmID, uavID string, svc domain.DeployedService, configFileName string, extraVolumes []domain.VolumeMount, limits ResourceLimits, verbose bool) {
+	uavNet := uavNetworkName(swarmID, uavID)
+	env := b.buildUAVEnvBlock("    ", swarmID, uavID, verbose)
 	configName := b.declareConfig(configFileName)
 
 	var configMounts strings.Builder
@@ -221,7 +221,7 @@ func (b *swarmComposeBuilder) AddAlgorithmService(uavID string, svc domain.Deplo
         window: "120s"
 `)
 
-	fmt.Fprintf(&b.services, `  uav_%s_%s:
+	fmt.Fprintf(&b.services, `  swarm_%s_uav_%s_%s:
     image: %s
 %s    configs:
 %s    networks:
@@ -229,7 +229,7 @@ func (b *swarmComposeBuilder) AddAlgorithmService(uavID string, svc domain.Deplo
         aliases:
           - %s
 %s
-`, uavID, svc.ServiceId,
+`, swarmID, uavID, svc.ServiceId,
 		svc.ServiceId,
 		env,
 		configMounts.String(),
@@ -296,8 +296,8 @@ func (b *swarmComposeBuilder) buildEnvBlock(indent string, verbose bool) string 
 	return indent + "environment:\n" + indent + "  - DEBUG=true\n"
 }
 
-func (b *swarmComposeBuilder) buildUAVEnvBlock(indent string, uavID string, verbose bool) string {
-	env := indent + "environment:\n" + indent + "  - UAV_ID=" + uavID + "\n"
+func (b *swarmComposeBuilder) buildUAVEnvBlock(indent string, swarmID, uavID string, verbose bool) string {
+	env := indent + "environment:\n" + indent + "  - UAV_ID=" + uavID + "\n" + indent + "  - SWARM_ID=" + swarmID + "\n"
 	if verbose {
 		env += indent + "  - DEBUG=true\n"
 	}

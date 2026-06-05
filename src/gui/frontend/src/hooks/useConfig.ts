@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { useSimulationConfig } from "./useSimulationConfig";
-import type { DeployedService } from "./useFleet";
+import type { DeployedService } from "./useSwarms";
 
 export interface GeneralConfig {
   defaultUAVSpeed?: number;
@@ -17,11 +17,6 @@ export interface GeneralConfig {
   windSpeed?: number;
   simulationName?: string;
   originalSimulationName?: string;
-  groundFormation?: string;
-  formationCenterLat?: number;
-  formationCenterLon?: number;
-  formationSpacing?: number;
-  formationCenterMode?: string;
   swarmHost?: string;
   netsimInstances?: number;
   netsimMode?: string;

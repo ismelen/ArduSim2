@@ -40,11 +40,11 @@ func NewSimulationInteractor(
 	}
 }
 
-func (i *SimulationInteractor) StartSimulation(ctx context.Context, uavs []domain.UAV, config domain.GeneralConfig, isLocal bool) error {
+func (i *SimulationInteractor) StartSimulation(ctx context.Context, swarms []domain.Swarm, config domain.GeneralConfig, isLocal bool) error {
 	config.SanitizeSimulationName()
 	simDir := filepath.Join(i.repo.GetSimulationsDir(), config.SimulationName)
 
-	composePath, err := i.orchestrator.Run(uavs, config, isLocal, simDir)
+	composePath, err := i.orchestrator.Run(swarms, config, isLocal, simDir)
 	if err != nil {
 		return fmt.Errorf("prepare simulation: %w", err)
 	}
@@ -53,10 +53,14 @@ func (i *SimulationInteractor) StartSimulation(ctx context.Context, uavs []domai
 	i.session.ctx = ctx
 	i.session.composePath = composePath
 	i.session.simulationName = config.SimulationName
-	i.session.uavIDs = make([]string, len(uavs))
-	for idx, uav := range uavs {
-		i.session.uavIDs[idx] = uav.ID
+	
+	var uavIDs []string
+	for _, swarm := range swarms {
+		for _, uav := range swarm.UAVs {
+			uavIDs = append(uavIDs, fmt.Sprintf("swarm_%s_uav_%s", swarm.ID, uav.ID))
+		}
 	}
+	i.session.uavIDs = uavIDs
 	i.session.loggingEnabled = config.LoggingEnabled
 
 	if isLocal {
@@ -67,7 +71,11 @@ func (i *SimulationInteractor) StartSimulation(ctx context.Context, uavs []domai
 		i.subscriber.SetExpectedFleet(i.session.uavIDs)
 
 		// Algorithm tracking
-		algoIDs := util.CollectAlgorithmIDs(uavs)
+		var allUAVs []domain.UAV
+		for _, swarm := range swarms {
+			allUAVs = append(allUAVs, swarm.UAVs...)
+		}
+		algoIDs := util.CollectAlgorithmIDs(allUAVs)
 		for _, id := range algoIDs {
 			i.session.algorithmIDs[id] = true
 		}
@@ -103,7 +111,7 @@ func (i *SimulationInteractor) StartSimulation(ctx context.Context, uavs []domai
 	return nil
 }
 
-func (i *SimulationInteractor) BuildImages(ctx context.Context, uavs []domain.UAV, config domain.GeneralConfig, isLocal bool) error {
+func (i *SimulationInteractor) BuildImages(ctx context.Context, swarms []domain.Swarm, config domain.GeneralConfig, isLocal bool) error {
 	config.SanitizeSimulationName()
 	simDir := filepath.Join(i.repo.GetSimulationsDir(), config.SimulationName)
 

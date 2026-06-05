@@ -7,7 +7,7 @@ import (
 
 type ConfigUseCase interface {
 	LoadSimulationConfig(ctx context.Context) (*domain.SimulationState, error)
-	SaveSimulationConfig(uavs []domain.UAV, config domain.GeneralConfig, mode string) (*domain.SimulationState, error)
+	SaveSimulationConfig(swarms []domain.Swarm, config domain.GeneralConfig, mode string) (*domain.SimulationState, error)
 	DiscardCurrentRun(config domain.GeneralConfig) error
 	SelectFile(ctx context.Context) (string, error)
 	SelectArduPilotInstance(ctx context.Context) (string, error)

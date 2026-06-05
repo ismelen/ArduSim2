@@ -1,7 +1,7 @@
 package domain
 
 type SimulationState struct {
-	UAVs          []UAV         `json:"uavs"`
+	Swarms        []Swarm       `json:"swarms"`
 	GeneralConfig GeneralConfig `json:"generalConfig"`
 	ActiveMode    string        `json:"activeMode"`
 }

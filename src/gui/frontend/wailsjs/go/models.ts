@@ -51,11 +51,6 @@ export namespace domain {
 	    windSpeed: number;
 	    simulationName: string;
 	    originalSimulationName: string;
-	    groundFormation: string;
-	    formationCenterLat: number;
-	    formationCenterLon: number;
-	    formationSpacing: number;
-	    formationCenterMode: string;
 	    swarmHost: string;
 	    netsimInstances: number;
 	    netsimMode: string;
@@ -81,11 +76,6 @@ export namespace domain {
 	        this.windSpeed = source["windSpeed"];
 	        this.simulationName = source["simulationName"];
 	        this.originalSimulationName = source["originalSimulationName"];
-	        this.groundFormation = source["groundFormation"];
-	        this.formationCenterLat = source["formationCenterLat"];
-	        this.formationCenterLon = source["formationCenterLon"];
-	        this.formationSpacing = source["formationSpacing"];
-	        this.formationCenterMode = source["formationCenterMode"];
 	        this.swarmHost = source["swarmHost"];
 	        this.netsimInstances = source["netsimInstances"];
 	        this.netsimMode = source["netsimMode"];
@@ -233,8 +223,50 @@ export namespace domain {
 		    return a;
 		}
 	}
-	export class SimulationState {
+	export class Swarm {
+	    id: string;
 	    uavs: UAV[];
+	    groundFormation: string;
+	    formationCenterLat: number;
+	    formationCenterLon: number;
+	    formationSpacing: number;
+	    formationCenterMode: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Swarm(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.uavs = this.convertValues(source["uavs"], UAV);
+	        this.groundFormation = source["groundFormation"];
+	        this.formationCenterLat = source["formationCenterLat"];
+	        this.formationCenterLon = source["formationCenterLon"];
+	        this.formationSpacing = source["formationSpacing"];
+	        this.formationCenterMode = source["formationCenterMode"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SimulationState {
+	    swarms: Swarm[];
 	    generalConfig: GeneralConfig;
 	    activeMode: string;
 	
@@ -244,7 +276,7 @@ export namespace domain {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.uavs = this.convertValues(source["uavs"], UAV);
+	        this.swarms = this.convertValues(source["swarms"], Swarm);
 	        this.generalConfig = this.convertValues(source["generalConfig"], GeneralConfig);
 	        this.activeMode = source["activeMode"];
 	    }
@@ -267,6 +299,7 @@ export namespace domain {
 		    return a;
 		}
 	}
+	
 
 }
 

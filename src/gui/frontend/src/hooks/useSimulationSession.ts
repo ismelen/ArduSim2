@@ -82,7 +82,7 @@ export const useSimulationSession = create<State>((set, get) => {
 
       useNavigation.getState().navigateToPath("Simulation");
       await StartSimulation(
-        config.uavs.map((e) => domain.UAV.createFrom(e)),
+        config.swarms.map((e) => domain.Swarm.createFrom(e)),
         domain.GeneralConfig.createFrom(config.generalConfig),
         config.activeMode === "LOCAL",
       );
@@ -100,7 +100,7 @@ export const useSimulationSession = create<State>((set, get) => {
 
       useNavigation.getState().navigateToPath("Simulation");
       await BuildImages(
-        config.uavs.map((e) => domain.UAV.createFrom(e)),
+        config.swarms.map((e) => domain.Swarm.createFrom(e)),
         domain.GeneralConfig.createFrom(config.generalConfig),
         config.activeMode === "LOCAL",
       );

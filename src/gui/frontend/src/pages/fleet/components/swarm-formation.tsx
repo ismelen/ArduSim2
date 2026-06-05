@@ -4,8 +4,7 @@ import type { domain } from "../../../../wailsjs/go/models";
 import CardTitle from "../../../components/card-title";
 import FormField from "../../../components/form-field";
 import Select from "../../../components/select";
-import { useConfig } from "../../../hooks/useConfig";
-import { useFleet, type UAV } from "../../../hooks/useFleet";
+import { useSwarms, type UAV } from "../../../hooks/useSwarms";
 import { useServices } from "../../../hooks/useServices";
 import { cn } from "../../../utils/cn";
 
@@ -29,63 +28,61 @@ const FORMATIONS = [
 ];
 
 export default function SwarmFormation() {
-  const [kmlCoords, setKmlCoords] = useState<domain.Coordinate | undefined>(
-    undefined,
-  );
+  const [kmlCoords, setKmlCoords] = useState<domain.Coordinate | undefined>(undefined);
 
+  const activeSwarmIdx = useSwarms((s) => s.activeSwarmIdx);
+  const swarms = useSwarms((s) => s.swarms);
+  const updateSwarm = useSwarms((s) => s.updateSwarm);
+  
+  const swarm = swarms[activeSwarmIdx];
   const {
     formationCenterLat,
     formationCenterLon,
     formationSpacing,
     formationCenterMode,
-  } = useConfig((s) => s.config);
-  const update = useConfig((s) => s.update);
-  const uavs = useFleet((s) => s.uavs);
+  } = swarm || {};
+
   const services = useServices((s) => s.services);
 
   const kmlFiles = useMemo<{ filename: string; path: string }[]>(
-    () => getKmlFiles(services, uavs),
-    [uavs, services],
+    () => swarm ? getKmlFiles(services, swarm.uavs) : [],
+    [swarm, services],
   );
 
   useEffect(() => {
     useServices.getState().loadServices();
   }, []);
 
-  // Re-hydrate local kmlCoords so the lat/lon fields are disabled on re-mount
-  // when a KML was already selected. Must NOT call update() here — doing so
-  // would create a reactive loop (update → formationCenterMode ref changes →
-  // effect re-fires) and would race against the user switching back to Custom.
   useEffect(() => {
     if (!formationCenterMode) {
       setKmlCoords(undefined);
       return;
     }
-
     GetKmlFirstCoordinate(formationCenterMode).then(setKmlCoords);
   }, [formationCenterMode]);
+
+  if (!swarm) return null;
 
   const handleSelectCoordsSrc = async (value: string | undefined) => {
     if (!value) {
       setKmlCoords(undefined);
-      update((s) => ({ ...s, formationCenterMode: value }));
+      updateSwarm(activeSwarmIdx, { formationCenterMode: value });
       return;
     }
 
     const coords = await GetKmlFirstCoordinate(value);
     setKmlCoords(coords);
-    update((s) => ({
-      ...s,
+    updateSwarm(activeSwarmIdx, {
       formationCenterMode: value,
       formationCenterLat: coords.lat,
       formationCenterLon: coords.lon,
-    }));
+    });
   };
 
   return (
     <aside className="border-l border-border min-w-70 max-w-90 flex-1/4 bg-cwhite">
       <span className="border-b border-border flex flex-row items-center justify-between px-3 py-3 bg-gray">
-        <CardTitle label="Ground Formation" icon="grid_3x3" />
+        <CardTitle label={`Swarm ${swarm.id} Formation`} icon="grid_3x3" />
       </span>
       <div className="p-2 flex flex-col gap-2">
         <FormationModeSelection />
@@ -96,7 +93,7 @@ export default function SwarmFormation() {
           label="Formation Spacing"
           suffix={<p>m</p>}
           onChange={(e) =>
-            update((s) => ({ ...s, formationSpacing: Number(e) }))
+            updateSwarm(activeSwarmIdx, { formationSpacing: Number(e) })
           }
         />
         <Select<string>
@@ -117,7 +114,7 @@ export default function SwarmFormation() {
             label="Latitude (deg)"
             enabled={kmlCoords === undefined}
             onChange={(e) =>
-              update((s) => ({ ...s, formationCenterLat: Number(e) }))
+              updateSwarm(activeSwarmIdx, { formationCenterLat: Number(e) })
             }
           />
           <FormField
@@ -127,7 +124,7 @@ export default function SwarmFormation() {
             label="Longitude (deg)"
             enabled={kmlCoords === undefined}
             onChange={(e) =>
-              update((s) => ({ ...s, formationCenterLon: Number(e) }))
+              updateSwarm(activeSwarmIdx, { formationCenterLon: Number(e) })
             }
           />
         </span>
@@ -137,15 +134,19 @@ export default function SwarmFormation() {
 }
 
 function FormationModeSelection() {
-  const { groundFormation } = useConfig((s) => s.config);
-  const update = useConfig((s) => s.update);
+  const activeSwarmIdx = useSwarms((s) => s.activeSwarmIdx);
+  const swarms = useSwarms((s) => s.swarms);
+  const updateSwarm = useSwarms((s) => s.updateSwarm);
+  
+  const swarm = swarms[activeSwarmIdx];
+  const groundFormation = swarm?.groundFormation;
 
   return (
     <div className="grid grid-cols-2 grid-rows-2 gap-2">
       {FORMATIONS.map((e) => (
         <div
           key={e.value}
-          onClick={() => update((s) => ({ ...s, groundFormation: e.value }))}
+          onClick={() => updateSwarm(activeSwarmIdx, { groundFormation: e.value })}
           className={cn(
             `border border-border rounded-md p-3 overflow-clip justify-center
               bg-cwhite shadow-xs cursor-pointer hoverable-gray flex flex-col items-center `,

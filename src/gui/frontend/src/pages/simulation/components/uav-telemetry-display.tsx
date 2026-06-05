@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import Card from "../../../components/card";
 import { getUavColor } from "../../../constants/uav-colors";
-import { useFleet } from "../../../hooks/useFleet";
+import { useSwarms } from "../../../hooks/useSwarms";
 import { useMap } from "../../../hooks/useMap";
 import { useSimulationSession } from "../../../hooks/useSimulationSession";
 import { useTelemetry, type TelemetryData } from "../../../hooks/useTelemetry";
@@ -10,7 +10,8 @@ import { cn } from "../../../utils/cn";
 import { formatTime } from "../../../utils/format-time";
 
 export default function UavTelemetryDisplay() {
-  const fleetUavs = useFleet((s) => s.uavs);
+  const swarms = useSwarms((s) => s.swarms);
+  const fleetUavs = swarms.flatMap(s => s.uavs);
   const getUavs = useTelemetry((s) => s.interpolatedUavs);
   const [setupTime, simulationTime] = useSimulationSession(
     useShallow((s) => [s.setupTime, s.simulationTime]),

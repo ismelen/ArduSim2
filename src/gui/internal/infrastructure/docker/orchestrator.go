@@ -44,19 +44,16 @@ func NewDockerOrchestrator(projectRoot string, ui ports.UIBridge) *DockerOrchest
 	}
 }
 
-func (o *DockerOrchestrator) Run(uavs []domain.UAV, config domain.GeneralConfig, isLocal bool, simDir string) (string, error) {
+func (o *DockerOrchestrator) Run(swarms []domain.Swarm, config domain.GeneralConfig, isLocal bool, simDir string) (string, error) {
 	resDir := filepath.Join(simDir, "resources")
 	if err := os.MkdirAll(resDir, 0755); err != nil {
 		return "", fmt.Errorf("create simulation dirs: %w", err)
 	}
 
-	f := formation.GetFormation(config.GroundFormation)
-	offsets := f.CalculateOffsets(len(uavs), config.FormationSpacing)
-
 	if isLocal {
-		return o.buildLocalCompose(uavs, config, offsets, resDir, simDir)
+		return o.buildLocalCompose(swarms, config, resDir, simDir)
 	}
-	return o.buildSwarmCompose(uavs, config, offsets, resDir, simDir)
+	return o.buildSwarmCompose(swarms, config, resDir, simDir)
 }
 
 func normalizeNetsimInstances(n int) int {
@@ -66,7 +63,7 @@ func normalizeNetsimInstances(n int) int {
 	return n
 }
 
-func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.GeneralConfig, offsets []formation.Offset, resDir, simDir string) (string, error) {
+func (o *DockerOrchestrator) buildLocalCompose(swarms []domain.Swarm, config domain.GeneralConfig, resDir, simDir string) (string, error) {
 	writer := NewResourceWriter(resDir)
 	builder := newComposeBuilder()
 	pool := newSubnetPool()
@@ -96,27 +93,34 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 	builder.AddLogger(loggerFile, loggerLimits)
 
 	if config.LoggingEnabled {
-		for _, uav := range uavs {
-			logDir := filepath.Join(simDir, "uav_logs", uav.ID)
-			os.MkdirAll(logDir, 0755)
+		for _, swarm := range swarms {
+			for _, uav := range swarm.UAVs {
+				logDir := filepath.Join(simDir, "uav_logs", fmt.Sprintf("swarm_%s_uav_%s", swarm.ID, uav.ID))
+				os.MkdirAll(logDir, 0755)
+			}
 		}
 	}
 
-	for i, uav := range uavs {
-		arduPilotInstance := config.DefaultArduPilotInstance
-		if uav.ArduPilotInstance != nil {
-			arduPilotInstance = *uav.ArduPilotInstance
-		}
-		var arduPilotInstanceFile string
-		if arduPilotInstance != "" {
-			arduPilotInstanceFile = filepath.Base(arduPilotInstance)
-			destPath := filepath.Join(resDir, arduPilotInstanceFile)
-			_ = copyFile(arduPilotInstance, destPath)
-		}
+	for _, swarm := range swarms {
+		f := formation.GetFormation(swarm.GroundFormation)
+		offsets := f.CalculateOffsets(len(swarm.UAVs), swarm.FormationSpacing)
 
-		controller := o.resolveController(uav, config)
-		paramFile, _ := o.generateUAVParams(uav, config, controller.FolderName, resDir)
-		o.appendUAV(uav, paramFile, arduPilotInstanceFile, builder, writer, config, offsets[i], pool)
+		for i, uav := range swarm.UAVs {
+			arduPilotInstance := config.DefaultArduPilotInstance
+			if uav.ArduPilotInstance != nil {
+				arduPilotInstance = *uav.ArduPilotInstance
+			}
+			var arduPilotInstanceFile string
+			if arduPilotInstance != "" {
+				arduPilotInstanceFile = filepath.Base(arduPilotInstance)
+				destPath := filepath.Join(resDir, arduPilotInstanceFile)
+				_ = copyFile(arduPilotInstance, destPath)
+			}
+
+			controller := o.resolveController(uav, config)
+			paramFile, _ := o.generateUAVParams(swarm.ID, uav, config, controller.FolderName, resDir)
+			o.appendUAV(swarm.ID, uav, paramFile, arduPilotInstanceFile, builder, writer, config, offsets[i], swarm, pool)
+		}
 	}
 
 	composePath := filepath.Join(simDir, "docker-compose.yaml")
@@ -124,7 +128,7 @@ func (o *DockerOrchestrator) buildLocalCompose(uavs []domain.UAV, config domain.
 	return composePath, nil
 }
 
-func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.GeneralConfig, offsets []formation.Offset, resDir, simDir string) (string, error) {
+func (o *DockerOrchestrator) buildSwarmCompose(swarms []domain.Swarm, config domain.GeneralConfig, resDir, simDir string) (string, error) {
 	writer := NewResourceWriter(resDir)
 	builder := newSwarmComposeBuilder()
 
@@ -152,21 +156,26 @@ func (o *DockerOrchestrator) buildSwarmCompose(uavs []domain.UAV, config domain.
 	loggerFile, _ := o.writeTemplateConfig("logger_config", o.loggerConfig, nil, writer)
 	builder.AddLogger(loggerFile, loggerLimits)
 
-	for i, uav := range uavs {
-		arduPilotInstance := config.DefaultArduPilotInstance
-		if uav.ArduPilotInstance != nil {
-			arduPilotInstance = *uav.ArduPilotInstance
-		}
-		var arduPilotInstanceFile string
-		if arduPilotInstance != "" {
-			arduPilotInstanceFile = filepath.Base(arduPilotInstance)
-			destPath := filepath.Join(resDir, arduPilotInstanceFile)
-			_ = copyFile(arduPilotInstance, destPath)
-		}
+	for _, swarm := range swarms {
+		f := formation.GetFormation(swarm.GroundFormation)
+		offsets := f.CalculateOffsets(len(swarm.UAVs), swarm.FormationSpacing)
 
-		controller := o.resolveController(uav, config)
-		paramFile, _ := o.generateUAVParams(uav, config, controller.FolderName, resDir)
-		o.appendSwarmUAV(uav, paramFile, arduPilotInstanceFile, builder, writer, config, offsets[i])
+		for i, uav := range swarm.UAVs {
+			arduPilotInstance := config.DefaultArduPilotInstance
+			if uav.ArduPilotInstance != nil {
+				arduPilotInstance = *uav.ArduPilotInstance
+			}
+			var arduPilotInstanceFile string
+			if arduPilotInstance != "" {
+				arduPilotInstanceFile = filepath.Base(arduPilotInstance)
+				destPath := filepath.Join(resDir, arduPilotInstanceFile)
+				_ = copyFile(arduPilotInstance, destPath)
+			}
+
+			controller := o.resolveController(uav, config)
+			paramFile, _ := o.generateUAVParams(swarm.ID, uav, config, controller.FolderName, resDir)
+			o.appendSwarmUAV(swarm.ID, uav, paramFile, arduPilotInstanceFile, builder, writer, config, offsets[i], swarm)
+		}
 	}
 
 	composePath := filepath.Join(simDir, "docker-compose.swarm.yaml")
@@ -380,15 +389,15 @@ func (o *DockerOrchestrator) isLocalhost(host string) bool {
 
 // Ported helpers from ui/internal/simulation/orchestrator.go
 
-func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName, arduPilotInstanceFile string, builder *composeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset, pool *subnetPool) {
+func (o *DockerOrchestrator) appendUAV(swarmID string, uav domain.UAV, paramFileName, arduPilotInstanceFile string, builder *composeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset, swarm domain.Swarm, pool *subnetPool) {
 	nContainers := 4 + len(uav.Services)
 	subnet := pool.Next(nContainers)
-	builder.AddUAVNetwork(uav.ID, subnet)
-	builder.AddCommunicationModule(uav.ID, ResourceLimits{}, config.VerboseLogging)
+	builder.AddUAVNetwork(swarmID, uav.ID, subnet)
+	builder.AddCommunicationModule(swarmID, uav.ID, ResourceLimits{}, config.VerboseLogging)
 
 	mixer := o.resolveMixer(uav, config)
 	appFile, _, appLimits := o.buildServiceResources(mixer, writer)
-	builder.AddMixer(uav.ID, mixer.FolderName, appFile, appLimits, config.VerboseLogging)
+	builder.AddMixer(swarmID, uav.ID, mixer.FolderName, appFile, appLimits, config.VerboseLogging)
 
 	controller := o.resolveController(uav, config)
 	ucFile, _, ucLimits := o.buildServiceResources(controller, writer)
@@ -396,29 +405,29 @@ func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName, arduPilotI
 	if uav.HomeOverride != nil {
 		homeLat, homeLon = uav.HomeOverride.Lat, uav.HomeOverride.Lon
 	} else {
-		homeLat, homeLon = util.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
+		homeLat, homeLon = util.AddOffset(swarm.FormationCenterLat, swarm.FormationCenterLon, offset.X, offset.Y)
 	}
 	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
-	builder.AddUAVController(uav.ID, controller.FolderName, ucFile, paramFileName, homeLocation, arduPilotInstanceFile, ucLimits, config.VerboseLogging, config.LoggingEnabled)
+	builder.AddUAVController(swarmID, uav.ID, controller.FolderName, ucFile, paramFileName, homeLocation, arduPilotInstanceFile, ucLimits, config.VerboseLogging, config.LoggingEnabled)
 
 	ecCfg := LoadRawConfig(o.externalCommsConfig)
 	ecLimits := ParseResourceLimits(ecCfg)
 	ecFile, _ := o.writeTemplateConfig("external_comms_config", o.externalCommsConfig, nil, writer)
-	builder.AddExternalComms(uav.ID, ecFile, ecLimits, config.VerboseLogging)
+	builder.AddExternalComms(swarmID, uav.ID, ecFile, ecLimits, config.VerboseLogging)
 
 	for _, svc := range uav.Services {
 		svcFile, extraVolumes, algoLimits := o.buildServiceResources(svc, writer)
-		builder.AddAlgorithmService(uav.ID, svc, svcFile, extraVolumes, algoLimits, config.VerboseLogging)
+		builder.AddAlgorithmService(swarmID, uav.ID, svc, svcFile, extraVolumes, algoLimits, config.VerboseLogging)
 	}
 }
 
-func (o *DockerOrchestrator) appendSwarmUAV(uav domain.UAV, paramFileName, arduPilotInstanceFile string, builder *swarmComposeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset) {
-	builder.AddUAVNetwork(uav.ID)
-	builder.AddCommunicationModule(uav.ID, ResourceLimits{}, config.VerboseLogging)
+func (o *DockerOrchestrator) appendSwarmUAV(swarmID string, uav domain.UAV, paramFileName, arduPilotInstanceFile string, builder *swarmComposeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset, swarm domain.Swarm) {
+	builder.AddUAVNetwork(swarmID, uav.ID)
+	builder.AddCommunicationModule(swarmID, uav.ID, ResourceLimits{}, config.VerboseLogging)
 
 	mixer := o.resolveMixer(uav, config)
 	appFile, _, appLimits := o.buildServiceResources(mixer, writer)
-	builder.AddMixer(uav.ID, mixer.FolderName, appFile, appLimits, config.VerboseLogging)
+	builder.AddMixer(swarmID, uav.ID, mixer.FolderName, appFile, appLimits, config.VerboseLogging)
 
 	controller := o.resolveController(uav, config)
 	ucFile, _, ucLimits := o.buildServiceResources(controller, writer)
@@ -426,19 +435,19 @@ func (o *DockerOrchestrator) appendSwarmUAV(uav domain.UAV, paramFileName, arduP
 	if uav.HomeOverride != nil {
 		homeLat, homeLon = uav.HomeOverride.Lat, uav.HomeOverride.Lon
 	} else {
-		homeLat, homeLon = util.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
+		homeLat, homeLon = util.AddOffset(swarm.FormationCenterLat, swarm.FormationCenterLon, offset.X, offset.Y)
 	}
 	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
-	builder.AddUAVController(uav.ID, controller.FolderName, ucFile, paramFileName, homeLocation, arduPilotInstanceFile, ucLimits, config.VerboseLogging, config.LoggingEnabled)
+	builder.AddUAVController(swarmID, uav.ID, controller.FolderName, ucFile, paramFileName, homeLocation, arduPilotInstanceFile, ucLimits, config.VerboseLogging, config.LoggingEnabled)
 
 	ecCfg := LoadRawConfig(o.externalCommsConfig)
 	ecLimits := ParseResourceLimits(ecCfg)
 	ecFile, _ := o.writeTemplateConfig("external_comms_config", o.externalCommsConfig, nil, writer)
-	builder.AddExternalComms(uav.ID, ecFile, ecLimits, config.VerboseLogging)
+	builder.AddExternalComms(swarmID, uav.ID, ecFile, ecLimits, config.VerboseLogging)
 
 	for _, svc := range uav.Services {
 		svcFile, extraVolumes, algoLimits := o.buildServiceResources(svc, writer)
-		builder.AddAlgorithmService(uav.ID, svc, svcFile, extraVolumes, algoLimits, config.VerboseLogging)
+		builder.AddAlgorithmService(swarmID, uav.ID, svc, svcFile, extraVolumes, algoLimits, config.VerboseLogging)
 	}
 }
 
@@ -514,7 +523,7 @@ func (o *DockerOrchestrator) getServiceSchema(folderName string) (map[string]int
 	return nil, fmt.Errorf("schema not found for %s", folderName)
 }
 
-func (o *DockerOrchestrator) generateUAVParams(uav domain.UAV, config domain.GeneralConfig, controllerFolderName string, resDir string) (string, error) {
+func (o *DockerOrchestrator) generateUAVParams(swarmID string, uav domain.UAV, config domain.GeneralConfig, controllerFolderName string, resDir string) (string, error) {
 	baseParmPath := filepath.Join(o.projectRoot, "..", "controllers", controllerFolderName, "ardupilot", "copter.parm")
 	content, _ := os.ReadFile(baseParmPath)
 	params := string(content)
@@ -550,7 +559,7 @@ func (o *DockerOrchestrator) generateUAVParams(uav domain.UAV, config domain.Gen
 	params += fmt.Sprintf("WPNAV_SPEED_UP %d\n", int(uavSpeed*100))
 	params += fmt.Sprintf("WPNAV_SPEED_DN %d\n", int(uavSpeed*100))
 
-	fileName := fmt.Sprintf("uav_%s_params.param", uav.ID)
+	fileName := fmt.Sprintf("swarm_%s_uav_%s_params.param", swarmID, uav.ID)
 	_ = os.WriteFile(filepath.Join(resDir, fileName), []byte(params), 0644)
 	return fileName, nil
 }
