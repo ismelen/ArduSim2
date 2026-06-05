@@ -68,6 +68,14 @@ func (a *App) GetAvailableServices() []domain.ServiceType {
 	return a.discovery.GetAvailableServices()
 }
 
+func (a *App) GetAvailableMixers() []domain.ServiceType {
+	return a.discovery.GetAvailableMixers()
+}
+
+func (a *App) GetAvailableControllers() []domain.ServiceType {
+	return a.discovery.GetAvailableControllers()
+}
+
 // Simulation
 func (a *App) StartSimulation(uavs []domain.UAV, config domain.GeneralConfig, isLocal bool) error {
 	return a.simulation.StartSimulation(a.ctx, uavs, config, isLocal)

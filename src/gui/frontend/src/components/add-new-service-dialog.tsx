@@ -1,26 +1,29 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
-import { domain } from "../../../../wailsjs/go/models";
-import Button from "../../../components/button";
-import CardTitle from "../../../components/card-title";
-import DynamicForm from "../../../components/dynamic-form";
-import { useServices } from "../../../hooks/useServices";
-import { cn } from "../../../utils/cn";
+import { domain } from "../../wailsjs/go/models";
+import Button from "./button";
+import CardTitle from "./card-title";
+import DynamicForm from "./dynamic-form";
+import { useServices } from "../hooks/useServices";
+import { cn } from "../utils/cn";
 
 interface Props {
+  title?: string;
+  servicesList: domain.ServiceType[];
   onExit?(): void;
   serviceToEdit?: domain.DeployedService;
   onAccept?(service?: domain.DeployedService): void;
 }
 
 export default function AddNewServiceDialog({
+  title = "Add new service",
+  servicesList,
   onExit,
   serviceToEdit,
   onAccept,
 }: Props) {
-  const services = useServices((s) => s.services);
   const [serviceIdx, setServiceIdx] = useState(
-    services.findIndex((e) => e.id === serviceToEdit?.serviceId),
+    servicesList.findIndex((e) => e.id === serviceToEdit?.serviceId),
   );
   const [currentValues, setCurrentValues] = useState<Record<string, any>>(
     serviceToEdit?.config ?? {},
@@ -38,7 +41,7 @@ export default function AddNewServiceDialog({
       />
       <div className="bg-background flex-3/4 shadow-lg flex flex-col h-screen">
         <span className="bg-gray border-b border-border p-3 flex justify-between items-center sticky top-0 h-15">
-          <CardTitle label="Add new service" icon="add_circle" />
+          <CardTitle label={title} icon="add_circle" />
           <Button icon="close" type="outlined" onClick={onExit} />
         </span>
         <div className="flex flex-row flex-1 overflow-hidden">
@@ -47,7 +50,7 @@ export default function AddNewServiceDialog({
               Available Services
             </h4>
             <div className="flex flex-col gap-2 px-2 pt-2 overflow-y-auto">
-              {services.map((e, idx) => (
+              {servicesList.map((e, idx) => (
                 <ServiceCard
                   service={e}
                   selected={idx === serviceIdx}
@@ -61,10 +64,10 @@ export default function AddNewServiceDialog({
           </aside>
           <div className="flex-2/3 flex flex-col overflow-hidden">
             <div className="bg-background flex-1 p-5 overflow-y-auto">
-              {serviceIdx !== -1 ? (
+              {serviceIdx !== -1 && servicesList[serviceIdx] ? (
                 <DynamicForm
                   key={serviceIdx}
-                  schemaRaw={services[serviceIdx].schemaRaw}
+                  schemaRaw={servicesList[serviceIdx].schemaRaw}
                   values={currentValues}
                   onChange={(key, value) => {
                     setCurrentValues((s) => ({
@@ -92,13 +95,13 @@ export default function AddNewServiceDialog({
                     domain.DeployedService.createFrom({
                       instanceId: serviceToEdit?.instanceId ?? crypto.randomUUID(),
                       serviceId:
-                        serviceToEdit?.serviceId ?? services[serviceIdx].id,
+                        serviceToEdit?.serviceId ?? servicesList[serviceIdx].id,
                       folderName:
                         serviceToEdit?.folderName ??
-                        services[serviceIdx].folderName,
+                        servicesList[serviceIdx].folderName,
                       serviceTitle:
                         serviceToEdit?.serviceTitle ??
-                        services[serviceIdx].title,
+                        servicesList[serviceIdx].title,
                       config: currentValues,
                     }),
                   );

@@ -13,6 +13,8 @@ export interface DeployedService {
 export interface UAV {
   id: string;
   services: DeployedService[];
+  mixer?: DeployedService | null;
+  controller?: DeployedService | null;
   speed?: number | null;
   homeOverride?: { lat: number; lon: number } | null;
   arduPilotInstance?: string | null;

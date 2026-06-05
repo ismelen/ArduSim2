@@ -8,6 +8,10 @@ export function DiscardCurrentRun(arg1:domain.GeneralConfig):Promise<void>;
 
 export function DownloadLogs():Promise<void>;
 
+export function GetAvailableControllers():Promise<Array<domain.ServiceType>>;
+
+export function GetAvailableMixers():Promise<Array<domain.ServiceType>>;
+
 export function GetAvailableServices():Promise<Array<domain.ServiceType>>;
 
 export function GetKmlFirstCoordinate(arg1:string):Promise<domain.Coordinate>;

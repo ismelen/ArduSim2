@@ -1,0 +1,58 @@
+{
+  "service_id": "ardupilot4_5_3",
+  "title": "ArduPilot 4.5.3 Controller",
+  "properties": {
+    "LOGGING": {
+      "type": "string",
+      "enum": [
+        "DEBUG_TO_CONSOLE",
+        "DEBUG_TO_FILE",
+        "NONE"
+      ],
+      "default": "DEBUG_TO_CONSOLE"
+    },
+    "GCS_ID": {
+      "type": "integer",
+      "default": 255
+    },
+    "API_PORT": {
+      "type": "integer",
+      "default": 9876
+    },
+    "CONNECTION_TYPE": {
+      "type": "string",
+      "enum": [
+        "TCP",
+        "UDP",
+        "SERIAL"
+      ],
+      "default": "TCP"
+    },
+    "DRONE_PORT": {
+      "type": "integer",
+      "default": 5760
+    },
+    "DRONE_IP": {
+      "default": "127.0.0.1"
+    },
+    "SERIAL_PORT": {
+      "default": "/dev/ttyAMA0"
+    },
+    "BAUDRATE": {
+      "type": "integer",
+      "default": 57600
+    },
+    "PUBLISHING_PERIOD": {
+      "type": "number",
+      "title": "Publishing Period (ms)",
+      "default": 1000.0
+    },
+    "PUBLISHING_IP": {
+      "default": "application"
+    },
+    "PUBLISHING_PORT": {
+      "type": "integer",
+      "default": 3500
+    }
+  }
+}

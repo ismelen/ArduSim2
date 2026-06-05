@@ -1,5 +1,5 @@
-import type { domain } from "../../../../wailsjs/go/models";
-import Button from "../../../components/button";
+import type { domain } from "../../wailsjs/go/models";
+import Button from "./button";
 
 export default function ServiceCard({
   service,
@@ -18,7 +18,7 @@ export default function ServiceCard({
       <p className="text-lg">{service.serviceTitle}</p>
       <span className="flex gap-2">
         <Button icon="edit" onClick={onSelect} />
-        <Button icon="close" onClick={onDelete} />
+        {onDelete && <Button icon="close" onClick={onDelete} />}
       </span>
     </div>
   );

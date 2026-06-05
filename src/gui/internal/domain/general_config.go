@@ -8,11 +8,13 @@ import (
 
 // GeneralConfig contains simulation-wide parameters like wind and battery.
 type GeneralConfig struct {
-	DefaultUAVSpeed          float64 `json:"defaultUAVSpeed"`
-	DefaultArduPilotInstance string  `json:"defaultArduPilotInstance"`
-	LoggingEnabled           bool    `json:"loggingEnabled"`
-	BatteryRestricted        bool    `json:"batteryRestricted"`
-	BatteryCapacity          int     `json:"batteryCapacity"`
+	DefaultUAVSpeed          float64         `json:"defaultUAVSpeed"`
+	DefaultArduPilotInstance string          `json:"defaultArduPilotInstance"`
+	DefaultMixer             DeployedService `json:"defaultMixer"`
+	DefaultController        DeployedService `json:"defaultController"`
+	LoggingEnabled           bool            `json:"loggingEnabled"`
+	BatteryRestricted        bool            `json:"batteryRestricted"`
+	BatteryCapacity          int             `json:"batteryCapacity"`
 	VerboseLogging    bool    `json:"verboseLogging"`
 	StoreLocalData    bool    `json:"storeLocalData"`
 	WindEnabled       bool    `json:"windEnabled"`

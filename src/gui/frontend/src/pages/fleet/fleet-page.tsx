@@ -1,15 +1,16 @@
 import { useState } from "react";
 import Button from "../../components/button";
 import { useFleet } from "../../hooks/useFleet";
-import AddNewServiceDialog from "./components/add-new-service-dialog";
+import AddNewServiceDialog from "../../components/add-new-service-dialog";
 import SwarmFormation from "./components/swarm-formation";
 import UavsList from "./components/uavs-list";
-import ServiceCard from "./components/service-card";
+import ServiceCard from "../../components/service-card";
 import FormField from "../../components/form-field";
 import Checkbox from "../../components/checkbox";
 import FilePickerField from "../../components/file-picker-field";
 import { useConfig } from "../../hooks/useConfig";
 import { SelectArduPilotInstance } from "../../../wailsjs/go/main/App";
+import { useServices } from "../../hooks/useServices";
 
 export default function FleetPage() {
   const uavs = useFleet((s) => s.uavs);
@@ -20,9 +21,11 @@ export default function FleetPage() {
   const deleteUav = useFleet((s) => s.deleteUav);
   const activeUavIdx = useFleet((s) => s.activeUavIdx);
   const cloneUav = useFleet((s) => s.cloneUav);
-  const { defaultUAVSpeed, defaultArduPilotInstance } = useConfig((s) => s.config);
+  const { defaultUAVSpeed, defaultArduPilotInstance, defaultMixer, defaultController } = useConfig((s) => s.config);
+  const { services, mixers, controllers } = useServices();
 
   const [serviceIdx, setServiceIdx] = useState<number | undefined>(undefined);
+  const [baseServiceType, setBaseServiceType] = useState<"mixer" | "controller" | undefined>(undefined);
 
   return (
     <div className="flex h-full">
@@ -114,6 +117,20 @@ export default function FleetPage() {
         </div>
         <span className="flex justify-between items-center mt-5">
           <h5 className="font-semibold text-2xl text-dark-gray">
+            Base Services
+          </h5>
+        </span>
+        <ServiceCard
+          service={uavs[activeUavIdx].mixer ?? defaultMixer ?? { serviceTitle: "Mixer (Default)" } as any}
+          onSelect={() => setBaseServiceType("mixer")}
+        />
+        <ServiceCard
+          service={uavs[activeUavIdx].controller ?? defaultController ?? { serviceTitle: "Controller (Default)" } as any}
+          onSelect={() => setBaseServiceType("controller")}
+        />
+
+        <span className="flex justify-between items-center mt-5">
+          <h5 className="font-semibold text-2xl text-dark-gray">
             Active Services
           </h5>
           <Button
@@ -137,6 +154,8 @@ export default function FleetPage() {
       <SwarmFormation />
       {serviceIdx !== undefined ? (
         <AddNewServiceDialog
+          servicesList={services}
+          title="Add new service"
           serviceToEdit={
             serviceIdx !== -1
               ? uavs[activeUavIdx].services[serviceIdx]
@@ -144,7 +163,6 @@ export default function FleetPage() {
           }
           onExit={() => setServiceIdx(undefined)}
           onAccept={(service) => {
-            console.log(service);
             if (!service) return setServiceIdx(undefined);
 
             if (serviceIdx === -1) {
@@ -153,6 +171,26 @@ export default function FleetPage() {
               updateService(serviceIdx, service);
             }
             setServiceIdx(undefined);
+          }}
+        />
+      ) : null}
+      {baseServiceType !== undefined ? (
+        <AddNewServiceDialog
+          servicesList={baseServiceType === "mixer" ? mixers : controllers}
+          title={`Edit Base ${baseServiceType === "mixer" ? "Mixer" : "Controller"}`}
+          serviceToEdit={
+            baseServiceType === "mixer" 
+              ? (uavs[activeUavIdx].mixer ?? defaultMixer)
+              : (uavs[activeUavIdx].controller ?? defaultController)
+          }
+          onExit={() => setBaseServiceType(undefined)}
+          onAccept={(service) => {
+            if (!service) return setBaseServiceType(undefined);
+
+            updateUav(activeUavIdx, {
+              [baseServiceType]: service
+            });
+            setBaseServiceType(undefined);
           }}
         />
       ) : null}

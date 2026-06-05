@@ -105,7 +105,7 @@ func (b *composeBuilder) AddCommunicationModule(uavID string, limits ResourceLim
 }
 
 // AddApplication appends the application service for a UAV.
-func (b *composeBuilder) AddApplication(uavID, configFileName string, limits ResourceLimits, verbose bool) {
+func (b *composeBuilder) AddApplication(uavID, image, configFileName string, limits ResourceLimits, verbose bool) {
 	uavNet := uavNetworkName(uavID)
 
 	env := fmt.Sprintf("    environment:\n      - UAV_ID=%s\n", uavID)
@@ -117,7 +117,7 @@ func (b *composeBuilder) AddApplication(uavID, configFileName string, limits Res
 	lims := b.buildLocalLimits(limits)
 
 	fmt.Fprintf(&b.services, `  application_%s:
-    image: application
+    image: %s
     container_name: application_%s
     depends_on:
       - communication_module_%s
@@ -128,11 +128,11 @@ func (b *composeBuilder) AddApplication(uavID, configFileName string, limits Res
         aliases:
           - application
 
-`, uavID, uavID, uavID, uavID, env, vols, lims, uavNet)
+`, uavID, image, uavID, uavID, uavID, env, vols, lims, uavNet)
 }
 
 // AddUAVController appends the uav_controller (SITL) service for a UAV.
-func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, homeLocation, arduPilotInstanceFile string, limits ResourceLimits, verbose bool, loggingEnabled bool) {
+func (b *composeBuilder) AddUAVController(uavID, controllerFolderName, configFileName, paramFileName, homeLocation, arduPilotInstanceFile string, limits ResourceLimits, verbose bool, loggingEnabled bool) {
 	uavNet := uavNetworkName(uavID)
 
 	var env string
@@ -154,7 +154,7 @@ func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, 
 	lims := b.buildLocalLimits(limits)
 
 	fmt.Fprintf(&b.services, `  uav_controller_%s:
-    image: copter453
+    image: %s
     container_name: uav_controller_%s
     depends_on:
       - communication_module_%s
@@ -167,7 +167,7 @@ func (b *composeBuilder) AddUAVController(uavID, configFileName, paramFileName, 
         aliases:
           - uav_controller
 
-`, uavID, uavID, uavID, homeLocation, uavID, env, vols, lims, uavNet)
+`, uavID, controllerFolderName, uavID, uavID, homeLocation, uavID, env, vols, lims, uavNet)
 }
 
 // AddExternalComms appends the external_comms service for a UAV.

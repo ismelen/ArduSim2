@@ -109,8 +109,8 @@ func (b *swarmComposeBuilder) AddCommunicationModule(uavID string, limits Resour
 `, uavID, env, lims, uavNet)
 }
 
-// AddApplication appends the application service for a UAV.
-func (b *swarmComposeBuilder) AddApplication(uavID, configFileName string, limits ResourceLimits, verbose bool) {
+// AddApplication appends the application service for a UAV in swarm mode.
+func (b *swarmComposeBuilder) AddApplication(uavID, image, configFileName string, limits ResourceLimits, verbose bool) {
 	uavNet := uavNetworkName(uavID)
 	env := b.buildUAVEnvBlock("    ", uavID, verbose)
 	configName := b.declareConfig(configFileName)
@@ -122,7 +122,7 @@ func (b *swarmComposeBuilder) AddApplication(uavID, configFileName string, limit
 `)
 
 	fmt.Fprintf(&b.services, `  application_%s:
-    image: application
+    image: 127.0.0.1:5000/%s
 %s    configs:
       - source: %s
         target: /app/config.json
@@ -131,10 +131,10 @@ func (b *swarmComposeBuilder) AddApplication(uavID, configFileName string, limit
         aliases:
           - application
 
-`, uavID, env, configName, lims, uavNet)
+`, uavID, image, env, configName, lims, uavNet)
 }
 
-func (b *swarmComposeBuilder) AddUAVController(uavID, configFileName, paramFileName, homeLocation, arduPilotInstanceFile string, limits ResourceLimits, verbose bool, loggingEnabled bool) {
+func (b *swarmComposeBuilder) AddUAVController(uavID, controllerFolderName, configFileName, paramFileName, homeLocation, arduPilotInstanceFile string, limits ResourceLimits, verbose bool, loggingEnabled bool) {
 	uavNet := uavNetworkName(uavID)
 	configName := b.declareConfig(configFileName)
 	paramName := b.declareConfig(paramFileName)
@@ -159,7 +159,7 @@ func (b *swarmComposeBuilder) AddUAVController(uavID, configFileName, paramFileN
 	}
 
 	fmt.Fprintf(&b.services, `  uav_controller_%s:
-    image: copter453
+    image: 127.0.0.1:5000/%s
 %s    configs:
       - source: %s
         target: /app/config.json
@@ -170,7 +170,7 @@ func (b *swarmComposeBuilder) AddUAVController(uavID, configFileName, paramFileN
         aliases:
           - uav_controller
 
-`, uavID, envLines, configName, paramName, extraConfigs, lims, uavNet)
+`, uavID, controllerFolderName, envLines, configName, paramName, extraConfigs, lims, uavNet)
 }
 
 // AddExternalComms appends the external_comms service for a UAV.

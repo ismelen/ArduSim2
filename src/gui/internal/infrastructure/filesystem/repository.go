@@ -10,6 +10,8 @@ import (
 
 type FileRepository struct {
 	algorithmsDir  string
+	mixersDir      string
+	controllersDir string
 	simulationsDir string
 }
 
@@ -17,12 +19,26 @@ func NewFileRepository(projectRoot string) *FileRepository {
 	base := filepath.Clean(projectRoot)
 	return &FileRepository{
 		algorithmsDir:  filepath.Join(base, "..", "algorithms"),
+		mixersDir:      filepath.Join(base, "..", "mixers"),
+		controllersDir: filepath.Join(base, "..", "controllers"),
 		simulationsDir: filepath.Join(base, "..", "..", "simulations"),
 	}
 }
 
 func (r *FileRepository) GetAvailableServices() []domain.ServiceType {
-	entries, err := os.ReadDir(r.algorithmsDir)
+	return r.scanServices(r.algorithmsDir)
+}
+
+func (r *FileRepository) GetAvailableMixers() []domain.ServiceType {
+	return r.scanServices(r.mixersDir)
+}
+
+func (r *FileRepository) GetAvailableControllers() []domain.ServiceType {
+	return r.scanServices(r.controllersDir)
+}
+
+func (r *FileRepository) scanServices(dir string) []domain.ServiceType {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil
 	}
@@ -32,7 +48,7 @@ func (r *FileRepository) GetAvailableServices() []domain.ServiceType {
 		if !entry.IsDir() {
 			continue
 		}
-		schemaPath := filepath.Join(r.algorithmsDir, entry.Name(), "schema.json")
+		schemaPath := filepath.Join(dir, entry.Name(), "schema.json")
 		rawData, err := os.ReadFile(schemaPath)
 		if err != nil {
 			continue

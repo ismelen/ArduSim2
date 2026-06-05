@@ -4,6 +4,8 @@ package domain
 type UAV struct {
 	ID                string            `json:"id"`
 	Services          []DeployedService `json:"services"`
+	Mixer             *DeployedService  `json:"mixer,omitempty"`
+	Controller        *DeployedService  `json:"controller,omitempty"`
 	Speed             *float64          `json:"speed,omitempty"`
 	HomeOverride      *Coordinate       `json:"homeOverride,omitempty"`
 	ArduPilotInstance *string           `json:"arduPilotInstance,omitempty"`

@@ -1,9 +1,12 @@
 import { create } from "zustand";
 import { useSimulationConfig } from "./useSimulationConfig";
+import type { DeployedService } from "./useFleet";
 
 export interface GeneralConfig {
   defaultUAVSpeed?: number;
   defaultArduPilotInstance?: string;
+  defaultMixer?: DeployedService;
+  defaultController?: DeployedService;
   loggingEnabled?: boolean;
   batteryRestricted?: boolean;
   batteryCapacity?: number;

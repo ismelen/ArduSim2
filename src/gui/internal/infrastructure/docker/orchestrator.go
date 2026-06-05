@@ -20,13 +20,13 @@ type DockerOrchestrator struct {
 	projectRoot string
 	ui          ports.UIBridge
 	// paths needed for templates
-	applicationConfig   string
-	uavControllerConfig string
 	externalCommsConfig string
 	netsimGatewayConfig string
 	netsimConfig        string
 	loggerConfig        string
 	algorithmsDir       string
+	mixersDir           string
+	controllersDir      string
 }
 
 func NewDockerOrchestrator(projectRoot string, ui ports.UIBridge) *DockerOrchestrator {
@@ -34,13 +34,13 @@ func NewDockerOrchestrator(projectRoot string, ui ports.UIBridge) *DockerOrchest
 	return &DockerOrchestrator{
 		projectRoot:         base,
 		ui:                  ui,
-		applicationConfig:   filepath.Join(base, "..", "application", "config.json"),
-		uavControllerConfig: filepath.Join(base, "..", "uav_controller", "ardupilot4_5_3", "config.sitl.json"),
 		externalCommsConfig: filepath.Join(base, "..", "external_comms", "config.json"),
 		netsimGatewayConfig: filepath.Join(base, "..", "netsim_gateway", "config.json"),
 		netsimConfig:        filepath.Join(base, "..", "netsim", "config.json"),
 		loggerConfig:        filepath.Join(base, "..", "logger", "config.json"),
 		algorithmsDir:       filepath.Join(base, "..", "algorithms"),
+		mixersDir:           filepath.Join(base, "..", "mixers"),
+		controllersDir:      filepath.Join(base, "..", "controllers"),
 	}
 }
 
@@ -306,35 +306,31 @@ func (o *DockerOrchestrator) BuildAllImages(simDir string) error {
     build:
       context: ../../src/communication_module
       dockerfile: Dockerfile
-  application:
-    image: application
-    build:
-      context: ../../src/application
-      dockerfile: Dockerfile
-  copter453:
-    image: copter453
-    build:
-      context: ../../src/uav_controller/ardupilot4_5_3
-      dockerfile: SITL
   external_comms:
     image: external_comms
     build:
       context: ../../src/external_comms
       dockerfile: Dockerfile
 `
-	if entries, err := os.ReadDir(o.algorithmsDir); err == nil {
-		for _, entry := range entries {
-			if entry.IsDir() {
-				algoName := entry.Name()
-				composeStr += fmt.Sprintf(`  %s:
+	appendServices := func(dir, category string, dockerfile string) {
+		if entries, err := os.ReadDir(dir); err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() {
+					name := entry.Name()
+					composeStr += fmt.Sprintf(`  %s:
     image: %s
     build:
-      context: ../../src/algorithms/%s
-      dockerfile: Dockerfile
-`, algoName, algoName, algoName)
+      context: ../../src/%s/%s
+      dockerfile: %s
+`, name, name, category, name, dockerfile)
+				}
 			}
 		}
 	}
+
+	appendServices(o.algorithmsDir, "algorithms", "Dockerfile")
+	appendServices(o.mixersDir, "mixers", "Dockerfile")
+	appendServices(o.controllersDir, "controllers", "SITL")
 
 	resDir := filepath.Join(simDir, "resources")
 	os.MkdirAll(resDir, 0755)
@@ -404,14 +400,12 @@ func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName, arduPilotI
 	builder.AddUAVNetwork(uav.ID, subnet)
 	builder.AddCommunicationModule(uav.ID, ResourceLimits{}, config.VerboseLogging)
 
-	appCfg := LoadRawConfig(o.applicationConfig)
-	appLimits := ParseResourceLimits(appCfg)
-	appFile, _ := o.writeTemplateConfig("application_config", o.applicationConfig, nil, writer)
-	builder.AddApplication(uav.ID, appFile, appLimits, config.VerboseLogging)
+	mixer := o.resolveMixer(uav, config)
+	appFile, _, appLimits := o.buildServiceResources(mixer, writer)
+	builder.AddApplication(uav.ID, mixer.FolderName, appFile, appLimits, config.VerboseLogging)
 
-	ucCfg := LoadRawConfig(o.uavControllerConfig)
-	ucLimits := ParseResourceLimits(ucCfg)
-	ucFile, _ := o.writeTemplateConfig("uav_controller_config", o.uavControllerConfig, nil, writer)
+	controller := o.resolveController(uav, config)
+	ucFile, _, ucLimits := o.buildServiceResources(controller, writer)
 	var homeLat, homeLon float64
 	if uav.HomeOverride != nil {
 		homeLat, homeLon = uav.HomeOverride.Lat, uav.HomeOverride.Lon
@@ -419,7 +413,7 @@ func (o *DockerOrchestrator) appendUAV(uav domain.UAV, paramFileName, arduPilotI
 		homeLat, homeLon = util.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
 	}
 	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
-	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, arduPilotInstanceFile, ucLimits, config.VerboseLogging, config.LoggingEnabled)
+	builder.AddUAVController(uav.ID, controller.FolderName, ucFile, paramFileName, homeLocation, arduPilotInstanceFile, ucLimits, config.VerboseLogging, config.LoggingEnabled)
 
 	ecCfg := LoadRawConfig(o.externalCommsConfig)
 	ecLimits := ParseResourceLimits(ecCfg)
@@ -436,14 +430,12 @@ func (o *DockerOrchestrator) appendSwarmUAV(uav domain.UAV, paramFileName, arduP
 	builder.AddUAVNetwork(uav.ID)
 	builder.AddCommunicationModule(uav.ID, ResourceLimits{}, config.VerboseLogging)
 
-	appCfg := LoadRawConfig(o.applicationConfig)
-	appLimits := ParseResourceLimits(appCfg)
-	appFile, _ := o.writeTemplateConfig("application_config", o.applicationConfig, nil, writer)
-	builder.AddApplication(uav.ID, appFile, appLimits, config.VerboseLogging)
+	mixer := o.resolveMixer(uav, config)
+	appFile, _, appLimits := o.buildServiceResources(mixer, writer)
+	builder.AddApplication(uav.ID, mixer.FolderName, appFile, appLimits, config.VerboseLogging)
 
-	ucCfg := LoadRawConfig(o.uavControllerConfig)
-	ucLimits := ParseResourceLimits(ucCfg)
-	ucFile, _ := o.writeTemplateConfig("uav_controller_config", o.uavControllerConfig, nil, writer)
+	controller := o.resolveController(uav, config)
+	ucFile, _, ucLimits := o.buildServiceResources(controller, writer)
 	var homeLat, homeLon float64
 	if uav.HomeOverride != nil {
 		homeLat, homeLon = uav.HomeOverride.Lat, uav.HomeOverride.Lon
@@ -451,7 +443,7 @@ func (o *DockerOrchestrator) appendSwarmUAV(uav domain.UAV, paramFileName, arduP
 		homeLat, homeLon = util.AddOffset(config.FormationCenterLat, config.FormationCenterLon, offset.X, offset.Y)
 	}
 	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
-	builder.AddUAVController(uav.ID, ucFile, paramFileName, homeLocation, arduPilotInstanceFile, ucLimits, config.VerboseLogging, config.LoggingEnabled)
+	builder.AddUAVController(uav.ID, controller.FolderName, ucFile, paramFileName, homeLocation, arduPilotInstanceFile, ucLimits, config.VerboseLogging, config.LoggingEnabled)
 
 	ecCfg := LoadRawConfig(o.externalCommsConfig)
 	ecLimits := ParseResourceLimits(ecCfg)
@@ -462,6 +454,20 @@ func (o *DockerOrchestrator) appendSwarmUAV(uav domain.UAV, paramFileName, arduP
 		svcFile, extraVolumes, algoLimits := o.buildServiceResources(svc, writer)
 		builder.AddAlgorithmService(uav.ID, svc, svcFile, extraVolumes, algoLimits, config.VerboseLogging)
 	}
+}
+
+func (o *DockerOrchestrator) resolveMixer(uav domain.UAV, config domain.GeneralConfig) domain.DeployedService {
+	if uav.Mixer != nil {
+		return *uav.Mixer
+	}
+	return config.DefaultMixer
+}
+
+func (o *DockerOrchestrator) resolveController(uav domain.UAV, config domain.GeneralConfig) domain.DeployedService {
+	if uav.Controller != nil {
+		return *uav.Controller
+	}
+	return config.DefaultController
 }
 
 func (o *DockerOrchestrator) buildServiceResources(svc domain.DeployedService, writer *ResourceWriter) (string, []domain.VolumeMount, ResourceLimits) {
@@ -500,25 +506,26 @@ func (o *DockerOrchestrator) buildServiceResources(svc domain.DeployedService, w
 
 	svcFile, _ := writer.Write(svc.ServiceId+"_config", cfg)
 
-	schemaPath := filepath.Join(o.algorithmsDir, svc.FolderName, "schema.json")
-	algoSchema := LoadRawConfig(schemaPath)
-	algoLimits := ParseResourceLimits(algoSchema)
+	var algoLimits ResourceLimits
+	if schema, err := o.getServiceSchema(svc.FolderName); err == nil {
+		algoLimits = ParseResourceLimits(schema)
+	}
 
 	return svcFile, extraVolumes, algoLimits
 }
 
 func (o *DockerOrchestrator) getServiceSchema(folderName string) (map[string]interface{}, error) {
-	schemaPath := filepath.Join(o.algorithmsDir, folderName, "schema.json")
-	rawData, err := os.ReadFile(schemaPath)
-	if err != nil {
-		return nil, err
+	searchDirs := []string{o.algorithmsDir, o.mixersDir, o.controllersDir}
+	for _, dir := range searchDirs {
+		schemaPath := filepath.Join(dir, folderName, "schema.json")
+		if rawData, err := os.ReadFile(schemaPath); err == nil {
+			var schema map[string]interface{}
+			if err := json.Unmarshal(rawData, &schema); err == nil {
+				return schema, nil
+			}
+		}
 	}
-
-	var schema map[string]interface{}
-	if err := json.Unmarshal(rawData, &schema); err != nil {
-		return nil, err
-	}
-	return schema, nil
+	return nil, fmt.Errorf("schema not found for %s", folderName)
 }
 
 func (o *DockerOrchestrator) generateUAVParams(uavID string, speed float64, config domain.GeneralConfig, resDir string) (string, error) {

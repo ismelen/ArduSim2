@@ -39,6 +39,8 @@ export namespace domain {
 	export class GeneralConfig {
 	    defaultUAVSpeed: number;
 	    defaultArduPilotInstance: string;
+	    defaultMixer: DeployedService;
+	    defaultController: DeployedService;
 	    loggingEnabled: boolean;
 	    batteryRestricted: boolean;
 	    batteryCapacity: number;
@@ -67,6 +69,8 @@ export namespace domain {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.defaultUAVSpeed = source["defaultUAVSpeed"];
 	        this.defaultArduPilotInstance = source["defaultArduPilotInstance"];
+	        this.defaultMixer = this.convertValues(source["defaultMixer"], DeployedService);
+	        this.defaultController = this.convertValues(source["defaultController"], DeployedService);
 	        this.loggingEnabled = source["loggingEnabled"];
 	        this.batteryRestricted = source["batteryRestricted"];
 	        this.batteryCapacity = source["batteryCapacity"];
@@ -87,6 +91,24 @@ export namespace domain {
 	        this.netsimMode = source["netsimMode"];
 	        this.netsimMaxRangeM = source["netsimMaxRangeM"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class LogFilter {
 	    InstanceID: string;
@@ -170,6 +192,8 @@ export namespace domain {
 	export class UAV {
 	    id: string;
 	    services: DeployedService[];
+	    mixer?: DeployedService;
+	    controller?: DeployedService;
 	    speed?: number;
 	    homeOverride?: Coordinate;
 	    arduPilotInstance?: string;
@@ -182,6 +206,8 @@ export namespace domain {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.services = this.convertValues(source["services"], DeployedService);
+	        this.mixer = this.convertValues(source["mixer"], DeployedService);
+	        this.controller = this.convertValues(source["controller"], DeployedService);
 	        this.speed = source["speed"];
 	        this.homeOverride = this.convertValues(source["homeOverride"], Coordinate);
 	        this.arduPilotInstance = source["arduPilotInstance"];

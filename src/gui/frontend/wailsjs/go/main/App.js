@@ -14,6 +14,14 @@ export function DownloadLogs() {
   return window['go']['main']['App']['DownloadLogs']();
 }
 
+export function GetAvailableControllers() {
+  return window['go']['main']['App']['GetAvailableControllers']();
+}
+
+export function GetAvailableMixers() {
+  return window['go']['main']['App']['GetAvailableMixers']();
+}
+
 export function GetAvailableServices() {
   return window['go']['main']['App']['GetAvailableServices']();
 }
