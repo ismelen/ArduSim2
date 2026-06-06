@@ -274,10 +274,10 @@ func (m *MissionManager) sendNextWaypoint() {
 
 		payload := map[string]interface{}{
 			"service_id": m.config.ServiceID,
-			"endpoint":  "MoveToPosition",
-			"latitude":  wp.Latitude,
-			"longitude": wp.Longitude,
-			"altitude":  altitude,
+			"endpoint":   "MoveToPosition",
+			"latitude":   wp.Latitude,
+			"longitude":  wp.Longitude,
+			"altitude":   altitude,
 		}
 
 		if m.config.OverrideIncludedYawValues {

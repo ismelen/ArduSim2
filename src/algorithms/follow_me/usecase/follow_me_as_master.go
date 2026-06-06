@@ -55,8 +55,9 @@ func (f *FollowMeAsMaster) HandleTelemetryTopic(payload any) {
 		Endpoint: domain.ActionLand,
 	})
 	f.Broker.Publish(f.Cfg.BroadcastTopic, domain.CommandMessage{
-		Command: "finish",
-		Source: "followme",
+		Command:     "finish",
+		Source:      "followme",
+		DestSwarmId: f.Cfg.DestSwarmId,
 	})
 	f.chronosned.Stop()
 
@@ -101,8 +102,9 @@ func (f *FollowMeAsMaster) sendTelemetry() {
 	f.Broker.Publish(
 		f.Cfg.BroadcastTopic,
 		map[string]any{
-			"topic":   f.Cfg.SubscriptionTopic,
-			"payload": domain.FollowMeMessage{}.FromTelemetry(*f.lastTelemetry),
+			"topic":         f.Cfg.SubscriptionTopic,
+			"payload":       domain.FollowMeMessage{}.FromTelemetry(*f.lastTelemetry),
+			"dest_swarm_id": f.Cfg.DestSwarmId,
 		},
 	)
 }

@@ -36,8 +36,9 @@ func (f FollowMeMessage) FromTelemetry(t Telemetry) FollowMeMessage {
 }
 
 type CommandMessage struct {
-	Command string `mapstructure:"command" json:"command"`
-	Source string `json:"source"`
+	Command     string `mapstructure:"command" json:"command"`
+	Source      string `json:"source"`
+	DestSwarmId string `json:"dest_swarm_id,omitempty"`
 }
 
 // Telemetry represents the own position of a UAV
@@ -69,6 +70,7 @@ type Config struct {
 	SendPeriodMs          int     `json:"send_period_ms"`
 	LogsTopic             string  `json:"logs_topic"`
 	ServiceID             string  `json:"service_id"`
+	DestSwarmId           string  `json:"dest_swarm_id"`
 }
 
 // Suggestion endpoints for uav_controller

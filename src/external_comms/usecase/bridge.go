@@ -90,5 +90,17 @@ func (g *GatewayBridge) handleExternalNetMessage(msg domain.ReceivedNetSimMessag
 		return
 	}
 
+	if destUavId, ok := msg.Payload["dest_uav_id"]; ok && destUavId != "" {
+		if destUavIdStr, isStr := destUavId.(string); isStr && destUavIdStr != g.config.UAVId {
+			return
+		}
+	}
+
+	if destSwarmId, ok := msg.Payload["dest_swarm_id"]; ok && destSwarmId != "" {
+		if destSwarmIdStr, isStr := destSwarmId.(string); isStr && destSwarmIdStr != g.config.SwarmId {
+			return
+		}
+	}
+
 	g.broker.Publish(msg.Payload)
 }

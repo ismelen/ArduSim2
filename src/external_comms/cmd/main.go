@@ -23,6 +23,7 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 	config.UAVId = os.Getenv("UAV_ID")
+	config.SwarmId = os.Getenv("SWARM_ID")
 
 	broker := infrastructure.NewUDPBroker()
 	defer broker.Close()

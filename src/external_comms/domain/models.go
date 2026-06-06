@@ -18,7 +18,8 @@ type AppConfig struct {
 	SubLogsTopic      string `json:"sub_logs_topic"`
 
 	// Topics to publish to Local Broker (coming from NetSim)
-	UAVId string
+	UAVId   string
+	SwarmId string
 }
 
 // SendedNetSimMessage envelope for sending/receiving data to the global network simulator
