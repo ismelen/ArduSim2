@@ -99,25 +99,23 @@ function TelemetryCard({ uav_id, data, onClick }: TelemetryCardProps) {
         <main className="flex flex-col gap-1.5">
           <span className="flex gap-2">
             <ParamCard
-              label="ALTITUDE"
+              label="LAT"
+              value={p?.position.lat.toString() ?? "0"}
+              unit="º"
+            />
+            <ParamCard
+              label="LON"
+              value={p?.position.lon.toString() ?? "0"}
+              unit="º"
+            />
+          </span>
+          <span className="flex gap-2">
+            <ParamCard
+              label="ALT"
               value={p?.position.alt.toFixed(1) ?? "0"}
               unit="m"
             />
-            <ParamCard label="SPEED" value={speed.toFixed(1)} unit="m/s" />
-          </span>
-          <span className="flex gap-2">
-            <span className="flex-1 flex gap-2">
-              <ParamCard
-                label="LAT"
-                value={p?.position.lat.toFixed(1) ?? "0"}
-                unit="º"
-              />
-              <ParamCard
-                label="LON"
-                value={p?.position.lon.toFixed(1) ?? "0"}
-                unit="º"
-              />
-            </span>
+            <ParamCard label="SPD" value={speed.toFixed(1)} unit="m/s" />
             <BatteryCard value={p?.battery ?? 0} color={color} />
           </span>
         </main>
@@ -134,7 +132,7 @@ function TelemetryCard({ uav_id, data, onClick }: TelemetryCardProps) {
 function BatteryCard({ value, color }: { value: number; color: string }) {
   return (
     <div className="flex-1">
-      <p className="text-dark-gray font-medium text-sm">BATTERY</p>
+      <p className="text-dark-gray font-medium text-sm">BAT</p>
       <span className="flex gap-2 items-center">
         <p className="leading-4">{value}%</p>
         <div className="h-1 w-full bg-gray rounded-full overflow-clip">
