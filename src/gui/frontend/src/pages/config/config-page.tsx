@@ -32,15 +32,15 @@ export default function ConfigPage() {
       <div className="flex flex-row gap-3 mt-5 pb-5">
         <div className="flex-2/3 flex flex-col gap-3">
           <SimNameCard />
-          <WindCard />
-          <DefaultSpeedCard />
           <DefaultArduPilotCard />
           <BaseServicesCard />
+          <DefaultSpeedCard />
+          <BatteryCard />
         </div>
         <div className="flex-1/3 flex flex-col gap-3">
           <DeploymentCard />
           <NetsimCard />
-          <BatteryCard />
+          <WindCard />
           <LoggingCard />
         </div>
       </div>

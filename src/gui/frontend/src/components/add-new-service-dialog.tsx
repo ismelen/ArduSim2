@@ -94,14 +94,9 @@ export default function AddNewServiceDialog({
                   onAccept?.(
                     domain.DeployedService.createFrom({
                       instanceId: serviceToEdit?.instanceId ?? crypto.randomUUID(),
-                      serviceId:
-                        serviceToEdit?.serviceId ?? servicesList[serviceIdx].id,
-                      folderName:
-                        serviceToEdit?.folderName ??
-                        servicesList[serviceIdx].folderName,
-                      serviceTitle:
-                        serviceToEdit?.serviceTitle ??
-                        servicesList[serviceIdx].title,
+                      serviceId: servicesList[serviceIdx].id,
+                      folderName: servicesList[serviceIdx].folderName,
+                      serviceTitle: servicesList[serviceIdx].title,
                       config: currentValues,
                     }),
                   );

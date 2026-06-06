@@ -199,7 +199,7 @@ function UavCard({ uav, onClick, selected }: UavCardProps) {
         },
       )}
     >
-      <div className="flex-1 ml-4 border-l-2 border-border pl-3">
+      <div className="flex-1 ml-4 border-l-2 border-border pl-3 flex flex-col justify-center">
         <p
           className={cn("text-sm font-medium text-dark-gray", {
             "text-onPrimary": selected,
@@ -207,6 +207,7 @@ function UavCard({ uav, onClick, selected }: UavCardProps) {
         >
           Uav {uav.id}
         </p>
+        {uav.services.length > 0 && 
         <span className="flex gap-1 items-center mt-1">
           {uav.services.map((service, idx) => (
             <div
@@ -217,6 +218,7 @@ function UavCard({ uav, onClick, selected }: UavCardProps) {
             />
           ))}
         </span>
+        }
       </div>
       {selected === true ? (
         <span className="material-symbols-rounded text-onPrimary" style={{ fontSize: "16px" }}>

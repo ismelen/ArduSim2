@@ -5,17 +5,22 @@ export default function ServiceCard({
   service,
   onSelect,
   onDelete,
+  showId,
 }: {
   service: domain.DeployedService;
   onSelect?(): void;
   onDelete?(): void;
+  showId?: boolean;
 }) {
   return (
     <div
       className="border border-border rounded-md hoverable-gray shadow-sm
       flex justify-between items-center bg-cwhite px-3 py-1.5 cursor-pointer"
     >
-      <p className="text-lg">{service.serviceTitle}</p>
+      <span className="text-lg">
+        {service.serviceTitle}
+        <p className="text-gray-500 text-sm">{showId && service.serviceId ? ` (${service.serviceId})` : ""}</p>
+      </span>
       <span className="flex gap-2">
         <Button icon="edit" onClick={onSelect} />
         {onDelete && <Button icon="close" onClick={onDelete} />}

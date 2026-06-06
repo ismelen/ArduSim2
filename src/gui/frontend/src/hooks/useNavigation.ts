@@ -16,7 +16,7 @@ export const TABS: Tab[] = [
     page: ConfigPage,
   },
   {
-    label: "Fleet",
+    label: "Swarms",
     page: FleetPage,
   },
   {

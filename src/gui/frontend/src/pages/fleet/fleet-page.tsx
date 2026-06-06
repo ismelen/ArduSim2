@@ -185,6 +185,7 @@ export default function FleetPage() {
               <ServiceCard
                 key={idx}
                 service={e}
+                showId={true}
                 onDelete={() => deleteService(e)}
                 onSelect={() => {
                   setServiceIdx(idx);
