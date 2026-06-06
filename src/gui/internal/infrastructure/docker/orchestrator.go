@@ -53,7 +53,7 @@ func (o *DockerOrchestrator) Run(swarms []domain.Swarm, config domain.GeneralCon
 	if isLocal {
 		return o.buildLocalCompose(swarms, config, resDir, simDir)
 	}
-	return o.buildSwarmCompose(swarms, config, resDir, simDir)
+	return o.buildKubernetesManifests(swarms, config, resDir, simDir)
 }
 
 func (o *DockerOrchestrator) PrepareExport(swarms []domain.Swarm, config domain.GeneralConfig, simDir string) error {
@@ -65,7 +65,7 @@ func (o *DockerOrchestrator) PrepareExport(swarms []domain.Swarm, config domain.
 	if _, err := o.buildLocalCompose(swarms, config, resDir, simDir); err != nil {
 		return err
 	}
-	if _, err := o.buildSwarmCompose(swarms, config, resDir, simDir); err != nil {
+	if _, err := o.buildKubernetesManifests(swarms, config, resDir, simDir); err != nil {
 		return err
 	}
 	return nil
@@ -103,20 +103,67 @@ func (o *DockerOrchestrator) buildLocalCompose(swarms []domain.Swarm, config dom
 	if p, ok := gwCfg["subscribers_port"].(float64); ok {
 		subPort = int(p)
 	}
-	builder.AddNetsimGateway(gwFile, netsimAddrs, gwLimits, config.VerboseLogging, telPort, msgPort, subPort)
+
+	gwEnv := make(map[string]string)
+	if config.VerboseLogging {
+		gwEnv["DEBUG"] = "true"
+	}
+	if len(netsimAddrs) > 0 {
+		gwEnv["ADDRS"] = strings.Join(netsimAddrs, ",")
+	}
+	
+	builder.addNetwork("air", "10.9.0.0/24")
+	builder.AddService(ComposeService{
+		Name:          "netsim_gateway",
+		Image:         "netsim_gateway",
+		ContainerName: "netsim_gateway",
+		ExtraHosts:    []string{"host.docker.internal:host-gateway"},
+		Ports: []string{
+			fmt.Sprintf("%d:%d/udp", telPort, telPort),
+			fmt.Sprintf("%d:%d/udp", msgPort, msgPort),
+			fmt.Sprintf("%d:%d/udp", subPort, subPort),
+		},
+		Environment: gwEnv,
+		Volumes:     []string{fmt.Sprintf("./resources/%s:/app/config.json", gwFile)},
+		Networks:    map[string][]string{"air": nil},
+		Limits:      gwLimits,
+	})
 
 	nsCfg := LoadRawConfig(o.netsimConfig)
 	nsLimits := ParseResourceLimits(nsCfg)
 	nsOverrides := buildNetsimOverrides(config)
 	nsFile, _ := o.writeTemplateConfig("netsim_config", o.netsimConfig, nsOverrides, writer)
+
 	for i := 1; i <= netsimInstances; i++ {
-		builder.AddNetsim(i, nsFile, nsLimits, config.VerboseLogging)
+		nsEnv := map[string]string{"NODE_ID": fmt.Sprintf("netsim_%d", i)}
+		if config.VerboseLogging {
+			nsEnv["DEBUG"] = "true"
+		}
+		builder.AddService(ComposeService{
+			Name:          fmt.Sprintf("netsim_%d", i),
+			Image:         "netsim",
+			ContainerName: fmt.Sprintf("netsim_%d", i),
+			DependsOn:     []string{"netsim_gateway"},
+			Environment:   nsEnv,
+			Volumes:       []string{fmt.Sprintf("./resources/%s:/app/config.json", nsFile)},
+			Networks:      map[string][]string{"air": nil},
+			Limits:        nsLimits,
+		})
 	}
 
 	loggerCfg := LoadRawConfig(o.loggerConfig)
 	loggerLimits := ParseResourceLimits(loggerCfg)
 	loggerFile, _ := o.writeTemplateConfig("logger_config", o.loggerConfig, nil, writer)
-	builder.AddLogger(loggerFile, loggerLimits)
+
+	builder.AddService(ComposeService{
+		Name:          "logger",
+		Image:         "logger",
+		ContainerName: "logger",
+		Ports:         []string{"5000:5000/udp", "8080:8080/tcp"},
+		Volumes:       []string{fmt.Sprintf("./resources/%s:/app/config.json", loggerFile)},
+		Networks:      map[string][]string{"air": nil},
+		Limits:        loggerLimits,
+	})
 
 	if config.LoggingEnabled {
 		for _, swarm := range swarms {
@@ -145,7 +192,11 @@ func (o *DockerOrchestrator) buildLocalCompose(swarms []domain.Swarm, config dom
 
 			controller := o.resolveController(uav, config)
 			paramFile, _ := o.generateUAVParams(swarm.ID, uav, config, controller.FolderName, resDir)
-			o.appendUAV(swarm.ID, uav, paramFile, arduPilotInstanceFile, builder, writer, config, offsets[i], swarm, pool)
+			
+			uavServices := o.buildComposeUAV(swarm.ID, uav, paramFile, arduPilotInstanceFile, writer, config, offsets[i], swarm, pool, builder)
+			for _, svc := range uavServices {
+				builder.AddService(svc)
+			}
 		}
 	}
 
@@ -154,20 +205,18 @@ func (o *DockerOrchestrator) buildLocalCompose(swarms []domain.Swarm, config dom
 	return composePath, nil
 }
 
-func (o *DockerOrchestrator) buildSwarmCompose(swarms []domain.Swarm, config domain.GeneralConfig, resDir, simDir string) (string, error) {
+func (o *DockerOrchestrator) buildKubernetesManifests(swarms []domain.Swarm, config domain.GeneralConfig, resDir, simDir string) (string, error) {
 	writer := NewResourceWriter(resDir)
-	builder := newSwarmComposeBuilder()
+	builder := newKubernetesBuilder()
 
 	netsimInstances := normalizeNetsimInstances(config.NetsimInstances)
 	netsimAddrs := make([]string, netsimInstances)
 	for i := 1; i <= netsimInstances; i++ {
-		netsimAddrs[i-1] = fmt.Sprintf("netsim_%d:3000", i)
+		netsimAddrs[i-1] = fmt.Sprintf("netsim-%d:3000", i)
 	}
 
 	gwCfg := LoadRawConfig(o.netsimGatewayConfig)
-	gwLimits := ParseResourceLimits(gwCfg)
 	gwFile, _ := o.writeTemplateConfig("netsim_gateway_config", o.netsimGatewayConfig, nil, writer)
-
 	telPort, msgPort, subPort := 3000, 3001, 3002
 	if p, ok := gwCfg["telemetry_port"].(float64); ok {
 		telPort = int(p)
@@ -178,20 +227,18 @@ func (o *DockerOrchestrator) buildSwarmCompose(swarms []domain.Swarm, config dom
 	if p, ok := gwCfg["subscribers_port"].(float64); ok {
 		subPort = int(p)
 	}
-	builder.AddNetsimGateway(gwFile, netsimAddrs, gwLimits, config.VerboseLogging, telPort, msgPort, subPort)
 
-	nsCfg := LoadRawConfig(o.netsimConfig)
-	nsLimits := ParseResourceLimits(nsCfg)
 	nsOverrides := buildNetsimOverrides(config)
 	nsFile, _ := o.writeTemplateConfig("netsim_config", o.netsimConfig, nsOverrides, writer)
-	for i := 1; i <= netsimInstances; i++ {
-		builder.AddNetsim(i, nsFile, nsLimits, config.VerboseLogging)
-	}
 
-	loggerCfg := LoadRawConfig(o.loggerConfig)
-	loggerLimits := ParseResourceLimits(loggerCfg)
 	loggerFile, _ := o.writeTemplateConfig("logger_config", o.loggerConfig, nil, writer)
-	builder.AddLogger(loggerFile, loggerLimits)
+
+	// We'll collect UAV deployments here
+	type uavDep struct {
+		name       string
+		containers []KubeContainer
+	}
+	var uavDeployments []uavDep
 
 	for _, swarm := range swarms {
 		f := formation.GetFormation(swarm.GroundFormation)
@@ -211,13 +258,81 @@ func (o *DockerOrchestrator) buildSwarmCompose(swarms []domain.Swarm, config dom
 
 			controller := o.resolveController(uav, config)
 			paramFile, _ := o.generateUAVParams(swarm.ID, uav, config, controller.FolderName, resDir)
-			o.appendSwarmUAV(swarm.ID, uav, paramFile, arduPilotInstanceFile, builder, writer, config, offsets[i], swarm)
+			containers := o.buildKubernetesUAV(swarm.ID, uav, paramFile, arduPilotInstanceFile, writer, config, offsets[i], swarm)
+			uavDeployments = append(uavDeployments, uavDep{
+				name:       fmt.Sprintf("swarm-%s-uav-%s", swarm.ID, uav.ID),
+				containers: containers,
+			})
 		}
 	}
 
-	composePath := filepath.Join(simDir, "docker-compose.swarm.yaml")
+	// Read all generated files from resDir to put into ConfigMap
+	configMapData := make(map[string]string)
+	if entries, err := os.ReadDir(resDir); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() {
+				b, _ := os.ReadFile(filepath.Join(resDir, e.Name()))
+				configMapData[e.Name()] = string(b)
+			}
+		}
+	}
+	builder.AddConfigMap("recursos-simulacion", configMapData)
+
+	// Add Gateway
+	builder.AddDeployment("netsim-gateway", []KubeContainer{
+		{
+			Name:  "gateway",
+			Image: o.getImageName("netsim_gateway", config.DockerHubUser),
+			Ports: []KubePort{
+				{ContainerPort: telPort, Protocol: "UDP"},
+				{ContainerPort: msgPort, Protocol: "UDP"},
+				{ContainerPort: subPort, Protocol: "UDP"},
+			},
+			Env:          map[string]string{"ADDRS": strings.Join(netsimAddrs, ",")},
+			VolumeMounts: []KubeVolumeMount{{Name: "recursos", MountPath: "/app/config.json", SubPath: gwFile}},
+		},
+	}, []string{"recursos-simulacion"})
+
+	// Add Netsims
+	for i := 1; i <= netsimInstances; i++ {
+		builder.AddDeployment(fmt.Sprintf("netsim-%d", i), []KubeContainer{
+			{
+				Name:         "netsim",
+				Image:        o.getImageName("netsim", config.DockerHubUser),
+				Env:          map[string]string{"NODE_ID": fmt.Sprintf("netsim_%d", i)},
+				VolumeMounts: []KubeVolumeMount{{Name: "recursos", MountPath: "/app/config.json", SubPath: nsFile}},
+			},
+		}, []string{"recursos-simulacion"})
+	}
+
+	// Add Logger
+	builder.AddDeployment("logger", []KubeContainer{
+		{
+			Name:  "logger",
+			Image: o.getImageName("logger", config.DockerHubUser),
+			Ports: []KubePort{
+				{ContainerPort: 5000, Protocol: "UDP"},
+				{ContainerPort: 8080, Protocol: "TCP"},
+			},
+			VolumeMounts: []KubeVolumeMount{{Name: "recursos", MountPath: "/app/config.json", SubPath: loggerFile}},
+		},
+	}, []string{"recursos-simulacion"})
+
+	// Add UAVs
+	for _, dep := range uavDeployments {
+		builder.AddDeployment(dep.name, dep.containers, []string{"recursos-simulacion"})
+	}
+
+	composePath := filepath.Join(simDir, "kubernetes.yaml")
 	_ = os.WriteFile(composePath, []byte(builder.Build()), 0644)
 	return composePath, nil
+}
+
+func (o *DockerOrchestrator) getImageName(image string, user string) string {
+	if user != "" {
+		return fmt.Sprintf("%s/%s", user, image)
+	}
+	return image
 }
 
 // buildNetsimOverrides constructs a flat override map for the netsim config.json.
@@ -381,42 +496,18 @@ func (o *DockerOrchestrator) StopCompose(composePath string) error {
 	return cmd.Run()
 }
 
-func (o *DockerOrchestrator) StartStack(composePath, swarmHost, stackName string) error {
-	dockerEnv := os.Environ()
-	if !o.isLocalhost(swarmHost) && swarmHost != "" {
-		dockerEnv = append(dockerEnv, "DOCKER_HOST="+swarmHost)
-	}
-
-	cmd := exec.Command("docker", "stack", "deploy", "-c", composePath, stackName)
-	cmd.Env = dockerEnv
-
-	stdout, _ := cmd.StdoutPipe()
-	stderr, _ := cmd.StderrPipe()
-
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-
-	go func() {
-		scanner := NewLogScanner(stdout, stderr)
-		for scanner.Scan() {
-			o.ui.EmitEvent("simulation:log", scanner.Text())
-		}
-	}()
-
-	return cmd.Wait()
+func (o *DockerOrchestrator) StartKubernetes(manifestPath, dockerHubUser string) error {
+	o.ui.EmitEvent("simulation:log", "Kubernetes deployment logic not yet implemented. The manifest has been generated at: "+manifestPath)
+	return nil
 }
 
-func (o *DockerOrchestrator) StopStack(stackName, swarmHost string) error {
-	cmd := exec.Command("docker", "stack", "rm", stackName)
-	if !o.isLocalhost(swarmHost) && swarmHost != "" {
-		cmd.Env = append(os.Environ(), "DOCKER_HOST="+swarmHost)
-	}
-	return cmd.Run()
+func (o *DockerOrchestrator) StopKubernetes(simName string) error {
+	o.ui.EmitEvent("simulation:log", "Kubernetes stop logic not yet implemented.")
+	return nil
 }
 
-func (o *DockerOrchestrator) CollectSwarmLogs(stackName, swarmHost, simName, destDir string) error {
-	// TODO: implement
+func (o *DockerOrchestrator) CollectKubernetesLogs(simName, destDir string) error {
+	o.ui.EmitEvent("simulation:log", "Kubernetes log collection not yet implemented.")
 	return nil
 }
 
@@ -426,15 +517,43 @@ func (o *DockerOrchestrator) isLocalhost(host string) bool {
 
 // Ported helpers from ui/internal/simulation/orchestrator.go
 
-func (o *DockerOrchestrator) appendUAV(swarmID string, uav domain.UAV, paramFileName, arduPilotInstanceFile string, builder *composeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset, swarm domain.Swarm, pool *subnetPool) {
+func (o *DockerOrchestrator) buildComposeUAV(swarmID string, uav domain.UAV, paramFileName, arduPilotInstanceFile string, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset, swarm domain.Swarm, pool *subnetPool, builder *composeBuilder) []ComposeService {
 	nContainers := 4 + len(uav.Services)
 	subnet := pool.Next(nContainers)
-	builder.AddUAVNetwork(swarmID, uav.ID, subnet)
-	builder.AddCommunicationModule(swarmID, uav.ID, ResourceLimits{}, config.VerboseLogging)
+	uavNet := fmt.Sprintf("swarm_net_%s_uav_%s", swarmID, uav.ID)
+	builder.addNetwork(uavNet, subnet)
+
+	var services []ComposeService
+	uavEnv := map[string]string{
+		"UAV_ID":   uav.ID,
+		"SWARM_ID": swarmID,
+	}
+	if config.VerboseLogging {
+		uavEnv["DEBUG"] = "true"
+	}
+
+	commName := fmt.Sprintf("swarm_%s_uav_%s_communication_module", swarmID, uav.ID)
+	services = append(services, ComposeService{
+		Name:          commName,
+		Image:         "communication_module",
+		ContainerName: commName,
+		Environment:   uavEnv,
+		Networks:      map[string][]string{uavNet: {"communication_module"}},
+	})
 
 	mixer := o.resolveMixer(uav, config)
 	appFile, _, appLimits := o.buildServiceResources(mixer, writer)
-	builder.AddMixer(swarmID, uav.ID, mixer.FolderName, appFile, appLimits, config.VerboseLogging)
+	mixerName := fmt.Sprintf("swarm_%s_uav_%s_mixer", swarmID, uav.ID)
+	services = append(services, ComposeService{
+		Name:          mixerName,
+		Image:         mixer.FolderName,
+		ContainerName: mixerName,
+		DependsOn:     []string{commName, fmt.Sprintf("swarm_%s_uav_%s_controller", swarmID, uav.ID)},
+		Environment:   uavEnv,
+		Volumes:       []string{fmt.Sprintf("./resources/%s:/app/config.json", appFile)},
+		Networks:      map[string][]string{uavNet: {"mixer"}},
+		Limits:        appLimits,
+	})
 
 	controller := o.resolveController(uav, config)
 	ucFile, _, ucLimits := o.buildServiceResources(controller, writer)
@@ -444,30 +563,106 @@ func (o *DockerOrchestrator) appendUAV(swarmID string, uav domain.UAV, paramFile
 	} else {
 		homeLat, homeLon = util.AddOffset(swarm.FormationCenterLat, swarm.FormationCenterLon, offset.X, offset.Y)
 	}
-	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
-	builder.AddUAVController(swarmID, uav.ID, controller.FolderName, ucFile, paramFileName, homeLocation, arduPilotInstanceFile, ucLimits, config.VerboseLogging, config.LoggingEnabled)
+	
+	ctrlEnv := map[string]string{
+		"UAV_HOME_LOCATION": fmt.Sprintf("%f,%f,0,0", homeLat, homeLon),
+		"UAV_ID":            uav.ID,
+		"SWARM_ID":          swarmID,
+	}
+	if config.VerboseLogging {
+		ctrlEnv["DEBUG"] = "true"
+	}
+	if arduPilotInstanceFile != "" {
+		ctrlEnv["ARDUPILOT_INSTANCE"] = "/app/" + arduPilotInstanceFile
+	}
+	
+	ctrlMounts := []string{
+		fmt.Sprintf("./resources/%s:/app/config.json", ucFile),
+		fmt.Sprintf("./resources/%s:/app/copter.parm", paramFileName),
+	}
+	if arduPilotInstanceFile != "" {
+		ctrlMounts = append(ctrlMounts, fmt.Sprintf("./resources/%s:/app/%s", arduPilotInstanceFile, arduPilotInstanceFile))
+	}
+	if config.LoggingEnabled {
+		ctrlMounts = append(ctrlMounts, fmt.Sprintf("./uav_logs/%s/:/app/logs/", uav.ID))
+	}
+	
+	ctrlName := fmt.Sprintf("swarm_%s_uav_%s_controller", swarmID, uav.ID)
+	services = append(services, ComposeService{
+		Name:          ctrlName,
+		Image:         controller.FolderName,
+		ContainerName: ctrlName,
+		DependsOn:     []string{commName},
+		Environment:   ctrlEnv,
+		Volumes:       ctrlMounts,
+		Networks:      map[string][]string{uavNet: {"uav_controller"}},
+		Limits:        ucLimits,
+	})
 
 	ecCfg := LoadRawConfig(o.externalCommsConfig)
 	ecLimits := ParseResourceLimits(ecCfg)
 	ecFile, _ := o.writeTemplateConfig("external_comms_config", o.externalCommsConfig, nil, writer)
-	builder.AddExternalComms(swarmID, uav.ID, ecFile, ecLimits, config.VerboseLogging)
+	
+	ecName := fmt.Sprintf("swarm_%s_uav_%s_external_comms", swarmID, uav.ID)
+	services = append(services, ComposeService{
+		Name:          ecName,
+		Image:         "external_comms",
+		ContainerName: ecName,
+		DependsOn:     []string{commName, "netsim_gateway"},
+		Environment:   uavEnv,
+		Volumes:       []string{fmt.Sprintf("./resources/%s:/app/config.json", ecFile)},
+		Networks:      map[string][]string{uavNet: {"external_comms"}, "air": nil},
+		Limits:        ecLimits,
+	})
 
 	for _, svc := range uav.Services {
 		svcFile, extraVolumes, algoLimits := o.buildServiceResources(svc, writer)
-		builder.AddAlgorithmService(swarmID, uav.ID, svc, svcFile, extraVolumes, algoLimits, config.VerboseLogging)
+		
+		svcMounts := []string{fmt.Sprintf("./resources/%s:/app/config.json", svcFile)}
+		for _, v := range extraVolumes {
+			svcMounts = append(svcMounts, fmt.Sprintf("./resources/%s:%s", v.HostPath, v.ContainerPath))
+		}
+		
+		svcName := fmt.Sprintf("swarm_%s_uav_%s_%s", swarmID, uav.ID, svc.ServiceId)
+		services = append(services, ComposeService{
+			Name:          svcName,
+			Image:         svc.ServiceId,
+			ContainerName: svcName,
+			DependsOn:     []string{commName},
+			Environment:   uavEnv,
+			Volumes:       svcMounts,
+			Networks:      map[string][]string{uavNet: {svc.ServiceId}},
+			Limits:        algoLimits,
+		})
 	}
+
+	return services
 }
 
-func (o *DockerOrchestrator) appendSwarmUAV(swarmID string, uav domain.UAV, paramFileName, arduPilotInstanceFile string, builder *swarmComposeBuilder, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset, swarm domain.Swarm) {
-	builder.AddUAVNetwork(swarmID, uav.ID)
-	builder.AddCommunicationModule(swarmID, uav.ID, ResourceLimits{}, config.VerboseLogging)
+func (o *DockerOrchestrator) buildKubernetesUAV(swarmID string, uav domain.UAV, paramFileName, arduPilotInstanceFile string, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset, swarm domain.Swarm) []KubeContainer {
+	var containers []KubeContainer
+	uavEnv := map[string]string{
+		"UAV_ID":   uav.ID,
+		"SWARM_ID": swarmID,
+	}
+
+	containers = append(containers, KubeContainer{
+		Name:  "communication-module",
+		Image: o.getImageName("communication_module", config.DockerHubUser),
+		Env:   uavEnv,
+	})
 
 	mixer := o.resolveMixer(uav, config)
-	appFile, _, appLimits := o.buildServiceResources(mixer, writer)
-	builder.AddMixer(swarmID, uav.ID, mixer.FolderName, appFile, appLimits, config.VerboseLogging)
+	appFile, _, _ := o.buildServiceResources(mixer, writer)
+	containers = append(containers, KubeContainer{
+		Name:         "mixer",
+		Image:        o.getImageName(mixer.FolderName, config.DockerHubUser),
+		Env:          uavEnv,
+		VolumeMounts: []KubeVolumeMount{{Name: "recursos", MountPath: "/app/config.json", SubPath: appFile}},
+	})
 
 	controller := o.resolveController(uav, config)
-	ucFile, _, ucLimits := o.buildServiceResources(controller, writer)
+	ucFile, _, _ := o.buildServiceResources(controller, writer)
 	var homeLat, homeLon float64
 	if uav.HomeOverride != nil {
 		homeLat, homeLon = uav.HomeOverride.Lat, uav.HomeOverride.Lon
@@ -475,17 +670,54 @@ func (o *DockerOrchestrator) appendSwarmUAV(swarmID string, uav domain.UAV, para
 		homeLat, homeLon = util.AddOffset(swarm.FormationCenterLat, swarm.FormationCenterLon, offset.X, offset.Y)
 	}
 	homeLocation := fmt.Sprintf("%f,%f,0,0", homeLat, homeLon)
-	builder.AddUAVController(swarmID, uav.ID, controller.FolderName, ucFile, paramFileName, homeLocation, arduPilotInstanceFile, ucLimits, config.VerboseLogging, config.LoggingEnabled)
+	
+	ctrlEnv := map[string]string{
+		"UAV_HOME_LOCATION": homeLocation,
+		"UAV_ID":            uav.ID,
+		"SWARM_ID":          swarmID,
+	}
+	if arduPilotInstanceFile != "" {
+		ctrlEnv["ARDUPILOT_INSTANCE"] = "/app/" + arduPilotInstanceFile
+	}
+	
+	ctrlMounts := []KubeVolumeMount{
+		{Name: "recursos", MountPath: "/app/config.json", SubPath: ucFile},
+		{Name: "recursos", MountPath: "/app/copter.parm", SubPath: paramFileName},
+	}
+	if arduPilotInstanceFile != "" {
+		ctrlMounts = append(ctrlMounts, KubeVolumeMount{Name: "recursos", MountPath: "/app/" + arduPilotInstanceFile, SubPath: arduPilotInstanceFile})
+	}
+	containers = append(containers, KubeContainer{
+		Name:         "uav-controller",
+		Image:        o.getImageName(controller.FolderName, config.DockerHubUser),
+		Env:          ctrlEnv,
+		VolumeMounts: ctrlMounts,
+	})
 
-	ecCfg := LoadRawConfig(o.externalCommsConfig)
-	ecLimits := ParseResourceLimits(ecCfg)
 	ecFile, _ := o.writeTemplateConfig("external_comms_config", o.externalCommsConfig, nil, writer)
-	builder.AddExternalComms(swarmID, uav.ID, ecFile, ecLimits, config.VerboseLogging)
+	containers = append(containers, KubeContainer{
+		Name:         "external-comms",
+		Image:        o.getImageName("external_comms", config.DockerHubUser),
+		Env:          uavEnv,
+		VolumeMounts: []KubeVolumeMount{{Name: "recursos", MountPath: "/app/config.json", SubPath: ecFile}},
+	})
 
 	for _, svc := range uav.Services {
-		svcFile, extraVolumes, algoLimits := o.buildServiceResources(svc, writer)
-		builder.AddAlgorithmService(swarmID, uav.ID, svc, svcFile, extraVolumes, algoLimits, config.VerboseLogging)
+		svcFile, extraVolumes, _ := o.buildServiceResources(svc, writer)
+		
+		svcMounts := []KubeVolumeMount{{Name: "recursos", MountPath: "/app/config.json", SubPath: svcFile}}
+		for _, v := range extraVolumes {
+			svcMounts = append(svcMounts, KubeVolumeMount{Name: "recursos", MountPath: v.ContainerPath, SubPath: v.HostPath})
+		}
+		
+		containers = append(containers, KubeContainer{
+			Name:         svc.ServiceId,
+			Image:        o.getImageName(svc.ServiceId, config.DockerHubUser),
+			Env:          uavEnv,
+			VolumeMounts: svcMounts,
+		})
 	}
+	return containers
 }
 
 func (o *DockerOrchestrator) resolveMixer(uav domain.UAV, config domain.GeneralConfig) domain.DeployedService {

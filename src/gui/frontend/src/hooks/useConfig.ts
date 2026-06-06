@@ -17,7 +17,7 @@ export interface GeneralConfig {
   windSpeed?: number;
   simulationName?: string;
   originalSimulationName?: string;
-  swarmHost?: string;
+  dockerHubUser?: string;
   netsimInstances?: number;
   netsimMode?: string;
   netsimMaxRangeM?: number | null;

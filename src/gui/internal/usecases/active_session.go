@@ -3,15 +3,15 @@ package usecases
 import "context"
 
 type activeSession struct {
-	ctx            context.Context
-	composePath    string
-	stackName      string
-	swarmHost      string
-	simulationName string
-	uavIDs         []string
-	algorithmIDs   map[string]bool
-	stoppedIDs     map[string]bool
-	loggingEnabled bool
+	ctx                    context.Context
+	composePath            string
+	kubernetesManifestPath string
+	dockerHubUser          string
+	simulationName         string
+	uavIDs                 []string
+	algorithmIDs           map[string]bool
+	stoppedIDs             map[string]bool
+	loggingEnabled         bool
 }
 
 func newActiveSession() *activeSession {
@@ -22,18 +22,18 @@ func newActiveSession() *activeSession {
 }
 
 func (s *activeSession) isRunning() bool {
-	return s.composePath != "" || s.stackName != ""
+	return s.composePath != "" || s.kubernetesManifestPath != ""
 }
 
 func (s *activeSession) isLocal() bool {
-	return s.stackName == ""
+	return s.kubernetesManifestPath == ""
 }
 
 func (s *activeSession) loggerHost() string {
 	if s.isLocal() {
 		return ""
 	}
-	return s.swarmHost
+	return ""
 }
 
 func (s *activeSession) markStopped(id string) (allStopped bool) {
@@ -53,8 +53,8 @@ func (s *activeSession) markStopped(id string) (allStopped bool) {
 
 func (s *activeSession) clear() {
 	s.composePath = ""
-	s.stackName = ""
-	s.swarmHost = ""
+	s.kubernetesManifestPath = ""
+	s.dockerHubUser = ""
 	s.simulationName = ""
 	s.uavIDs = nil
 	s.algorithmIDs = make(map[string]bool)

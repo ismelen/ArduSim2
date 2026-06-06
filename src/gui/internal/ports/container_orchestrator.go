@@ -10,7 +10,7 @@ type ContainerOrchestrator interface {
 	BuildAllImages(simDir string) error
 	StartCompose(composePath string) error
 	StopCompose(composePath string) error
-	StartStack(composePath, swarmHost, stackName string) error
-	StopStack(stackName, swarmHost string) error
-	CollectSwarmLogs(stackName, swarmHost, simName, destDir string) error
+	StartKubernetes(manifestPath, dockerHubUser string) error
+	StopKubernetes(simName string) error
+	CollectKubernetesLogs(simName, destDir string) error
 }

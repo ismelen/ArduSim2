@@ -21,9 +21,9 @@ export default function DeploymentCard() {
         options={[
           { value: "LOCAL", label: "Local", component: <div></div> },
           {
-            value: "SWARM",
-            label: "Docker Swarm",
-            component: <DockerSwarmForm />,
+            value: "KUBERNETES",
+            label: "Kubernetes",
+            component: <KubernetesForm />,
           },
         ]}
       />
@@ -42,17 +42,17 @@ export default function DeploymentCard() {
   );
 }
 
-function DockerSwarmForm() {
-  const { swarmHost } = useConfig((s) => s.config);
+function KubernetesForm() {
+  const { dockerHubUser } = useConfig((s) => s.config);
   const update = useConfig((s) => s.update);
 
   return (
     <div className="space-y-2 mt-3">
       <FormField
-        label="DOCKER_HOST"
-        hint="tcp://ip:port or ssh://user@ip"
-        initValue={swarmHost ?? ""}
-        onChange={(e) => update((s) => ({ ...s, swarmHost: e }))}
+        label="Docker Hub User"
+        hint="e.g. ismael99"
+        initValue={dockerHubUser ?? ""}
+        onChange={(e) => update((s) => ({ ...s, dockerHubUser: e }))}
       />
     </div>
   );

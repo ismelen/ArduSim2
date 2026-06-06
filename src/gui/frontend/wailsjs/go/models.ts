@@ -51,7 +51,7 @@ export namespace domain {
 	    windSpeed: number;
 	    simulationName: string;
 	    originalSimulationName: string;
-	    swarmHost: string;
+	    dockerHubUser: string;
 	    netsimInstances: number;
 	    netsimMode: string;
 	    netsimMaxRangeM?: number;
@@ -76,7 +76,7 @@ export namespace domain {
 	        this.windSpeed = source["windSpeed"];
 	        this.simulationName = source["simulationName"];
 	        this.originalSimulationName = source["originalSimulationName"];
-	        this.swarmHost = source["swarmHost"];
+	        this.dockerHubUser = source["dockerHubUser"];
 	        this.netsimInstances = source["netsimInstances"];
 	        this.netsimMode = source["netsimMode"];
 	        this.netsimMaxRangeM = source["netsimMaxRangeM"];

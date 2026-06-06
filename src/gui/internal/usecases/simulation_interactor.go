@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"ui/internal/domain"
@@ -91,22 +89,16 @@ func (i *SimulationInteractor) StartSimulation(ctx context.Context, swarms []dom
 			}
 		})
 	} else {
-		// SWARM MODE
-		stackName := "Ardusim2-" + config.SimulationName
-		i.session.stackName = stackName
-		i.session.swarmHost = config.SwarmHost
+		// KUBERNETES MODE
+		i.session.kubernetesManifestPath = composePath
+		i.session.dockerHubUser = config.DockerHubUser
 
-		if err := i.orchestrator.StartStack(composePath, config.SwarmHost, stackName); err != nil {
+		if err := i.orchestrator.StartKubernetes(composePath, config.DockerHubUser); err != nil {
 			return err
 		}
 
-		var swarmIP string
-		if u, err := url.Parse(config.SwarmHost); err == nil && u.Hostname() != "" {
-			swarmIP = u.Hostname()
-		} else {
-			swarmIP, _, _ = strings.Cut(config.SwarmHost, ":")
-		}
-		i.subscriber.SetRemoteAddr(swarmIP)
+		// Not fully implemented log stream for Kubernetes right now
+		i.subscriber.SetRemoteAddr("localhost")
 		i.subscriber.SetExpectedFleet(i.session.uavIDs)
 	}
 	go i.subscriber.Start(ctx)
@@ -124,9 +116,9 @@ func (i *SimulationInteractor) BuildImages(ctx context.Context, swarms []domain.
 
 
 func (i *SimulationInteractor) StopSimulation() {
-	if i.session.stackName != "" {
-		_ = i.orchestrator.CollectSwarmLogs(i.session.stackName, i.session.swarmHost, i.session.simulationName, "")
-		_ = i.orchestrator.StopStack(i.session.stackName, i.session.swarmHost)
+	if i.session.kubernetesManifestPath != "" {
+		_ = i.orchestrator.CollectKubernetesLogs(i.session.simulationName, "")
+		_ = i.orchestrator.StopKubernetes(i.session.simulationName)
 	} else if i.session.composePath != "" {
 		_ = i.orchestrator.StopCompose(i.session.composePath)
 	}
