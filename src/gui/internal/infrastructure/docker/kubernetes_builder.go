@@ -3,13 +3,15 @@ package docker
 import (
 	"fmt"
 	"strings"
+
+	"ui/internal/ports"
 )
 
 type kubernetesBuilder struct {
 	manifests strings.Builder
 }
 
-func newKubernetesBuilder() *kubernetesBuilder {
+func NewKubernetesBuilder() ports.KubernetesBuilder {
 	return &kubernetesBuilder{}
 }
 
@@ -31,26 +33,7 @@ func (b *kubernetesBuilder) AddConfigMap(name string, files map[string]string) {
 	fmt.Fprintf(&b.manifests, "\n")
 }
 
-type KubeContainer struct {
-	Name         string
-	Image        string
-	Ports        []KubePort
-	Env          map[string]string
-	VolumeMounts []KubeVolumeMount
-}
-
-type KubePort struct {
-	ContainerPort int
-	Protocol      string // UDP, TCP
-}
-
-type KubeVolumeMount struct {
-	Name      string
-	MountPath string
-	SubPath   string
-}
-
-func (b *kubernetesBuilder) AddDeployment(name string, containers []KubeContainer, volumes []string) {
+func (b *kubernetesBuilder) AddDeployment(name string, containers []ports.KubeContainer, volumes []ports.KubeVolume) {
 	fmt.Fprintf(&b.manifests, "---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: %s\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: %s\n  template:\n    metadata:\n      labels:\n        app: %s\n    spec:\n      containers:\n", name, name, name)
 
 	for _, c := range containers {
@@ -90,7 +73,15 @@ func (b *kubernetesBuilder) AddDeployment(name string, containers []KubeContaine
 	if len(volumes) > 0 {
 		fmt.Fprintf(&b.manifests, "      volumes:\n")
 		for _, v := range volumes {
-			fmt.Fprintf(&b.manifests, "      - name: %s\n        configMap:\n          name: %s\n", v, v)
+			fmt.Fprintf(&b.manifests, "      - name: %s\n", v.Name)
+			if v.ConfigMap != "" {
+				fmt.Fprintf(&b.manifests, "        configMap:\n          name: %s\n", v.ConfigMap)
+			} else if v.HostPath != "" {
+				fmt.Fprintf(&b.manifests, "        hostPath:\n          path: %s\n", v.HostPath)
+				if v.Type != "" {
+					fmt.Fprintf(&b.manifests, "          type: %s\n", v.Type)
+				}
+			}
 		}
 	}
 

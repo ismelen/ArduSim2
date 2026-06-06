@@ -3,37 +3,34 @@ package docker
 import (
 	"fmt"
 	"strings"
-)
 
-// ComposeService represents a generic docker-compose service
-type ComposeService struct {
-	Name          string
-	Image         string
-	ContainerName string
-	DependsOn     []string
-	Environment   map[string]string
-	Ports         []string
-	Volumes       []string
-	Networks      map[string][]string // map network name to list of aliases
-	ExtraHosts    []string
-	Limits        ResourceLimits
-}
+	"ui/internal/ports"
+)
 
 type composeBuilder struct {
 	services strings.Builder
 	networks strings.Builder
 }
 
-func newComposeBuilder() *composeBuilder {
+// NewComposeBuilder returns a factory constructor for ports.ComposeBuilder
+func NewComposeBuilder() ports.ComposeBuilder {
 	b := &composeBuilder{}
 	b.services.WriteString("services:\n")
 	b.networks.WriteString("networks:\n")
 	return b
 }
 
-func (b *composeBuilder) AddService(svc ComposeService) {
+func (b *composeBuilder) AddService(svc ports.ComposeService) {
 	fmt.Fprintf(&b.services, "  %s:\n    image: %s\n", svc.Name, svc.Image)
 	
+	if svc.Build != nil {
+		fmt.Fprintf(&b.services, "    build:\n")
+		fmt.Fprintf(&b.services, "      context: %s\n", svc.Build.Context)
+		if svc.Build.Dockerfile != "" {
+			fmt.Fprintf(&b.services, "      dockerfile: %s\n", svc.Build.Dockerfile)
+		}
+	}
+
 	if svc.ContainerName != "" {
 		fmt.Fprintf(&b.services, "    container_name: %s\n", svc.ContainerName)
 	}
@@ -98,7 +95,7 @@ func (b *composeBuilder) AddService(svc ComposeService) {
 }
 
 // addNetwork appends a bridge network definition if not already present.
-func (b *composeBuilder) addNetwork(name string, subnet string) {
+func (b *composeBuilder) AddNetwork(name string, subnet string) {
 	if subnet != "" {
 		fmt.Fprintf(&b.networks, "  %s:\n    driver: bridge\n    ipam:\n      config:\n        - subnet: %s\n", name, subnet)
 	} else {

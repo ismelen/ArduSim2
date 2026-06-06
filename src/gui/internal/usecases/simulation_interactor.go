@@ -16,7 +16,8 @@ import (
 )
 
 type SimulationInteractor struct {
-	orchestrator ports.ContainerOrchestrator
+	runtime      ports.ContainerRuntime
+	generator    *ManifestGenerator
 	subscriber   ports.TelemetrySubscriber
 	repo         ports.ConfigRepository
 	ui           ports.UIBridge
@@ -25,14 +26,16 @@ type SimulationInteractor struct {
 }
 
 func NewSimulationInteractor(
-	orchestrator ports.ContainerOrchestrator,
+	runtime ports.ContainerRuntime,
+	generator *ManifestGenerator,
 	subscriber ports.TelemetrySubscriber,
 	repo ports.ConfigRepository,
 	ui ports.UIBridge,
 	logger ports.LoggerClient,
 ) *SimulationInteractor {
 	return &SimulationInteractor{
-		orchestrator: orchestrator,
+		runtime:      runtime,
+		generator:    generator,
 		subscriber:   subscriber,
 		repo:         repo,
 		ui:           ui,
@@ -45,7 +48,7 @@ func (i *SimulationInteractor) StartSimulation(ctx context.Context, swarms []dom
 	config.SanitizeSimulationName()
 	simDir := filepath.Join(i.repo.GetSimulationsDir(), config.SimulationName)
 
-	composePath, err := i.orchestrator.Run(swarms, config, isLocal, simDir)
+	composePath, err := i.generator.Generate(swarms, config, isLocal, simDir)
 	if err != nil {
 		return fmt.Errorf("prepare simulation: %w", err)
 	}
@@ -65,7 +68,7 @@ func (i *SimulationInteractor) StartSimulation(ctx context.Context, swarms []dom
 	i.session.loggingEnabled = config.LoggingEnabled
 
 	if isLocal {
-		if err := i.orchestrator.StartCompose(composePath); err != nil {
+		if err := i.runtime.StartCompose(composePath); err != nil {
 			return err
 		}
 
@@ -93,7 +96,7 @@ func (i *SimulationInteractor) StartSimulation(ctx context.Context, swarms []dom
 		i.session.kubernetesManifestPath = composePath
 		i.session.dockerHubUser = config.DockerHubUser
 
-		if err := i.orchestrator.StartKubernetes(composePath, config.DockerHubUser); err != nil {
+		if err := i.runtime.StartKubernetes(composePath, config.DockerHubUser); err != nil {
 			return err
 		}
 
@@ -111,16 +114,16 @@ func (i *SimulationInteractor) BuildImages(ctx context.Context, swarms []domain.
 	simDir := filepath.Join(i.repo.GetSimulationsDir(), config.SimulationName)
 
 	// Build all known images and all local algorithms, independent of simulation size/mode
-	return i.orchestrator.BuildAllImages(simDir)
+	return i.runtime.BuildAllImages(simDir)
 }
 
 
 func (i *SimulationInteractor) StopSimulation() {
 	if i.session.kubernetesManifestPath != "" {
-		_ = i.orchestrator.CollectKubernetesLogs(i.session.simulationName, "")
-		_ = i.orchestrator.StopKubernetes(i.session.simulationName)
+		_ = i.runtime.CollectKubernetesLogs(i.session.simulationName, "")
+		_ = i.runtime.StopKubernetes(i.session.simulationName)
 	} else if i.session.composePath != "" {
-		_ = i.orchestrator.StopCompose(i.session.composePath)
+		_ = i.runtime.StopCompose(i.session.composePath)
 	}
 	i.session.clear()
 }
@@ -181,8 +184,11 @@ func (i *SimulationInteractor) ExportSimulation(ctx context.Context, swarms []do
 	config.SanitizeSimulationName()
 	simDir := filepath.Join(i.repo.GetSimulationsDir(), config.SimulationName)
 
-	if err := i.orchestrator.PrepareExport(swarms, config, simDir); err != nil {
-		return fmt.Errorf("prepare export: %w", err)
+	if _, err := i.generator.Generate(swarms, config, true, simDir); err != nil {
+		return fmt.Errorf("prepare export (local): %w", err)
+	}
+	if _, err := i.generator.Generate(swarms, config, false, simDir); err != nil {
+		return fmt.Errorf("prepare export (kubernetes): %w", err)
 	}
 
 	defaultFilename := fmt.Sprintf("ArduSim_Export_%s.zip", config.SimulationName)

@@ -36,7 +36,8 @@ func NewApp() *App {
 	// 1. Infrastructure (Adapters)
 	repo := filesystem.NewFileRepository(workDir)
 	bridge := wails.NewWailsBridge()
-	orchestrator := docker.NewDockerOrchestrator(workDir, bridge)
+	runtime := docker.NewDockerRuntime(workDir, bridge)
+	generator := usecases.NewManifestGenerator(workDir, docker.NewComposeBuilder, docker.NewKubernetesBuilder)
 	// Read netsim_gateway config to get ports
 	gwConfigPath := filepath.Join(workDir, "..", "netsim_gateway", "config.json")
 	var gwCfg map[string]interface{}
@@ -57,7 +58,7 @@ func NewApp() *App {
 	loggerClient := logger.NewHttpLoggerClient()
 
 	// 2. Use Cases (Interactors)
-	simUC := usecases.NewSimulationInteractor(orchestrator, subscriber, repo, bridge, loggerClient)
+	simUC := usecases.NewSimulationInteractor(runtime, generator, subscriber, repo, bridge, loggerClient)
 	discUC := usecases.NewDiscoveryInteractor(repo)
 	logUC := usecases.NewLogInteractor(repo)
 	configUC := usecases.NewConfigInteractor(repo, bridge)
