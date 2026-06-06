@@ -12,4 +12,5 @@ type SimulationUseCase interface {
 	StopSimulation()
 	SendAlgorithmCommand(serviceId string, command string) error
 	DownloadLogs() error
+	ExportSimulation(ctx context.Context, swarms []domain.Swarm, config domain.GeneralConfig) error
 }

@@ -8,6 +8,7 @@ type UIBridge interface {
 	EmitEvent(name string, data ...interface{})
 	OpenDirectoryDialog(ctx context.Context, title, defaultDir string) (string, error)
 	OpenFileDialog(ctx context.Context, title string, filters []FileFilter) (string, error)
+	SaveFileDialog(ctx context.Context, title string, defaultFilename string, filters []FileFilter) (string, error)
 }
 
 // FileFilter defines a file extension filter for dialogs.

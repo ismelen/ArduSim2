@@ -6,6 +6,7 @@ import {
   StopSimulation,
   DownloadLogs,
   BuildImages,
+  ExportSimulation,
 } from "../../wailsjs/go/main/App";
 import { domain } from "../../wailsjs/go/models";
 import { useDialog } from "./useDialog";
@@ -25,6 +26,7 @@ interface State {
   simulationFinished(): void;
   startSimulation(): Promise<void>;
   buildImages(): Promise<void>;
+  exportSimulation(): Promise<void>;
 
   start(targets: string[]): void;
   pause(targets: string[]): void;
@@ -104,6 +106,29 @@ export const useSimulationSession = create<State>((set, get) => {
         domain.GeneralConfig.createFrom(config.generalConfig),
         config.activeMode === "LOCAL",
       );
+    },
+
+    async exportSimulation() {
+      const simConfig = useSimulationConfig.getState();
+      if (simConfig.lastConfig.hash !== "") {
+        await useSimulationPersistence.getState().saveConfig();
+      }
+
+      const config = simConfig.lastConfig.value;
+
+      try {
+        await ExportSimulation(
+          config.swarms.map((e) => domain.Swarm.createFrom(e)),
+          domain.GeneralConfig.createFrom(config.generalConfig),
+        );
+      } catch (err) {
+        console.error("Failed to export simulation:", err);
+        useDialog.getState().show({
+          title: "Export Error",
+          text: `Failed to export simulation: ${err instanceof Error ? err.message : String(err)}`,
+          buttons: [{ label: "Ok" }],
+        });
+      }
     },
 
     async start(targets: string[]) {

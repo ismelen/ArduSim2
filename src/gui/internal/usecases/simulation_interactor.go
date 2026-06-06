@@ -1,8 +1,11 @@
 package usecases
 
 import (
+	"archive/zip"
 	"context"
 	"fmt"
+	"io"
+	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -180,4 +183,78 @@ func (i *SimulationInteractor) DownloadLogs() error {
 	timestamp := time.Now().Format("20060102_150405")
 	outPath := filepath.Join(logsDir, fmt.Sprintf("logs_%s.zip", timestamp))
 	return buildCombinedZip(loggerZipBytes, uavLogDirs, outPath)
+}
+
+func (i *SimulationInteractor) ExportSimulation(ctx context.Context, swarms []domain.Swarm, config domain.GeneralConfig) error {
+	config.SanitizeSimulationName()
+	simDir := filepath.Join(i.repo.GetSimulationsDir(), config.SimulationName)
+
+	if err := i.orchestrator.PrepareExport(swarms, config, simDir); err != nil {
+		return fmt.Errorf("prepare export: %w", err)
+	}
+
+	defaultFilename := fmt.Sprintf("ArduSim_Export_%s.zip", config.SimulationName)
+	savePath, err := i.ui.SaveFileDialog(ctx, "Save Export as ZIP", defaultFilename, []ports.FileFilter{{DisplayName: "ZIP Archive", Pattern: "*.zip"}})
+	if err != nil {
+		return err
+	}
+	if savePath == "" {
+		return nil // cancelled
+	}
+
+	if err := zipDirectory(simDir, savePath); err != nil {
+		return fmt.Errorf("zip simulation directory: %w", err)
+	}
+
+	i.ui.EmitEvent("simulation:log", "[Export] Simulation exported successfully to "+savePath)
+	return nil
+}
+
+func zipDirectory(sourceDir, destZip string) error {
+	outFile, err := os.Create(destZip)
+	if err != nil {
+		return err
+	}
+	defer outFile.Close()
+
+	zipWriter := zip.NewWriter(outFile)
+	defer zipWriter.Close()
+
+	return filepath.WalkDir(sourceDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+
+		relPath, err := filepath.Rel(sourceDir, path)
+		if err != nil {
+			return nil
+		}
+
+		relPath = filepath.ToSlash(relPath)
+		fileInfo, err := d.Info()
+		if err != nil {
+			return nil
+		}
+
+		header, err := zip.FileInfoHeader(fileInfo)
+		if err != nil {
+			return nil
+		}
+		header.Name = relPath
+		header.Method = zip.Deflate
+
+		writer, err := zipWriter.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+
+		file, err := os.Open(path)
+		if err != nil {
+			return nil
+		}
+		defer file.Close()
+
+		_, err = io.Copy(writer, file)
+		return err
+	})
 }

@@ -20,6 +20,7 @@ export default function Header() {
 
   const startSimulation = useSimulationSession((s) => s.startSimulation);
   const buildImages = useSimulationSession((s) => s.buildImages);
+  const exportSimulation = useSimulationSession((s) => s.exportSimulation);
 
   return (
     <header className="border-b border-border flex gap-4 p-3 items-center bg-cwhite sticky top-0 z-50 h-15">
@@ -45,15 +46,20 @@ export default function Header() {
         <Button icon="undo" onClick={undo} enabled={undos.length !== 0} />
         <Button icon="redo" onClick={redo} enabled={redos.length !== 0} />
         <Button
-          label="Save"
+          icon="save"
           type="outlined"
           onClick={saveConfig}
           enabled={lastConfig.hash !== lastHash}
         />
         <Button
-          label="Start Simulation"
+          icon="play_arrow"
           type="filled"
           onClick={startSimulation}
+        />
+        <Button
+          icon="file_download"
+          type="filled"
+          onClick={exportSimulation}
         />
         <Button
           label="Build images"

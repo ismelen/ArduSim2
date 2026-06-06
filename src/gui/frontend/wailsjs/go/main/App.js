@@ -14,6 +14,10 @@ export function DownloadLogs() {
   return window['go']['main']['App']['DownloadLogs']();
 }
 
+export function ExportSimulation(arg1, arg2) {
+  return window['go']['main']['App']['ExportSimulation'](arg1, arg2);
+}
+
 export function GetAvailableControllers() {
   return window['go']['main']['App']['GetAvailableControllers']();
 }

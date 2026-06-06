@@ -89,6 +89,10 @@ func (a *App) StopSimulation() {
 	a.simulation.StopSimulation()
 }
 
+func (a *App) ExportSimulation(swarms []domain.Swarm, config domain.GeneralConfig) error {
+	return a.simulation.ExportSimulation(a.ctx, swarms, config)
+}
+
 func (a *App) DownloadLogs() error {
 	return a.simulation.DownloadLogs()
 }

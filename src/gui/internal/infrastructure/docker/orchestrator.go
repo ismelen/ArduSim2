@@ -56,6 +56,21 @@ func (o *DockerOrchestrator) Run(swarms []domain.Swarm, config domain.GeneralCon
 	return o.buildSwarmCompose(swarms, config, resDir, simDir)
 }
 
+func (o *DockerOrchestrator) PrepareExport(swarms []domain.Swarm, config domain.GeneralConfig, simDir string) error {
+	resDir := filepath.Join(simDir, "resources")
+	if err := os.MkdirAll(resDir, 0755); err != nil {
+		return fmt.Errorf("create simulation dirs: %w", err)
+	}
+
+	if _, err := o.buildLocalCompose(swarms, config, resDir, simDir); err != nil {
+		return err
+	}
+	if _, err := o.buildSwarmCompose(swarms, config, resDir, simDir); err != nil {
+		return err
+	}
+	return nil
+}
+
 func normalizeNetsimInstances(n int) int {
 	if n < 1 {
 		return 1
