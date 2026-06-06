@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"encoding/json"
+	"fmt"
 	"netsim/domain/model"
 	"time"
 )
@@ -71,6 +72,7 @@ func (s *Simulator) dispatchToGateway(pending map[string][]model.Message) {
 			}
 			data, _ := json.Marshal(deliver)
 			s.Sender.Send(data, nil)
+			s.Logger.Info(fmt.Sprintf("Dispatched message from %s to %s via gateway", msg.SenderID, recID), "timestamp", time.Now().Format(time.RFC3339Nano))
 		}
 	}
 }

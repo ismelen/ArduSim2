@@ -100,7 +100,7 @@ func (s *Simulator) Handle(pkt input.RawPacket) {
 			payloadStr := string(bcast.Payload)
 			s.EnqueueBroadcast(bcast.UAVID, payloadStr, 0, time.Now())
 			s.NotifyGatewayOfBroadcast(bcast.UAVID, payloadStr)
-			s.Logger.Info(fmt.Sprintf("Processed broadcast from UAV %s", bcast.UAVID))
+			s.Logger.Info(fmt.Sprintf("Processed broadcast from UAV %s", bcast.UAVID), "timestamp", time.Now().Format(time.RFC3339Nano))
 		}
 	case "peer_broadcast":
 		var peerBcast PeerBroadcastPayload

@@ -23,7 +23,7 @@ func (unrestrictedStrategy) Enqueue(s *Simulator, senderID, payload string, _ ui
 			count++
 		}
 	}
-	s.Logger.Info(fmt.Sprintf("Enqueuing broadcast from %s to %d receivers (unrestricted)", senderID, count))
+	s.Logger.Info(fmt.Sprintf("Enqueuing broadcast from %s to %d receivers (unrestricted)", senderID, count), "timestamp", time.Now().Format(time.RFC3339Nano))
 }
 
 func (unrestrictedStrategy) HandlePeer(s *Simulator, senderID string, senderPos *model.Position, payload string, now time.Time) {

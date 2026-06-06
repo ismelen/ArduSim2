@@ -56,8 +56,8 @@ func (l *UDPLogger) startWorker() {
 
 func (l *UDPLogger) log(level, msg string, fields ...any) {
 	fullMsg := msg
-	if len(fields) > 0 {
-		fullMsg += " " + fmt.Sprint(fields...)
+	for _, f := range fields {
+		fullMsg += fmt.Sprintf(" %v", f)
 	}
 
 	select {

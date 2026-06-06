@@ -23,8 +23,9 @@ func (csmaStrategy) Enqueue(s *Simulator, senderID, payload string, retries uint
 
 	if now.Before(sender.BusyUntil) {
 		if retries >= s.Config.MaxCsmaRetries {
-			s.Logger.Warn("Max retries exceeded for sender", "sender", senderID)
+			s.Logger.Warn("Max retries exceeded for sender", "sender", senderID, "timestamp", time.Now().Format(time.RFC3339Nano))
 		} else {
+			s.Logger.Info(fmt.Sprintf("Delayed message from %s: sender busy", senderID), "timestamp", time.Now().Format(time.RFC3339Nano))
 			s.DelayedMsgs = append(s.DelayedMsgs, model.DelayedMessage{
 				Msg: model.Message{
 					SenderID: senderID,
@@ -39,8 +40,9 @@ func (csmaStrategy) Enqueue(s *Simulator, senderID, payload string, retries uint
 
 	if service.HasNearTransmitters(s.Spatial, &sender.Position, s.Config.CsmaRangeM, now) {
 		if retries >= s.Config.MaxCsmaRetries {
-			s.Logger.Warn("Max retries exceeded (CSMA) for sender", "sender", senderID)
+			s.Logger.Warn("Max retries exceeded (CSMA) for sender", "sender", senderID, "timestamp", time.Now().Format(time.RFC3339Nano))
 		} else {
+			s.Logger.Info(fmt.Sprintf("Delayed message from %s: near transmitters (CSMA)", senderID), "timestamp", time.Now().Format(time.RFC3339Nano))
 			s.DelayedMsgs = append(s.DelayedMsgs, model.DelayedMessage{
 				Msg: model.Message{
 					SenderID: senderID,
@@ -57,7 +59,7 @@ func (csmaStrategy) Enqueue(s *Simulator, senderID, payload string, retries uint
 	sender.BusyUntil = busyUntil
 
 	receiverIDs := s.Spatial.GetNearbyUAVIDs(sender.ChunkKey, s.Config.ChunkRadius, senderID)
-	s.Logger.Info(fmt.Sprintf("Enqueuing broadcast from %s to %d receivers", senderID, len(receiverIDs)))
+	s.Logger.Info(fmt.Sprintf("Enqueuing broadcast from %s to %d receivers", senderID, len(receiverIDs)), "timestamp", time.Now().Format(time.RFC3339Nano))
 	for _, recID := range receiverIDs {
 		s.processReceiver(senderID, recID, &sender.Position, payload, now, busyUntil, txNs)
 	}

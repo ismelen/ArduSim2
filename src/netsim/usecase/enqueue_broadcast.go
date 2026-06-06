@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"fmt"
 	"netsim/domain/model"
 	"netsim/domain/service"
 	"time"
@@ -28,14 +29,17 @@ func (s *Simulator) processReceiver(senderID, receiverID string, senderPos *mode
 	}
 
 	if !service.PassDistanceCheck(senderPos, &receiver.Position, s.Config.MaxRangeM) {
+		s.Logger.Info(fmt.Sprintf("Discarded message from %s to %s: distance check failed", senderID, receiverID), "timestamp", time.Now().Format(time.RFC3339Nano))
 		return
 	}
 
 	if now.Before(receiver.BusyUntil) {
+		s.Logger.Info(fmt.Sprintf("Discarded message from %s to %s: receiver busy", senderID, receiverID), "timestamp", time.Now().Format(time.RFC3339Nano))
 		return
 	}
 
 	if receiver.BufferUsed+len(payload) > s.Config.BufferSizeBytes {
+		s.Logger.Info(fmt.Sprintf("Discarded message from %s to %s: buffer full", senderID, receiverID), "timestamp", time.Now().Format(time.RFC3339Nano))
 		return
 	}
 
@@ -50,6 +54,7 @@ func (s *Simulator) processReceiver(senderID, receiverID string, senderPos *mode
 
 	s.PendingMsgs[receiverID] = append(s.PendingMsgs[receiverID], msg)
 	receiver.BufferUsed += len(payload)
+	s.Logger.Info(fmt.Sprintf("Accepted message from %s to %s", senderID, receiverID), "timestamp", time.Now().Format(time.RFC3339Nano))
 }
 
 // deliverUnrestricted delivers a message directly with no distance/busy/buffer checks.

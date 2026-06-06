@@ -9,6 +9,7 @@ import (
 	"netsim_gateway/ports/input"
 	"netsim_gateway/ports/output"
 	"sync"
+	"time"
 )
 
 type Config struct {
@@ -130,7 +131,7 @@ func (g *Gateway) HandleMessages(pkt input.RawPacket) {
 				}
 				if data, err := json.Marshal(wrapped); err == nil {
 					g.netsimSender.Send(data, target)
-					g.logger.Info(fmt.Sprintf("Forwarded broadcast from %s to %s", uavID, target.String()))
+					g.logger.Info(fmt.Sprintf("Forwarded broadcast from %s to %s", uavID, target.String()), "timestamp", time.Now().Format(time.RFC3339Nano))
 				}
 			}
 		}
@@ -181,7 +182,7 @@ func (g *Gateway) HandleNetsimMessage(pkt input.RawPacket) {
 					}
 					data, _ := json.Marshal(formatted)
 					g.uavSender.Send(data, addr)
-					g.logger.Info(fmt.Sprintf("Delivered message from %s to %s", deliver.SenderID, deliver.TargetUAVID))
+					g.logger.Info(fmt.Sprintf("Delivered message from %s to %s", deliver.SenderID, deliver.TargetUAVID), "timestamp", time.Now().Format(time.RFC3339Nano))
 				}
 			}
 		}
