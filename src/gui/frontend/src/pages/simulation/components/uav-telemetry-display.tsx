@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import Card from "../../../components/card";
 import { getUavColor } from "../../../constants/uav-colors";
-import { useSwarms } from "../../../hooks/useSwarms";
 import { useMap } from "../../../hooks/useMap";
 import { useSimulationSession } from "../../../hooks/useSimulationSession";
+import { useSwarms } from "../../../hooks/useSwarms";
 import { useTelemetry, type TelemetryData } from "../../../hooks/useTelemetry";
 import { cn } from "../../../utils/cn";
 import { formatTime } from "../../../utils/format-time";
@@ -100,12 +100,12 @@ function TelemetryCard({ uav_id, data, onClick }: TelemetryCardProps) {
           <span className="flex gap-2">
             <ParamCard
               label="LAT"
-              value={p?.position.lat.toString() ?? "0"}
+              value={p?.position.lat.toFixed(6) ?? "0"}
               unit="º"
             />
             <ParamCard
               label="LON"
-              value={p?.position.lon.toString() ?? "0"}
+              value={p?.position.lon.toFixed(6) ?? "0"}
               unit="º"
             />
           </span>
