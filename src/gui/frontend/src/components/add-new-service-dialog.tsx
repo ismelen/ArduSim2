@@ -22,9 +22,12 @@ export default function AddNewServiceDialog({
   serviceToEdit,
   onAccept,
 }: Props) {
-  const [serviceIdx, setServiceIdx] = useState(
-    servicesList.findIndex((e) => e.id === serviceToEdit?.serviceId),
-  );
+  const [serviceIdx, setServiceIdx] = useState(() => {
+    const idx = servicesList.findIndex((e) => e.id === serviceToEdit?.serviceId);
+    if (idx !== -1) return idx;
+    if (servicesList.length > 0) return 0;
+    return -1;
+  });
   const [currentValues, setCurrentValues] = useState<Record<string, any>>(
     serviceToEdit?.config ?? {},
   );

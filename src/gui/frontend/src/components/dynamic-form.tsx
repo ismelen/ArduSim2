@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
+import Button from "./button";
 import Checkbox from "./checkbox";
 import FilePickerField from "./file-picker-field";
 import FormField from "./form-field";
@@ -77,6 +78,43 @@ export default function DynamicForm({ schemaRaw, values, onChange }: Props) {
               />
               <p className="text-dark-gray">{prop.title || key}</p>
             </span>
+          );
+        }
+
+        if (prop.type === "array") {
+          const listValues = Array.isArray(currentValues[key]) ? currentValues[key] : (prop.default || []);
+          const isNumeric = prop.items?.type === "number" || prop.items?.type === "integer";
+          return (
+            <div key={key} className="flex flex-col gap-2">
+              <p className="text-dark-gray">{prop.title || key}</p>
+              {listValues.map((val: any, idx: number) => (
+                <div key={idx} className="flex gap-2 items-center">
+                  <div className="flex-1">
+                    <FormField
+                      type={isNumeric ? "number" : "text"}
+                      initValue={val}
+                      onChange={(e) => {
+                        const newArray = [...listValues];
+                        newArray[idx] = isNumeric ? Number(e) : e;
+                        handleOnChange(key, newArray);
+                      }}
+                    />
+                  </div>
+                  <Button
+                    icon="delete"
+                    onClick={() => {
+                      const newArray = listValues.filter((_: any, i: any) => i !== idx);
+                      handleOnChange(key, newArray);
+                    }}
+                  />
+                </div>
+              ))}
+              <Button
+                label="Add Item"
+                icon="add"
+                onClick={() => handleOnChange(key, [...listValues, ""])}
+              />
+            </div>
           );
         }
 

@@ -33,6 +33,14 @@
       "type": "integer",
       "title": "Mix Window (ms)",
       "default": 200
+    },
+    "services_priority": {
+      "type": "array",
+      "title": "Services Priority",
+      "items": {
+        "type": "string"
+      },
+      "default": []
     }
   }
 }

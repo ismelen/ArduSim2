@@ -51,6 +51,7 @@ func (f *FollowMeAsMaster) HandleTelemetryTopic(payload any) {
 
 	f.State = domain.IDLE
 	f.Broker.Publish(f.Cfg.SuggestionsTopic, domain.Suggestion{
+	ServiceID: f.Cfg.ServiceID,
 		Endpoint: domain.ActionLand,
 	})
 	f.Broker.Publish(f.Cfg.BroadcastTopic, domain.CommandMessage{
@@ -90,6 +91,7 @@ func (f *FollowMeAsMaster) OnPause() {
 func (f *FollowMeAsMaster) OnStop() {
 	f.State = domain.IDLE
 	f.Broker.Publish(f.Cfg.SuggestionsTopic, domain.Suggestion{
+	ServiceID: f.Cfg.ServiceID,
 		Endpoint: domain.ActionLand,
 	})
 	f.chronosned.Stop()

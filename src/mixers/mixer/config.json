@@ -8,5 +8,6 @@
   "suggestions_topic": "uav/suggestions",
   "global_commands": "global/commands",
   "logs_topic": "uav/logs",
-  "mix_window_ms": 200
+  "mix_window_ms": 200,
+  "services_priority": []
 }

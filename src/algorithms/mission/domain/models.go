@@ -56,6 +56,7 @@ type AppConfig struct {
 	YawValue                        YawStrategy `json:"yaw_value"`
 	RelativeMovement                bool        `json:"relative_movement"`
 	LogsTopic                       string      `json:"logs_topic"`
+	ServiceID                       string      `json:"service_id"`
 }
 
 // BrokerMessage represents a message received from or sent to the broker.

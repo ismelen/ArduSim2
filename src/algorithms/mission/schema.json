@@ -90,6 +90,11 @@
     },
     "logs_topic": {
       "default": "uav/logs"
+    },
+    "service_id": {
+      "type": "string",
+      "title": "Service ID",
+      "default": "mission"
     }
   }
 }

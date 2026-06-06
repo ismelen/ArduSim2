@@ -68,6 +68,7 @@ type Config struct {
 	SlavesTakeoffAltitude float64 `json:"slaves_takeoff_altitude"`
 	SendPeriodMs          int     `json:"send_period_ms"`
 	LogsTopic             string  `json:"logs_topic"`
+	ServiceID             string  `json:"service_id"`
 }
 
 // Suggestion endpoints for uav_controller
@@ -82,6 +83,7 @@ const (
 // Suggestion represents a command sent to the uav_controller
 type Suggestion struct {
 	Endpoint   string  `json:"endpoint"`
+	ServiceID  string  `json:"service_id"`
 	Latitude   float64 `json:"latitude,omitempty"`
 	Longitude  float64 `json:"longitude,omitempty"`
 	Altitude   float64 `json:"altitude,omitempty"`

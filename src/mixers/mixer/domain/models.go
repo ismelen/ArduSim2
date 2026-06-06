@@ -18,7 +18,8 @@ const (
 
 // Suggestion represents a JSON command payload arriving from an algorithm
 type Suggestion struct {
-	Endpoint ActionType `json:"endpoint"`
+	Endpoint  ActionType `json:"endpoint"`
+	ServiceID string     `json:"service_id,omitempty"`
 
 	// PositionData
 	Latitude  float64 `json:"latitude,omitempty"`
@@ -54,7 +55,8 @@ type AppConfig struct {
 	GlobalCommands   string `json:"global_commands"`
 	LogsTopic        string `json:"logs_topic"`
 
-	MixWindowMs int `json:"mix_window_ms"` // The time window (ms) to collect and merge suggestions
+	MixWindowMs      int      `json:"mix_window_ms"` // The time window (ms) to collect and merge suggestions
+	ServicesPriority []string `json:"services_priority"`
 }
 
 // IsStructural returns true for state-changing or sequence-critical commands

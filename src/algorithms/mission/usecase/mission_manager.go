@@ -104,8 +104,8 @@ func (m *MissionManager) handleCommand(payload map[string]interface{}) {
 	switch cmd {
 	case "start":
 		if m.state == domain.IDLE {
-			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "Arm"})
-			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "SetFlightmode", "flightmode": "GUIDED"})
+			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"service_id": m.config.ServiceID, "endpoint": "Arm"})
+			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"service_id": m.config.ServiceID, "endpoint": "SetFlightmode", "flightmode": "GUIDED"})
 
 			takeoffAlt := m.waypoints[1].Altitude
 			if takeoffAlt == 0 {
@@ -113,8 +113,9 @@ func (m *MissionManager) handleCommand(payload map[string]interface{}) {
 			}
 
 			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{
-				"endpoint": "Takeoff",
-				"altitude": takeoffAlt,
+				"service_id": m.config.ServiceID,
+				"endpoint":   "Takeoff",
+				"altitude":   takeoffAlt,
 			})
 			m.state = domain.TAKEOFF
 			log.Printf("Starting mission: taking off to %.2f\n", takeoffAlt)
@@ -123,27 +124,27 @@ func (m *MissionManager) handleCommand(payload map[string]interface{}) {
 		if m.state == domain.PAUSED {
 			m.state = domain.FLYING
 			log.Println("Resuming mission...")
-			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "SetFlightmode", "flightmode": "GUIDED"})
+			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"service_id": m.config.ServiceID, "endpoint": "SetFlightmode", "flightmode": "GUIDED"})
 		}
 	case "pause":
 		if m.state == domain.FLYING {
 			m.state = domain.PAUSED
-			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "SetFlightmode", "flightmode": "BRAKE"})
+			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"service_id": m.config.ServiceID, "endpoint": "SetFlightmode", "flightmode": "BRAKE"})
 			log.Println("Mission paused.")
 		}
 	case "stop":
 		if m.state != domain.IDLE && m.state != domain.FINISHED {
 			m.state = domain.LANDING
-			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "Land"})
+			m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"service_id": m.config.ServiceID, "endpoint": "Land"})
 			log.Println("Mission stopped. Landing...")
 		}
 	case "rtl":
 		m.state = domain.LANDING
-		m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "SetFlightmode", "flightmode": "RTL"})
+		m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"service_id": m.config.ServiceID, "endpoint": "SetFlightmode", "flightmode": "RTL"})
 		log.Println("Returning to Home (RTL)...")
 	case "emergency_land":
 		m.state = domain.LANDING
-		m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "Land"})
+		m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"service_id": m.config.ServiceID, "endpoint": "Land"})
 		log.Println("Emergency Land...")
 	}
 }
@@ -237,11 +238,12 @@ func (m *MissionManager) handleMissionEnd() {
 	switch m.config.MissionEnd {
 	case domain.LandMode:
 		m.state = domain.LANDING
-		m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"endpoint": "Land"})
+		m.broker.Publish(m.config.PublishTopic, map[string]interface{}{"service_id": m.config.ServiceID, "endpoint": "Land"})
 		log.Println("Mission complete. Landing...")
 	case domain.RTLMode:
 		m.state = domain.LANDING
 		m.broker.Publish(m.config.PublishTopic, map[string]interface{}{
+			"service_id": m.config.ServiceID,
 			"endpoint":   "SetFlightmode",
 			"flightmode": "RTL",
 		})
@@ -271,6 +273,7 @@ func (m *MissionManager) sendNextWaypoint() {
 		}
 
 		payload := map[string]interface{}{
+			"service_id": m.config.ServiceID,
 			"endpoint":  "MoveToPosition",
 			"latitude":  wp.Latitude,
 			"longitude": wp.Longitude,

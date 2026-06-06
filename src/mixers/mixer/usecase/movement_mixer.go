@@ -60,6 +60,15 @@ func (m *MovementMixer) Run() {
 	}
 }
 
+func (m *MovementMixer) getPriority(serviceID string) int {
+	for i, id := range m.config.ServicesPriority {
+		if id == serviceID {
+			return i
+		}
+	}
+	return 999999 // Lowest priority if not in list
+}
+
 func (m *MovementMixer) handleSuggestionArrival(payload map[string]interface{}) {
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -89,9 +98,13 @@ func (m *MovementMixer) evaluateAndMixWindow() {
 
 	log.Printf("Processing %d suggestions in current mix window", len(currentBatch))
 
-	// Indices to keep track of the latest suggestion for each movement category (ArduSim Slot Logic)
+	bestMoveToPriority := 9999999
 	lastMoveToIdx := -1
+	
+	bestMoveByVecPriority := 9999999
 	lastMoveByVecIdx := -1
+	
+	bestRotatePriority := 9999999
 	lastRotateIdx := -1
 
 	// For structural/priority commands, we keep all of them to respect sequential logic
@@ -101,6 +114,7 @@ func (m *MovementMixer) evaluateAndMixWindow() {
 	hasCritical := false
 
 	for i, req := range currentBatch {
+		prio := m.getPriority(req.ServiceID)
 		if req.IsStructural() {
 			structuralIndices = append(structuralIndices, i)
 			if req.IsCritical() {
@@ -109,11 +123,20 @@ func (m *MovementMixer) evaluateAndMixWindow() {
 		} else if req.IsMovement() {
 			switch req.Endpoint {
 			case domain.ActionMoveToPosition:
-				lastMoveToIdx = i
+				if prio <= bestMoveToPriority {
+					bestMoveToPriority = prio
+					lastMoveToIdx = i
+				}
 			case domain.ActionMoveByVector:
-				lastMoveByVecIdx = i
+				if prio <= bestMoveByVecPriority {
+					bestMoveByVecPriority = prio
+					lastMoveByVecIdx = i
+				}
 			case domain.ActionRotate:
-				lastRotateIdx = i
+				if prio <= bestRotatePriority {
+					bestRotatePriority = prio
+					lastRotateIdx = i
+				}
 			}
 		} else {
 			// Complementary commands (SetMessageInterval, etc.) are treated as structural (sequential)
@@ -142,8 +165,17 @@ func (m *MovementMixer) evaluateAndMixWindow() {
 	}
 	finalIndices = append(finalIndices, structuralIndices...)
 
-	// Sort indices to respect order of arrival
-	sort.Ints(finalIndices)
+	// Sort indices to respect order of arrival, but primarily service priority
+	sort.SliceStable(finalIndices, func(i, j int) bool {
+		idxI := finalIndices[i]
+		idxJ := finalIndices[j]
+		prioI := m.getPriority(currentBatch[idxI].ServiceID)
+		prioJ := m.getPriority(currentBatch[idxJ].ServiceID)
+		if prioI != prioJ {
+			return prioI < prioJ
+		}
+		return idxI < idxJ
+	})
 
 	// Execute suggestions in order
 	for _, idx := range finalIndices {

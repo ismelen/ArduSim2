@@ -60,6 +60,7 @@ func (f *FollowMeAsSlave) OnPause() {
 func (f *FollowMeAsSlave) OnStop() {
 	f.State = domain.IDLE
 	f.Broker.Publish(f.Cfg.SuggestionsTopic, domain.Suggestion{
+	ServiceID: f.Cfg.ServiceID,
 		Endpoint: domain.ActionLand,
 	})
 	f.alreadyTakeOff = false
@@ -95,6 +96,7 @@ func (f *FollowMeAsSlave) handleMasterTelemetry(payload any) error {
 			f.Broker.Publish(
 				f.Cfg.SuggestionsTopic,
 				domain.Suggestion{
+	ServiceID: f.Cfg.ServiceID,
 					Endpoint: domain.ActionLand,
 				},
 			)
@@ -111,6 +113,7 @@ func (f *FollowMeAsSlave) handleMasterTelemetry(payload any) error {
 	f.Broker.Publish(
 		f.Cfg.SuggestionsTopic,
 		domain.Suggestion{
+	ServiceID: f.Cfg.ServiceID,
 			Endpoint:  domain.ActionMoveTo,
 			Latitude:  masterTel.Lat,
 			Longitude: masterTel.Lon,
@@ -128,6 +131,7 @@ func (f *FollowMeAsSlave) takeOff() {
 	f.Broker.Publish(
 		f.Cfg.SuggestionsTopic,
 		domain.Suggestion{
+	ServiceID: f.Cfg.ServiceID,
 			Endpoint: domain.ActionArm,
 		},
 	)
@@ -135,6 +139,7 @@ func (f *FollowMeAsSlave) takeOff() {
 	f.Broker.Publish(
 		f.Cfg.SuggestionsTopic,
 		domain.Suggestion{
+	ServiceID: f.Cfg.ServiceID,
 			Endpoint:   domain.ActionSetFlightmode,
 			Flightmode: "GUIDED",
 		},
@@ -145,6 +150,7 @@ func (f *FollowMeAsSlave) takeOff() {
 	f.Broker.Publish(
 		f.Cfg.SuggestionsTopic,
 		domain.Suggestion{
+	ServiceID: f.Cfg.ServiceID,
 			Endpoint: domain.ActionTakeoff,
 			Altitude: f.Cfg.SlavesTakeoffAltitude,
 		},
