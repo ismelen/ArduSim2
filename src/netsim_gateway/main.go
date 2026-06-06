@@ -1,6 +1,6 @@
 package main
-
 import (
+	"fmt"
 	"netsim_gateway/infra/config"
 	"netsim_gateway/infra/logger"
 	"netsim_gateway/infra/udp"
@@ -13,7 +13,7 @@ import (
 
 func main() {
 	cfg := config.LoadConfig("config.json")
-	log := logger.NewUDPLogger(cfg.LoggerAddr)
+	log := logger.NewUDPLogger(fmt.Sprintf("%s:%d", cfg.LoggerIp, cfg.LoggerPort))
 
 	telemetryConn := udp.NewConnection(cfg.TelemetryPort, log)
 	defer telemetryConn.Close()

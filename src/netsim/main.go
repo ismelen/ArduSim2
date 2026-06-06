@@ -1,6 +1,6 @@
 package main
-
 import (
+	"fmt"
 	"netsim/domain/service"
 	"netsim/infra/config"
 	"netsim/infra/logger"
@@ -14,12 +14,12 @@ import (
 
 func main() {
 	cfg := config.LoadConfig("config.json")
-	log := logger.NewUDPLogger(cfg.Level, cfg.LoggerAddr)
+	log := logger.NewUDPLogger(cfg.Level, fmt.Sprintf("%s:%d", cfg.LoggerIp, cfg.LoggerPort))
 
 	conn := udp.NewConnection(cfg.ListenPort, log)
 	defer conn.Close()
 
-	sender := udp.NewSender(conn, cfg.GatewayAddr, log)
+	sender := udp.NewSender(conn, fmt.Sprintf("%s:%d", cfg.GatewayIp, cfg.GatewayPort), log)
 	receiver := udp.NewReceiver(conn, log)
 
 	nodeId := os.Getenv("NODE_ID")

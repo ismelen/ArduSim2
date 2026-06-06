@@ -9,7 +9,8 @@ import (
 // Config is a flat struct that maps directly to the flat config.json.
 type Config struct {
 	ListenPort        int     `json:"listen_port"`
-	GatewayAddr       string  `json:"gateway_addr"`
+	GatewayIp         string  `json:"gateway_ip"`
+	GatewayPort       int     `json:"gateway_port"`
 	LossMode          string  `json:"loss_mode"`
 	BufferSizeBytes   int     `json:"buffer_size_bytes"`
 	CsmaRangeM        float64 `json:"csma_range_m"`
@@ -20,7 +21,8 @@ type Config struct {
 	SnapshotIntervalS int     `json:"snapshot_interval_s"`
 	FlushIntervalMs   int     `json:"flush_interval_ms"`
 	Level             string  `json:"level"`
-	LoggerAddr        string  `json:"logger_addr"`
+	LoggerIp          string  `json:"logger_ip"`
+	LoggerPort        int     `json:"logger_port"`
 }
 
 // SimulationConfig extracts the usecase.Config from the flat Config.
@@ -41,7 +43,8 @@ func LoadConfig(path string) Config {
 	file, err := os.Open(path)
 	cfg := Config{
 		ListenPort:        3000,
-		GatewayAddr:       "netsim_gateway:3001",
+		GatewayIp:         "netsim_gateway",
+		GatewayPort:       3001,
 		LossMode:          "realistic",
 		BufferSizeBytes:   163840,
 		CsmaRangeM:        700.0,
@@ -52,7 +55,8 @@ func LoadConfig(path string) Config {
 		SnapshotIntervalS: 1,
 		FlushIntervalMs:   1,
 		Level:             "info",
-		LoggerAddr:        "logger:5000",
+		LoggerIp:          "logger",
+		LoggerPort:        5000,
 	}
 
 	if err == nil {

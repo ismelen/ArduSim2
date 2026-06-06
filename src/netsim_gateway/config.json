@@ -4,5 +4,6 @@
   "subscribers_port": 3002,
   "netsim_listen_port": 3003,
   "snapshot_interval_s": 1,
-  "logger_addr": "logger:5000"
+  "logger_ip": "logger",
+  "logger_port": 5000
 }
