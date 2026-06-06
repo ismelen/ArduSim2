@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"ui/internal/domain"
 	"ui/internal/infrastructure/docker"
 	"ui/internal/infrastructure/filesystem"
@@ -35,7 +37,23 @@ func NewApp() *App {
 	repo := filesystem.NewFileRepository(workDir)
 	bridge := wails.NewWailsBridge()
 	orchestrator := docker.NewDockerOrchestrator(workDir, bridge)
-	subscriber := netsim.NewNetsimSubscriber(bridge)
+	// Read netsim_gateway config to get ports
+	gwConfigPath := filepath.Join(workDir, "..", "netsim_gateway", "config.json")
+	var gwCfg map[string]interface{}
+	if data, err := os.ReadFile(gwConfigPath); err == nil {
+		json.Unmarshal(data, &gwCfg)
+	}
+
+	subPort := 3002
+	if p, ok := gwCfg["subscribers_port"].(float64); ok {
+		subPort = int(p)
+	}
+	msgPort := 3001
+	if p, ok := gwCfg["messages_port"].(float64); ok {
+		msgPort = int(p)
+	}
+
+	subscriber := netsim.NewNetsimSubscriber(bridge, subPort, msgPort)
 	loggerClient := logger.NewHttpLoggerClient()
 
 	// 2. Use Cases (Interactors)
@@ -78,10 +96,12 @@ func (a *App) GetAvailableControllers() []domain.ServiceType {
 
 // Simulation
 func (a *App) StartSimulation(swarms []domain.Swarm, config domain.GeneralConfig, isLocal bool) error {
+	a.config.PopulateDefaults(&config)
 	return a.simulation.StartSimulation(a.ctx, swarms, config, isLocal)
 }
 
 func (a *App) BuildImages(swarms []domain.Swarm, config domain.GeneralConfig, isLocal bool) error {
+	a.config.PopulateDefaults(&config)
 	return a.simulation.BuildImages(a.ctx, swarms, config, isLocal)
 }
 
@@ -90,6 +110,7 @@ func (a *App) StopSimulation() {
 }
 
 func (a *App) ExportSimulation(swarms []domain.Swarm, config domain.GeneralConfig) error {
+	a.config.PopulateDefaults(&config)
 	return a.simulation.ExportSimulation(a.ctx, swarms, config)
 }
 

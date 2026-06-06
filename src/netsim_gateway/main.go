@@ -15,31 +15,51 @@ func main() {
 	cfg := config.LoadConfig("config.json")
 	log := logger.NewUDPLogger(cfg.LoggerAddr)
 
-	uavConn := udp.NewConnection(cfg.UAVListenPort, log)
-	defer uavConn.Close()
+	telemetryConn := udp.NewConnection(cfg.TelemetryPort, log)
+	defer telemetryConn.Close()
+
+	messagesConn := udp.NewConnection(cfg.MessagesPort, log)
+	defer messagesConn.Close()
+
+	subscribersConn := udp.NewConnection(cfg.SubscribersPort, log)
+	defer subscribersConn.Close()
 
 	netsimConn := udp.NewConnection(cfg.NetsimListenPort, log)
 	defer netsimConn.Close()
 
-	uavSender := udp.NewSender(uavConn, log)
+	// We can use any of the uav connections to send back to the UAVs
+	// For simplicity, we will just use the messagesConn as the uavSender
+	uavSender := udp.NewSender(messagesConn, log)
 	netsimSender := udp.NewSender(netsimConn, log)
-	uavRecv := udp.NewReceiver(uavConn, log)
+	subscribersSender := udp.NewSender(subscribersConn, log)
+	
+	telemetryRecv := udp.NewReceiver(telemetryConn, log)
+	messagesRecv := udp.NewReceiver(messagesConn, log)
+	subscribersRecv := udp.NewReceiver(subscribersConn, log)
 	netsimRecv := udp.NewReceiver(netsimConn, log)
 
 	netsimAddrs := config.DiscoverNetsims(cfg.Addrs)
 	gateway := usecase.NewGateway(usecase.Config{
-		UAVListenPort:     cfg.UAVListenPort,
+		TelemetryPort:     cfg.TelemetryPort,
+		MessagesPort:      cfg.MessagesPort,
+		SubscribersPort:   cfg.SubscribersPort,
 		NetsimListenPort:  cfg.NetsimListenPort,
 		SnapshotIntervalS: cfg.SnapshotIntervalS,
-	}, netsimAddrs, uavSender, netsimSender, log)
+	}, netsimAddrs, uavSender, netsimSender, subscribersSender, log)
 
-	uavHandler := usecase.NewUAVHandler(gateway)
+	telemetryHandler := usecase.NewTelemetryHandler(gateway)
+	messagesHandler := usecase.NewMessagesHandler(gateway)
+	subscribersHandler := usecase.NewSubscribersHandler(gateway)
 	netsimHandler := usecase.NewNetsimHandler(gateway)
 
-	go uavRecv.Run(uavHandler)
+	go telemetryRecv.Run(telemetryHandler)
+	go messagesRecv.Run(messagesHandler)
+	go subscribersRecv.Run(subscribersHandler)
 	go netsimRecv.Run(netsimHandler)
+	
 	go uavSender.Run()
 	go netsimSender.Run()
+	go subscribersSender.Run()
 	go usecase.RunAggregatedSnapshotEmitter(gateway)
 	go func() {
 		addrs := netsimAddrs
@@ -50,7 +70,7 @@ func main() {
 		gateway.UpdateNetsims(addrs)
 	}()
 
-	log.Info("Gateway started", "uav_port", cfg.UAVListenPort, "netsim_port", cfg.NetsimListenPort)
+	log.Info("Gateway started", "telemetry_port", cfg.TelemetryPort, "messages_port", cfg.MessagesPort, "subscribers_port", cfg.SubscribersPort, "netsim_port", cfg.NetsimListenPort)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)

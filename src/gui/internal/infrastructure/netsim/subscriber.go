@@ -17,28 +17,35 @@ import (
 
 
 type NetsimSubscriber struct {
-	mu           sync.Mutex
-	ui           ports.UIBridge
-	expectedUAVs int
-	receivedUAVs map[string]bool
-	finishedUAVs map[string]bool
-	onFinish     func()
-	ready        bool
-	finished     bool
-	remoteAddr   string
+	mu              sync.Mutex
+	ui              ports.UIBridge
+	expectedUAVs    int
+	receivedUAVs    map[string]bool
+	finishedUAVs    map[string]bool
+	onFinish        func()
+	ready           bool
+	finished        bool
+	subscribersAddr string
+	messagesAddr    string
+	subscribersPort int
+	messagesPort    int
 }
 
-func NewNetsimSubscriber(ui ports.UIBridge) *NetsimSubscriber {
+func NewNetsimSubscriber(ui ports.UIBridge, subPort, msgPort int) *NetsimSubscriber {
 	return &NetsimSubscriber{
-		ui:            ui,
-		remoteAddr:    "127.0.0.1:3000",
+		ui:              ui,
+		subscribersPort: subPort,
+		messagesPort:    msgPort,
+		subscribersAddr: fmt.Sprintf("127.0.0.1:%d", subPort),
+		messagesAddr:    fmt.Sprintf("127.0.0.1:%d", msgPort),
 	}
 }
 
 func (s *NetsimSubscriber) SetRemoteAddr(ip string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.remoteAddr = ip + ":3000"
+	s.subscribersAddr = fmt.Sprintf("%s:%d", ip, s.subscribersPort)
+	s.messagesAddr = fmt.Sprintf("%s:%d", ip, s.messagesPort)
 }
 
 func (s *NetsimSubscriber) SetExpectedFleet(uavIDs []string) {
@@ -58,17 +65,14 @@ func (s *NetsimSubscriber) SetOnFinish(fn func()) {
 }
 
 func (s *NetsimSubscriber) SendGlobalBroadcast(payload interface{}) error {
-	remoteUDPAddr, err := net.ResolveUDPAddr("udp", s.remoteAddr)
+	remoteUDPAddr, err := net.ResolveUDPAddr("udp", s.messagesAddr)
 	if err != nil {
 		return err
 	}
 
 	packet := map[string]interface{}{
-		"topic": "broadcast",
-		"payload": map[string]interface{}{
-			"uav_id":  "",
-			"payload": payload,
-		},
+		"uav_id":  "",
+		"payload": payload,
 	}
 
 	marshaled, _ := json.Marshal(packet)
@@ -93,7 +97,7 @@ func (s *NetsimSubscriber) NotifyUserStoppedAll() {
 }
 
 func (s *NetsimSubscriber) Start(ctx context.Context) {
-	remoteUDPAddr, _ := net.ResolveUDPAddr("udp", s.remoteAddr)
+	subscribersUDPAddr, _ := net.ResolveUDPAddr("udp", s.subscribersAddr)
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
 	if err != nil {
 		fmt.Println("Error listening on UDP", err)
@@ -121,13 +125,10 @@ func (s *NetsimSubscriber) Start(ctx context.Context) {
 			default:
 			}
 
-			for _, topic := range []string{"telemetry_snapshot", "broadcast"} {
-				p, _ := json.Marshal(map[string]interface{}{
-					"topic": "subscribe",
-					"payload": map[string]interface{}{"topic": topic},
-				})
-				_, _ = conn.WriteToUDP(p, remoteUDPAddr)
-			}
+			// Just ping the subscribers port to register our address
+			p := []byte("{}")
+			_, _ = conn.WriteToUDP(p, subscribersUDPAddr)
+			
 			time.Sleep(5 * time.Second)
 		}
 	}()

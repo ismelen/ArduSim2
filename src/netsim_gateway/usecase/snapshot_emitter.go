@@ -26,7 +26,7 @@ func RunAggregatedSnapshotEmitter(gateway *Gateway) {
 			if data, err := json.Marshal(msg); err == nil {
 				gateway.uiSubscribers.Range(func(key, value any) bool {
 					addr := value.(*net.UDPAddr)
-					gateway.uavSender.Send(data, addr)
+					gateway.subscribersSender.Send(data, addr)
 					return true
 				})
 				gateway.logger.Info(fmt.Sprintf("Emitted telemetry snapshot with %d UAVs", len(snapshot)))

@@ -12,7 +12,9 @@ import (
 )
 
 type Config struct {
-	UAVListenPort     int
+	TelemetryPort     int
+	MessagesPort      int
+	SubscribersPort   int
 	NetsimListenPort  int
 	SnapshotIntervalS int
 	NetsimDiscovery   DiscoveryConfig
@@ -31,19 +33,21 @@ type Gateway struct {
 	uavRegistry    sync.Map // string (uavID) -> *net.UDPAddr
 	telemetryCache sync.Map // string (uavID) -> json.RawMessage
 	uiSubscribers  sync.Map // string (addr.String()) -> *net.UDPAddr
-	uavSender      output.PacketSender
-	netsimSender   output.PacketSender
-	logger         output.Logger
-	mu             sync.RWMutex
+	uavSender         output.PacketSender
+	netsimSender      output.PacketSender
+	subscribersSender output.PacketSender
+	logger            output.Logger
+	mu                sync.RWMutex
 }
 
-func NewGateway(cfg Config, netsims []*net.UDPAddr, uavSender, netsimSender output.PacketSender, logger output.Logger) *Gateway {
+func NewGateway(cfg Config, netsims []*net.UDPAddr, uavSender, netsimSender, subscribersSender output.PacketSender, logger output.Logger) *Gateway {
 	return &Gateway{
-		Config:       cfg,
-		netsimAddrs:  netsims,
-		uavSender:    uavSender,
-		netsimSender: netsimSender,
-		logger:       logger,
+		Config:            cfg,
+		netsimAddrs:       netsims,
+		uavSender:         uavSender,
+		netsimSender:      netsimSender,
+		subscribersSender: subscribersSender,
+		logger:            logger,
 	}
 }
 
@@ -62,26 +66,44 @@ type TelemetryPayload struct {
 	UAVID string `json:"uav_id"`
 }
 
-func (g *Gateway) HandleUAVMessage(pkt input.RawPacket) {
-	var msg InboundMsg
-	if err := json.Unmarshal(pkt.Data, &msg); err != nil {
-		return
-	}
-
-	if msg.Topic == "subscribe" {
-		g.uiSubscribers.Store(pkt.Addr.String(), pkt.Addr)
-		g.logger.Info("New UI subscriber", "addr", pkt.Addr.String())
-		return
-	}
-
+func (g *Gateway) HandleTelemetry(pkt input.RawPacket) {
 	var payload map[string]any
-	if err := json.Unmarshal(msg.Payload, &payload); err == nil {
+	if err := json.Unmarshal(pkt.Data, &payload); err == nil {
+		if uavID, ok := payload["uav_id"].(string); ok && uavID != "" {
+			g.uavRegistry.Store(uavID, pkt.Addr)
+
+			g.mu.RLock()
+			netsimCount := len(g.netsimAddrs)
+			var target *net.UDPAddr
+			if netsimCount > 0 {
+				idx := service.ConsistentHash(uavID, netsimCount)
+				target = g.netsimAddrs[idx]
+			}
+			g.mu.RUnlock()
+
+			if target != nil {
+				wrapped := map[string]any{
+					"topic":   "uav_telemetry",
+					"payload": payload,
+				}
+				if data, err := json.Marshal(wrapped); err == nil {
+					g.netsimSender.Send(data, target)
+					g.logger.Info(fmt.Sprintf("Forwarded telemetry from %s to %s", uavID, target.String()))
+				}
+			}
+		}
+	}
+}
+
+func (g *Gateway) HandleMessages(pkt input.RawPacket) {
+	var payload map[string]any
+	if err := json.Unmarshal(pkt.Data, &payload); err == nil {
 		if uavID, ok := payload["uav_id"].(string); ok {
 			if uavID != "" {
 				g.uavRegistry.Store(uavID, pkt.Addr)
 			}
 
-			if msg.Topic == "broadcast" && uavID == "" {
+			if uavID == "" {
 				if data, err := json.Marshal(payload); err == nil {
 					g.uavRegistry.Range(func(key, value any) bool {
 						addr := value.(*net.UDPAddr)
@@ -103,16 +125,21 @@ func (g *Gateway) HandleUAVMessage(pkt input.RawPacket) {
 
 			if target != nil {
 				wrapped := map[string]any{
-					"topic":   "uav_" + msg.Topic,
+					"topic":   "uav_broadcast",
 					"payload": payload,
 				}
 				if data, err := json.Marshal(wrapped); err == nil {
 					g.netsimSender.Send(data, target)
-					g.logger.Info(fmt.Sprintf("Forwarded %s from %s to %s", msg.Topic, uavID, target.String()))
+					g.logger.Info(fmt.Sprintf("Forwarded broadcast from %s to %s", uavID, target.String()))
 				}
 			}
 		}
 	}
+}
+
+func (g *Gateway) HandleSubscribers(pkt input.RawPacket) {
+	g.uiSubscribers.Store(pkt.Addr.String(), pkt.Addr)
+	g.logger.Info("New UI subscriber", "addr", pkt.Addr.String())
 }
 
 type DeliverMessage struct {
@@ -171,7 +198,7 @@ func (g *Gateway) HandleNetsimMessage(pkt input.RawPacket) {
 			if uiData, err := json.Marshal(uiMsg); err == nil {
 				g.uiSubscribers.Range(func(key, value any) bool {
 					addr := value.(*net.UDPAddr)
-					g.uavSender.Send(uiData, addr)
+					g.subscribersSender.Send(uiData, addr)
 					return true
 				})
 			}
@@ -198,13 +225,19 @@ func (g *Gateway) HandleNetsimMessage(pkt input.RawPacket) {
 	}
 }
 
-type UAVHandler struct{ gateway *Gateway }
+type TelemetryHandler struct{ gateway *Gateway }
+func (h *TelemetryHandler) Handle(pkt input.RawPacket) { h.gateway.HandleTelemetry(pkt) }
 
-func (h *UAVHandler) Handle(pkt input.RawPacket) { h.gateway.HandleUAVMessage(pkt) }
+type MessagesHandler struct{ gateway *Gateway }
+func (h *MessagesHandler) Handle(pkt input.RawPacket) { h.gateway.HandleMessages(pkt) }
+
+type SubscribersHandler struct{ gateway *Gateway }
+func (h *SubscribersHandler) Handle(pkt input.RawPacket) { h.gateway.HandleSubscribers(pkt) }
 
 type NetsimHandler struct{ gateway *Gateway }
-
 func (h *NetsimHandler) Handle(pkt input.RawPacket) { h.gateway.HandleNetsimMessage(pkt) }
 
-func NewUAVHandler(g *Gateway) input.UAVMessageHandler       { return &UAVHandler{gateway: g} }
-func NewNetsimHandler(g *Gateway) input.NetsimMessageHandler { return &NetsimHandler{gateway: g} }
+func NewTelemetryHandler(g *Gateway) input.UAVMessageHandler       { return &TelemetryHandler{gateway: g} }
+func NewMessagesHandler(g *Gateway) input.UAVMessageHandler        { return &MessagesHandler{gateway: g} }
+func NewSubscribersHandler(g *Gateway) input.UAVMessageHandler     { return &SubscribersHandler{gateway: g} }
+func NewNetsimHandler(g *Gateway) input.NetsimMessageHandler       { return &NetsimHandler{gateway: g} }

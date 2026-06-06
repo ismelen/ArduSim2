@@ -92,7 +92,18 @@ func (o *DockerOrchestrator) buildLocalCompose(swarms []domain.Swarm, config dom
 	gwCfg := LoadRawConfig(o.netsimGatewayConfig)
 	gwLimits := ParseResourceLimits(gwCfg)
 	gwFile, _ := o.writeTemplateConfig("netsim_gateway_config", o.netsimGatewayConfig, nil, writer)
-	builder.AddNetsimGateway(gwFile, netsimAddrs, gwLimits, config.VerboseLogging)
+
+	telPort, msgPort, subPort := 3000, 3001, 3002
+	if p, ok := gwCfg["telemetry_port"].(float64); ok {
+		telPort = int(p)
+	}
+	if p, ok := gwCfg["messages_port"].(float64); ok {
+		msgPort = int(p)
+	}
+	if p, ok := gwCfg["subscribers_port"].(float64); ok {
+		subPort = int(p)
+	}
+	builder.AddNetsimGateway(gwFile, netsimAddrs, gwLimits, config.VerboseLogging, telPort, msgPort, subPort)
 
 	nsCfg := LoadRawConfig(o.netsimConfig)
 	nsLimits := ParseResourceLimits(nsCfg)
@@ -156,7 +167,18 @@ func (o *DockerOrchestrator) buildSwarmCompose(swarms []domain.Swarm, config dom
 	gwCfg := LoadRawConfig(o.netsimGatewayConfig)
 	gwLimits := ParseResourceLimits(gwCfg)
 	gwFile, _ := o.writeTemplateConfig("netsim_gateway_config", o.netsimGatewayConfig, nil, writer)
-	builder.AddNetsimGateway(gwFile, netsimAddrs, gwLimits, config.VerboseLogging)
+
+	telPort, msgPort, subPort := 3000, 3001, 3002
+	if p, ok := gwCfg["telemetry_port"].(float64); ok {
+		telPort = int(p)
+	}
+	if p, ok := gwCfg["messages_port"].(float64); ok {
+		msgPort = int(p)
+	}
+	if p, ok := gwCfg["subscribers_port"].(float64); ok {
+		subPort = int(p)
+	}
+	builder.AddNetsimGateway(gwFile, netsimAddrs, gwLimits, config.VerboseLogging, telPort, msgPort, subPort)
 
 	nsCfg := LoadRawConfig(o.netsimConfig)
 	nsLimits := ParseResourceLimits(nsCfg)

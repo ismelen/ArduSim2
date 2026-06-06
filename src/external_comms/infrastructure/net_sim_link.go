@@ -9,12 +9,18 @@ import (
 )
 
 type UDPNetSimLink struct {
-	conn *net.UDPConn
-	addr *net.UDPAddr
+	conn          *net.UDPConn
+	telemetryAddr *net.UDPAddr
+	messagesAddr  *net.UDPAddr
 }
 
-func NewUDPNetSimLink(ip string, port int) (*UDPNetSimLink, error) {
-	serverAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", ip, port))
+func NewUDPNetSimLink(ip string, telemetryPort, messagesPort int) (*UDPNetSimLink, error) {
+	telemetryAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", ip, telemetryPort))
+	if err != nil {
+		return nil, err
+	}
+
+	messagesAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", ip, messagesPort))
 	if err != nil {
 		return nil, err
 	}
@@ -30,24 +36,30 @@ func NewUDPNetSimLink(ip string, port int) (*UDPNetSimLink, error) {
 	}
 
 	return &UDPNetSimLink{
-		conn: conn,
-		addr: serverAddr,
+		conn:          conn,
+		telemetryAddr: telemetryAddr,
+		messagesAddr:  messagesAddr,
 	}, nil
 }
 
 func (n *UDPNetSimLink) Send(msg domain.SendedNetSimMessage) error {
 	valid_msg := map[string]interface{}{
-		"topic": msg.Topic,
-		"payload": map[string]interface{}{
-			"payload":   msg.Payload,
-			"uav_id": msg.Source,
-		},
+		"payload": msg.Payload,
+		"uav_id":  msg.Source,
 	}
 	data, err := json.Marshal(valid_msg)
 	if err != nil {
 		return err
 	}
-	_, err = n.conn.WriteToUDP(data, n.addr)
+
+	var targetAddr *net.UDPAddr
+	if msg.Topic == "telemetry" {
+		targetAddr = n.telemetryAddr
+	} else {
+		targetAddr = n.messagesAddr
+	}
+
+	_, err = n.conn.WriteToUDP(data, targetAddr)
 	return err
 }
 

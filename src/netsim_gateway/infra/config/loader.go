@@ -9,7 +9,9 @@ import (
 )
 
 type Config struct {
-	UAVListenPort     int      `json:"uav_listen_port"`
+	TelemetryPort     int      `json:"telemetry_port"`
+	MessagesPort      int      `json:"messages_port"`
+	SubscribersPort   int      `json:"subscribers_port"`
 	NetsimListenPort  int      `json:"netsim_listen_port"`
 	SnapshotIntervalS int      `json:"snapshot_interval_s"`
 	LoggerAddr        string   `json:"logger_addr"`
@@ -20,8 +22,10 @@ func LoadConfig(path string) Config {
 	file, err := os.Open(path)
 	addrsStr := os.Getenv("ADDRS")
 	cfg := Config{
-		UAVListenPort:     3000,
-		NetsimListenPort:  3001,
+		TelemetryPort:     3000,
+		MessagesPort:      3001,
+		SubscribersPort:   3002,
+		NetsimListenPort:  3003,
 		SnapshotIntervalS: 1,
 		LoggerAddr:        "logger:5000",
 		Addrs:             strings.Split(addrsStr, ","),

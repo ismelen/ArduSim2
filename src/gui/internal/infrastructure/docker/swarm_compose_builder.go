@@ -36,7 +36,7 @@ func newSwarmComposeBuilder() *swarmComposeBuilder {
 }
 
 // AddNetsimGateway appends the shared netsim_gateway service block.
-func (b *swarmComposeBuilder) AddNetsimGateway(configFileName string, netsimAddrs []string, limits ResourceLimits, verbose bool) {
+func (b *swarmComposeBuilder) AddNetsimGateway(configFileName string, netsimAddrs []string, limits ResourceLimits, verbose bool, telemetryPort, msgPort, subPort int) {
 	env := b.buildEnvBlock("    ", verbose)
 	if len(netsimAddrs) > 0 {
 		addrsStr := strings.Join(netsimAddrs, ",")
@@ -52,8 +52,16 @@ func (b *swarmComposeBuilder) AddNetsimGateway(configFileName string, netsimAddr
 	fmt.Fprintf(&b.services, `  netsim_gateway:
     image: netsim_gateway
     ports:
-      - target: 3000
-        published: 3000
+      - target: %d
+        published: %d
+        protocol: udp
+        mode: ingress
+      - target: %d
+        published: %d
+        protocol: udp
+        mode: ingress
+      - target: %d
+        published: %d
         protocol: udp
         mode: ingress
 %s    configs:
@@ -62,7 +70,7 @@ func (b *swarmComposeBuilder) AddNetsimGateway(configFileName string, netsimAddr
 %s    networks:
       - air
 
-`, env, configName, lims)
+`, telemetryPort, telemetryPort, msgPort, msgPort, subPort, subPort, env, configName, lims)
 	b.addNetwork("air")
 }
 

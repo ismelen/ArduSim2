@@ -5,8 +5,9 @@ type AppConfig struct {
 	BrokerIP   string `json:"broker_ip"`
 	BrokerPort int    `json:"broker_port"`
 
-	NetSimIP   string `json:"simulator_ip"`
-	NetSimPort int    `json:"simulator_port"`
+	NetSimIP             string `json:"simulator_ip"`
+	NetSimTelemetryPort  int    `json:"simulator_telemetry_port"`
+	NetSimMessagesPort   int    `json:"simulator_messages_port"`
 
 	LoggerIP   string `json:"logger_ip"`
 	LoggerPort int    `json:"logger_port"`

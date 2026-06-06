@@ -13,4 +13,5 @@ type ConfigUseCase interface {
 	SelectArduPilotInstance(ctx context.Context) (string, error)
 	GetKmlFirstCoordinate(path string) (*domain.Coordinate, error)
 	LoadFile(path string) (string, error)
+	PopulateDefaults(config *domain.GeneralConfig)
 }

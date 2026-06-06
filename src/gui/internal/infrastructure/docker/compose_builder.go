@@ -22,7 +22,7 @@ func newComposeBuilder() *composeBuilder {
 }
 
 // AddNetsimGateway appends the shared netsim_gateway service block.
-func (b *composeBuilder) AddNetsimGateway(configFileName string, netsimAddrs []string, limits ResourceLimits, verbose bool) {
+func (b *composeBuilder) AddNetsimGateway(configFileName string, netsimAddrs []string, limits ResourceLimits, verbose bool, telemetryPort, msgPort, subPort int) {
 	var env string
 	if verbose {
 		env = "    environment:\n      - DEBUG=true\n"
@@ -46,11 +46,13 @@ func (b *composeBuilder) AddNetsimGateway(configFileName string, netsimAddrs []s
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      - 3000:3000/udp
+      - %d:%d/udp
+      - %d:%d/udp
+      - %d:%d/udp
 %s%s%s    networks:
       - air
 
-`, env, vols, lims)
+`, telemetryPort, telemetryPort, msgPort, msgPort, subPort, subPort, env, vols, lims)
 	b.addNetwork("air", "10.9.0.0/24")
 }
 

@@ -67,13 +67,13 @@ func (i *ConfigInteractor) LoadSimulationConfig(ctx context.Context) (*domain.Si
 	state.GeneralConfig.OriginalSimulationName = filepath.Base(selectedDir)
 	state.GeneralConfig.SimulationName = filepath.Base(selectedDir)
 
-	i.populateDefaults(&state.GeneralConfig)
+	i.PopulateDefaults(&state.GeneralConfig)
 
 	return state, nil
 }
 
 func (i *ConfigInteractor) SaveSimulationConfig(swarms []domain.Swarm, config domain.GeneralConfig, mode string) (*domain.SimulationState, error) {
-	i.populateDefaults(&config)
+	i.PopulateDefaults(&config)
 	config.SanitizeSimulationName()
 	simDir := filepath.Join(i.repo.GetSimulationsDir(), config.SimulationName)
 
@@ -87,7 +87,7 @@ func (i *ConfigInteractor) SaveSimulationConfig(swarms []domain.Swarm, config do
 	return &state, err
 }
 
-func (i *ConfigInteractor) populateDefaults(config *domain.GeneralConfig) {
+func (i *ConfigInteractor) PopulateDefaults(config *domain.GeneralConfig) {
 	// 1. Default UAV Speed
 	if config.DefaultUAVSpeed <= 0 {
 		config.DefaultUAVSpeed = 10.0
@@ -104,29 +104,37 @@ func (i *ConfigInteractor) populateDefaults(config *domain.GeneralConfig) {
 		config.DefaultArduPilotInstance = filepath.Join(controllersDir, "ardupilot4_5_3", "ardupilot", "arducopter4_5_3")
 	}
 
-	// 3. Default Mixer
-	if config.DefaultMixer.ServiceId == "" {
-		available := i.repo.GetAvailableMixers()
-		if len(available) > 0 {
-			best := available[0]
-			config.DefaultMixer.ServiceId = best.ID
-			config.DefaultMixer.FolderName = best.FolderName
-			config.DefaultMixer.ServiceTitle = best.Title
-			config.DefaultMixer.InstanceId = uuid.NewString()
-			config.DefaultMixer.Config = parseDefaultConfig(best.SchemaRaw)
+	availableMixers := i.repo.GetAvailableMixers()
+	if config.DefaultMixer.ServiceId == "" && len(availableMixers) > 0 {
+		best := availableMixers[0]
+		config.DefaultMixer.ServiceId = best.ID
+		config.DefaultMixer.FolderName = best.FolderName
+		config.DefaultMixer.ServiceTitle = best.Title
+		config.DefaultMixer.InstanceId = uuid.NewString()
+		config.DefaultMixer.Config = parseDefaultConfig(best.SchemaRaw)
+	} else if config.DefaultMixer.ServiceId != "" && config.DefaultMixer.FolderName == "" {
+		for _, m := range availableMixers {
+			if m.ID == config.DefaultMixer.ServiceId {
+				config.DefaultMixer.FolderName = m.FolderName
+				break
+			}
 		}
 	}
 
-	// 4. Default Controller
-	if config.DefaultController.ServiceId == "" {
-		available := i.repo.GetAvailableControllers()
-		if len(available) > 0 {
-			best := available[0]
-			config.DefaultController.ServiceId = best.ID
-			config.DefaultController.FolderName = best.FolderName
-			config.DefaultController.ServiceTitle = best.Title
-			config.DefaultController.InstanceId = uuid.NewString()
-			config.DefaultController.Config = parseDefaultConfig(best.SchemaRaw)
+	availableControllers := i.repo.GetAvailableControllers()
+	if config.DefaultController.ServiceId == "" && len(availableControllers) > 0 {
+		best := availableControllers[0]
+		config.DefaultController.ServiceId = best.ID
+		config.DefaultController.FolderName = best.FolderName
+		config.DefaultController.ServiceTitle = best.Title
+		config.DefaultController.InstanceId = uuid.NewString()
+		config.DefaultController.Config = parseDefaultConfig(best.SchemaRaw)
+	} else if config.DefaultController.ServiceId != "" && config.DefaultController.FolderName == "" {
+		for _, c := range availableControllers {
+			if c.ID == config.DefaultController.ServiceId {
+				config.DefaultController.FolderName = c.FolderName
+				break
+			}
 		}
 	}
 }

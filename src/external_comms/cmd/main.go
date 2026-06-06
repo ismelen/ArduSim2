@@ -42,7 +42,7 @@ func main() {
 
 	var netLink *infrastructure.UDPNetSimLink
 	for {
-		netLink, err = infrastructure.NewUDPNetSimLink(config.NetSimIP, config.NetSimPort)
+		netLink, err = infrastructure.NewUDPNetSimLink(config.NetSimIP, config.NetSimTelemetryPort, config.NetSimMessagesPort)
 		if err != nil {
 			log.Printf("Failed to connect NetSim: %v", err)
 			time.Sleep(5 * time.Second)

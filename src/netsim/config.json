@@ -1,6 +1,6 @@
 {
   "listen_port": 3000,
-  "gateway_addr": "netsim_gateway:3001",
+  "gateway_addr": "netsim_gateway:3003",
   "loss_mode": "realistic",
   "buffer_size_bytes": 163840,
   "csma_range_m": 700.0,
