@@ -16,7 +16,6 @@ type composeBuilder struct {
 func NewComposeBuilder() ports.ComposeBuilder {
 	b := &composeBuilder{}
 	b.services.WriteString("services:\n")
-	b.networks.WriteString("networks:\n")
 	return b
 }
 
@@ -28,6 +27,12 @@ func (b *composeBuilder) AddService(svc ports.ComposeService) {
 		fmt.Fprintf(&b.services, "      context: %s\n", svc.Build.Context)
 		if svc.Build.Dockerfile != "" {
 			fmt.Fprintf(&b.services, "      dockerfile: %s\n", svc.Build.Dockerfile)
+		}
+		if len(svc.Build.Args) > 0 {
+			fmt.Fprintf(&b.services, "      args:\n")
+			for k, v := range svc.Build.Args {
+				fmt.Fprintf(&b.services, "        %s: %s\n", k, v)
+			}
 		}
 	}
 
@@ -104,5 +109,9 @@ func (b *composeBuilder) AddNetwork(name string, subnet string) {
 }
 
 func (b *composeBuilder) Build() string {
-	return b.services.String() + "\n" + b.networks.String()
+	netStr := b.networks.String()
+	if netStr != "" {
+		return b.services.String() + "\nnetworks:\n" + netStr
+	}
+	return b.services.String()
 }

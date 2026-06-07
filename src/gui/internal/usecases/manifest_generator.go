@@ -63,7 +63,7 @@ func normalizeNetsimInstances(n int) int {
 
 func (g *ManifestGenerator) getImageName(image string, user string) string {
 	if user != "" {
-		return fmt.Sprintf("%s/%s", user, image)
+		return fmt.Sprintf("%s:%s", user, image)
 	}
 	return image
 }
@@ -88,9 +88,4 @@ func (g *ManifestGenerator) resolveMixer(uav domain.UAV, config domain.GeneralCo
 	return config.DefaultMixer
 }
 
-func (g *ManifestGenerator) resolveController(uav domain.UAV, config domain.GeneralConfig) domain.DeployedService {
-	if uav.Controller != nil {
-		return *uav.Controller
-	}
-	return config.DefaultController
-}
+

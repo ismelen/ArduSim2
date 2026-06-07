@@ -30,6 +30,7 @@ type ComposeService struct {
 type ComposeBuild struct {
 	Context    string
 	Dockerfile string
+	Args       map[string]string
 }
 
 type ComposeBuilder interface {

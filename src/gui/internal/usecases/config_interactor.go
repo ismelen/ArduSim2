@@ -100,7 +100,7 @@ func (i *ConfigInteractor) PopulateDefaults(config *domain.GeneralConfig) {
 
 	// 2. Default ArduPilot Instance
 	if config.DefaultArduPilotInstance == "" {
-		controllersDir := filepath.Clean(filepath.Join(i.repo.GetSimulationsDir(), "..", "src", "controllers"))
+		controllersDir := filepath.Clean(filepath.Join(i.repo.GetSimulationsDir(), "..", "src", "uav_controller"))
 		config.DefaultArduPilotInstance = filepath.Join(controllersDir, "ardupilot4_5_3", "ardupilot", "arducopter4_5_3")
 	}
 
@@ -116,23 +116,6 @@ func (i *ConfigInteractor) PopulateDefaults(config *domain.GeneralConfig) {
 		for _, m := range availableMixers {
 			if m.ID == config.DefaultMixer.ServiceId {
 				config.DefaultMixer.FolderName = m.FolderName
-				break
-			}
-		}
-	}
-
-	availableControllers := i.repo.GetAvailableControllers()
-	if config.DefaultController.ServiceId == "" && len(availableControllers) > 0 {
-		best := availableControllers[0]
-		config.DefaultController.ServiceId = best.ID
-		config.DefaultController.FolderName = best.FolderName
-		config.DefaultController.ServiceTitle = best.Title
-		config.DefaultController.InstanceId = uuid.NewString()
-		config.DefaultController.Config = parseDefaultConfig(best.SchemaRaw)
-	} else if config.DefaultController.ServiceId != "" && config.DefaultController.FolderName == "" {
-		for _, c := range availableControllers {
-			if c.ID == config.DefaultController.ServiceId {
-				config.DefaultController.FolderName = c.FolderName
 				break
 			}
 		}

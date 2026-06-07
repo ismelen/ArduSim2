@@ -36,7 +36,7 @@ func (r *DockerRuntime) StartCompose(composePath string) error {
 		return fmt.Errorf("DOCKER_NOT_RUNNING")
 	}
 
-	cmd := exec.Command("docker", "compose", "-f", filepath.Base(composePath), "up", "-d")
+	cmd := exec.Command("docker", "compose", "-f", filepath.Base(composePath), "up", "--build", "-d")
 	cmd.Dir = filepath.Dir(composePath)
 
 	var stderrBuf bytes.Buffer
@@ -115,34 +115,61 @@ func (r *DockerRuntime) BuildCompose(composePath string) error {
 	return nil
 }
 
-func (r *DockerRuntime) BuildAllImages(simDir string) error {
+func (r *DockerRuntime) BuildAllImages(simDir string, dockerHubRepository string, isKubernetes bool, ardupilotPath string) error {
 	builder := NewComposeBuilder()
+	
+	prefixImage := func(img string) string {
+		if isKubernetes && dockerHubRepository != "" {
+			return dockerHubRepository + ":" + img
+		}
+		return img
+	}
 
 	// Core images
 	builder.AddService(ports.ComposeService{
 		Name:  "netsim_gateway",
-		Image: "netsim_gateway",
+		Image: prefixImage("netsim_gateway"),
 		Build: &ports.ComposeBuild{Context: "../../src/netsim_gateway", Dockerfile: "Dockerfile"},
 	})
 	builder.AddService(ports.ComposeService{
 		Name:  "netsim",
-		Image: "netsim",
+		Image: prefixImage("netsim"),
 		Build: &ports.ComposeBuild{Context: "../../src/netsim", Dockerfile: "Dockerfile"},
 	})
 	builder.AddService(ports.ComposeService{
 		Name:  "logger",
-		Image: "logger",
+		Image: prefixImage("logger"),
 		Build: &ports.ComposeBuild{Context: "../../src/logger", Dockerfile: "Dockerfile"},
 	})
 	builder.AddService(ports.ComposeService{
 		Name:  "communication_module",
-		Image: "communication_module",
+		Image: prefixImage("communication_module"),
 		Build: &ports.ComposeBuild{Context: "../../src/communication_module", Dockerfile: "Dockerfile"},
 	})
 	builder.AddService(ports.ComposeService{
 		Name:  "external_comms",
-		Image: "external_comms",
+		Image: prefixImage("external_comms"),
 		Build: &ports.ComposeBuild{Context: "../../src/external_comms", Dockerfile: "Dockerfile"},
+	})
+	// Attempt to make ardupilotPath relative to the context directory
+	contextDir, _ := filepath.Abs("../../src/uav_controller/ardupilot4_5_3")
+	relPath, err := filepath.Rel(contextDir, ardupilotPath)
+	if err != nil || strings.HasPrefix(relPath, "..") {
+		relPath = ardupilotPath
+	}
+	// On Windows, Docker paths inside compose args should use forward slashes
+	relPath = strings.ReplaceAll(relPath, "\\", "/")
+
+	builder.AddService(ports.ComposeService{
+		Name:  "uav_controller",
+		Image: prefixImage("uav_controller"),
+		Build: &ports.ComposeBuild{
+			Context: "../../src/uav_controller/ardupilot4_5_3",
+			Dockerfile: "SITL",
+			Args: map[string]string{
+				"ARDUPILOT_BINARY_PATH": relPath,
+			},
+		},
 	})
 
 	appendServices := func(dir, category string, dockerfile string) {
@@ -152,7 +179,7 @@ func (r *DockerRuntime) BuildAllImages(simDir string) error {
 					name := entry.Name()
 					builder.AddService(ports.ComposeService{
 						Name:  name,
-						Image: name,
+						Image: prefixImage(name),
 						Build: &ports.ComposeBuild{Context: fmt.Sprintf("../../src/%s/%s", category, name), Dockerfile: dockerfile},
 					})
 				}
@@ -162,7 +189,6 @@ func (r *DockerRuntime) BuildAllImages(simDir string) error {
 
 	appendServices(r.algorithmsDir, "algorithms", "Dockerfile")
 	appendServices(r.mixersDir, "mixers", "Dockerfile")
-	appendServices(r.controllersDir, "controllers", "SITL")
 
 	resDir := filepath.Join(simDir, "resources")
 	os.MkdirAll(resDir, 0755)
@@ -172,7 +198,45 @@ func (r *DockerRuntime) BuildAllImages(simDir string) error {
 		return fmt.Errorf("failed to write build compose file: %w", err)
 	}
 
-	return r.BuildCompose(composePath)
+	if err := r.BuildCompose(composePath); err != nil {
+		return err
+	}
+
+	if isKubernetes {
+		r.ui.EmitEvent("simulation:log", "[Push] Publishing images to registry...")
+		pushCmd := exec.Command("docker", "compose", "-f", filepath.Base(composePath), "push")
+		pushCmd.Dir = filepath.Dir(composePath)
+		var pushStderrBuf bytes.Buffer
+		pushStdout, _ := pushCmd.StdoutPipe()
+		pushStderrPipe, _ := pushCmd.StderrPipe()
+		
+		if err := pushCmd.Start(); err != nil {
+			return err
+		}
+
+		donePush := make(chan struct{})
+		go func() {
+			defer close(donePush)
+			scanner := util.NewLogScanner(pushStdout, io.TeeReader(pushStderrPipe, &pushStderrBuf))
+			for scanner.Scan() {
+				r.ui.EmitEvent("simulation:log", scanner.Text())
+			}
+		}()
+
+		waitErr := pushCmd.Wait()
+		<-donePush
+
+		if waitErr != nil {
+			details := strings.TrimSpace(pushStderrBuf.String())
+			if details != "" {
+				return fmt.Errorf("docker compose push: %w\n%s", waitErr, details)
+			}
+			return fmt.Errorf("docker compose push: %w", waitErr)
+		}
+		r.ui.EmitEvent("simulation:log", "[Push] Images successfully published.")
+	}
+
+	return nil
 }
 
 func (r *DockerRuntime) StartKubernetes(manifestPath, dockerHubUser string) error {

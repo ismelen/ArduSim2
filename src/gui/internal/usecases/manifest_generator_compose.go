@@ -124,8 +124,7 @@ func (g *ManifestGenerator) buildLocalCompose(swarms []domain.Swarm, config doma
 				_ = g.copyFile(arduPilotInstance, destPath)
 			}
 
-			controller := g.resolveController(uav, config)
-			paramFile, _ := g.generateUAVParams(swarm.ID, uav, config, controller.FolderName, resDir)
+			paramFile, _ := g.generateUAVParams(swarm.ID, uav, config, resDir)
 			
 			uavServices := g.buildComposeUAV(swarm.ID, uav, paramFile, arduPilotInstanceFile, writer, config, offsets[i], swarm, pool, builder)
 			for _, svc := range uavServices {
@@ -177,8 +176,9 @@ func (g *ManifestGenerator) buildComposeUAV(swarmID string, uav domain.UAV, para
 		Limits:        appLimits,
 	})
 
-	controller := g.resolveController(uav, config)
-	ucFile, _, ucLimits := g.buildServiceResources(controller, writer)
+	ucCfg := g.LoadRawConfig(filepath.Join(g.projectRoot, "..", "uav_controller", "ardupilot4_5_3", "config.sitl.json"))
+	ucLimits := ports.ResourceLimits{} // No limits specified for SITL
+	ucFile, _ := writer.Write(uav.ID+"_uav_controller_config", ucCfg)
 	var homeLat, homeLon float64
 	if uav.HomeOverride != nil {
 		homeLat, homeLon = uav.HomeOverride.Lat, uav.HomeOverride.Lon
@@ -210,15 +210,28 @@ func (g *ManifestGenerator) buildComposeUAV(swarmID string, uav domain.UAV, para
 	}
 	
 	ctrlName := fmt.Sprintf("swarm_%s_uav_%s_controller", swarmID, uav.ID)
+	
+	arduPilotAbsPath := config.DefaultArduPilotInstance
+	if uav.ArduPilotInstance != nil && *uav.ArduPilotInstance != "" {
+		arduPilotAbsPath = *uav.ArduPilotInstance
+	}
+
 	services = append(services, ports.ComposeService{
 		Name:          ctrlName,
-		Image:         controller.FolderName,
+		Image:         "uav_controller",
 		ContainerName: ctrlName,
 		DependsOn:     []string{commName},
 		Environment:   ctrlEnv,
 		Volumes:       ctrlMounts,
 		Networks:      map[string][]string{uavNet: {"uav_controller"}},
 		Limits:        ucLimits,
+		Build: &ports.ComposeBuild{
+			Context:    "../../src/uav_controller/ardupilot4_5_3",
+			Dockerfile: "SITL",
+			Args: map[string]string{
+				"ARDUCOPTER_PATH": arduPilotAbsPath,
+			},
+		},
 	})
 
 	ecCfg := g.LoadRawConfig(g.externalCommsConfig)

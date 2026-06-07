@@ -66,8 +66,7 @@ func (g *ManifestGenerator) buildKubernetesManifests(swarms []domain.Swarm, conf
 				}
 			}
 
-			controller := g.resolveController(uav, config)
-			paramFile, _ := g.generateUAVParams(swarm.ID, uav, config, controller.FolderName, resDir)
+			paramFile, _ := g.generateUAVParams(swarm.ID, uav, config, resDir)
 			containers, volumes := g.buildKubernetesUAV(swarm.ID, uav, paramFile, arduPilotHostPath, writer, config, offsets[i], swarm)
 			uavDeployments = append(uavDeployments, uavDep{
 				name:       fmt.Sprintf("swarm-%s-uav-%s", swarm.ID, uav.ID),
@@ -83,7 +82,7 @@ func (g *ManifestGenerator) buildKubernetesManifests(swarms []domain.Swarm, conf
 	builder.AddDeployment("netsim-gateway", []ports.KubeContainer{
 		{
 			Name:  "gateway",
-			Image: g.getImageName("netsim_gateway", config.DockerHubUser),
+			Image: g.getImageName("netsim_gateway", config.DockerHubRepository),
 			Ports: []ports.KubePort{
 				{ContainerPort: telPort, Protocol: "UDP"},
 				{ContainerPort: msgPort, Protocol: "UDP"},
@@ -98,7 +97,7 @@ func (g *ManifestGenerator) buildKubernetesManifests(swarms []domain.Swarm, conf
 		builder.AddDeployment(fmt.Sprintf("netsim-%d", i), []ports.KubeContainer{
 			{
 				Name:         "netsim",
-				Image:        g.getImageName("netsim", config.DockerHubUser),
+				Image:        g.getImageName("netsim", config.DockerHubRepository),
 				Env:          map[string]string{"NODE_ID": fmt.Sprintf("netsim_%d", i)},
 				VolumeMounts: []ports.KubeVolumeMount{{Name: "recursos", MountPath: "/app/config.json", SubPath: nsFile}},
 			},
@@ -108,7 +107,7 @@ func (g *ManifestGenerator) buildKubernetesManifests(swarms []domain.Swarm, conf
 	builder.AddDeployment("logger", []ports.KubeContainer{
 		{
 			Name:  "logger",
-			Image: g.getImageName("logger", config.DockerHubUser),
+			Image: g.getImageName("logger", config.DockerHubRepository),
 			Ports: []ports.KubePort{
 				{ContainerPort: 5000, Protocol: "UDP"},
 				{ContainerPort: 8080, Protocol: "TCP"},
@@ -135,7 +134,7 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 
 	containers = append(containers, ports.KubeContainer{
 		Name:  "communication-module",
-		Image: g.getImageName("communication_module", config.DockerHubUser),
+		Image: g.getImageName("communication_module", config.DockerHubRepository),
 		Env:   uavEnv,
 	})
 
@@ -143,13 +142,13 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 	appFile, _, _ := g.buildServiceResources(mixer, writer)
 	containers = append(containers, ports.KubeContainer{
 		Name:         "mixer",
-		Image:        g.getImageName(mixer.FolderName, config.DockerHubUser),
+		Image:        g.getImageName(mixer.FolderName, config.DockerHubRepository),
 		Env:          uavEnv,
 		VolumeMounts: []ports.KubeVolumeMount{{Name: "recursos", MountPath: "/app/config.json", SubPath: appFile}},
 	})
 
-	controller := g.resolveController(uav, config)
-	ucFile, _, _ := g.buildServiceResources(controller, writer)
+	ucCfg := g.LoadRawConfig(filepath.Join(g.projectRoot, "..", "uav_controller", "ardupilot4_5_3", "config.sitl.json"))
+	ucFile, _ := writer.Write(uav.ID+"_uav_controller_config", ucCfg)
 	var homeLat, homeLon float64
 	if uav.HomeOverride != nil {
 		homeLat, homeLon = uav.HomeOverride.Lat, uav.HomeOverride.Lon
@@ -175,7 +174,7 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 	}
 	containers = append(containers, ports.KubeContainer{
 		Name:         "uav-controller",
-		Image:        g.getImageName(controller.FolderName, config.DockerHubUser),
+		Image:        g.getImageName("uav_controller", config.DockerHubRepository),
 		Env:          ctrlEnv,
 		VolumeMounts: ctrlMounts,
 	})
@@ -183,7 +182,7 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 	ecFile, _ := g.writeTemplateConfig("external_comms_config", g.externalCommsConfig, nil, writer)
 	containers = append(containers, ports.KubeContainer{
 		Name:         "external-comms",
-		Image:        g.getImageName("external_comms", config.DockerHubUser),
+		Image:        g.getImageName("external_comms", config.DockerHubRepository),
 		Env:          uavEnv,
 		VolumeMounts: []ports.KubeVolumeMount{{Name: "recursos", MountPath: "/app/config.json", SubPath: ecFile}},
 	})
@@ -198,7 +197,7 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 		
 		containers = append(containers, ports.KubeContainer{
 			Name:         svc.ServiceId,
-			Image:        g.getImageName(svc.ServiceId, config.DockerHubUser),
+			Image:        g.getImageName(svc.ServiceId, config.DockerHubRepository),
 			Env:          uavEnv,
 			VolumeMounts: svcMounts,
 		})

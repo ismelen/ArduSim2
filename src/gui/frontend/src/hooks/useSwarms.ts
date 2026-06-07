@@ -297,7 +297,6 @@ export const useSwarms = create<State>((set, get) => ({
       id: (lastId + 1).toString(),
       services: clonedServices,
       mixer: activeUav.mixer,
-      controller: activeUav.controller,
       speed: activeUav.speed,
       batteryCapacity: activeUav.batteryCapacity,
       homeOverride: activeUav.homeOverride,

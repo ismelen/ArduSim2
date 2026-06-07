@@ -94,9 +94,9 @@ func (i *SimulationInteractor) StartSimulation(ctx context.Context, swarms []dom
 	} else {
 		// KUBERNETES MODE
 		i.session.kubernetesManifestPath = composePath
-		i.session.dockerHubUser = config.DockerHubUser
-
-		if err := i.runtime.StartKubernetes(composePath, config.DockerHubUser); err != nil {
+		i.session.dockerHubUser = config.DockerHubRepository
+		// Start with the specific compose override
+		if err := i.runtime.StartKubernetes(composePath, config.DockerHubRepository); err != nil {
 			return err
 		}
 
@@ -114,7 +114,7 @@ func (i *SimulationInteractor) BuildImages(ctx context.Context, swarms []domain.
 	simDir := filepath.Join(i.repo.GetSimulationsDir(), config.SimulationName)
 
 	// Build all known images and all local algorithms, independent of simulation size/mode
-	return i.runtime.BuildAllImages(simDir)
+	return i.runtime.BuildAllImages(simDir, config.DockerHubRepository, !isLocal, config.DefaultArduPilotInstance)
 }
 
 

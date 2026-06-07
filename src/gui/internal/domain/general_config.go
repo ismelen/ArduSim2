@@ -11,7 +11,6 @@ type GeneralConfig struct {
 	DefaultUAVSpeed          float64         `json:"defaultUAVSpeed"`
 	DefaultArduPilotInstance string          `json:"defaultArduPilotInstance"`
 	DefaultMixer             DeployedService `json:"defaultMixer"`
-	DefaultController        DeployedService `json:"defaultController"`
 	LoggingEnabled           bool            `json:"loggingEnabled"`
 	BatteryRestricted        bool            `json:"batteryRestricted"`
 	BatteryCapacity          int             `json:"batteryCapacity"`
@@ -24,8 +23,8 @@ type GeneralConfig struct {
 	SimulationName         string `json:"simulationName"`
 	OriginalSimulationName string `json:"originalSimulationName"`
 
-	// Docker Hub username for pushing images for Kubernetes deployment.
-	DockerHubUser string `json:"dockerHubUser"`
+	// Docker Hub repository for pushing images for Kubernetes deployment.
+	DockerHubRepository string `json:"dockerHubRepository"`
 
 	// NetsimInstances is the number of netsim worker containers to deploy.
 	NetsimInstances int `json:"netsimInstances"`

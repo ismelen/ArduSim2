@@ -43,16 +43,16 @@ export default function DeploymentCard() {
 }
 
 function KubernetesForm() {
-  const { dockerHubUser } = useConfig((s) => s.config);
+  const { dockerHubRepository } = useConfig((s) => s.config);
   const update = useConfig((s) => s.update);
 
   return (
     <div className="space-y-2 mt-3">
       <FormField
-        label="Docker Hub User"
-        hint="e.g. ismael99"
-        initValue={dockerHubUser ?? ""}
-        onChange={(e) => update((s) => ({ ...s, dockerHubUser: e }))}
+        label="Docker Hub Repository"
+        hint="<user>/<repository>"
+        initValue={dockerHubRepository ?? ""}
+        onChange={(e) => update((s) => ({ ...s, dockerHubRepository: e }))}
       />
     </div>
   );

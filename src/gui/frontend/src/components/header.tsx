@@ -9,6 +9,8 @@ export default function Header() {
   const navigateTo = useNavigation((e) => e.navigateTo);
   const tab = useNavigation((e) => e.current);
 
+  const activeMode = useSimulationConfig((s) => s.lastConfig.value.activeMode);
+
   const lastConfig = useSimulationConfig((s) => s.lastConfig);
   const undos = useSimulationConfig((s) => s.undos);
   const redos = useSimulationConfig((s) => s.redos);
@@ -62,7 +64,7 @@ export default function Header() {
           onClick={exportSimulation}
         />
         <Button
-          label="Build images"
+          label={activeMode === "KUBERNETES" ? "Build & Publish images" : "Build images"}
           type="filled"
           onClick={buildImages}
         />

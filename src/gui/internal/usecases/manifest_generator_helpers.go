@@ -70,8 +70,8 @@ func (g *ManifestGenerator) getServiceSchema(folderName string) (map[string]inte
 	return nil, fmt.Errorf("schema not found for %s", folderName)
 }
 
-func (g *ManifestGenerator) generateUAVParams(swarmID string, uav domain.UAV, config domain.GeneralConfig, controllerFolderName string, resDir string) (string, error) {
-	baseParmPath := filepath.Join(g.projectRoot, "..", "controllers", controllerFolderName, "ardupilot", "copter.parm")
+func (g *ManifestGenerator) generateUAVParams(swarmID string, uav domain.UAV, config domain.GeneralConfig, resDir string) (string, error) {
+	baseParmPath := filepath.Join(g.projectRoot, "..", "uav_controller", "ardupilot4_5_3", "ardupilot", "copter.parm")
 	content, _ := os.ReadFile(baseParmPath)
 	params := string(content)
 	if !strings.HasSuffix(params, "\n") {

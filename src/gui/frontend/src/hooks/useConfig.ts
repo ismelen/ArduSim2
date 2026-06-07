@@ -17,7 +17,7 @@ export interface GeneralConfig {
   windSpeed?: number;
   simulationName?: string;
   originalSimulationName?: string;
-  dockerHubUser?: string;
+  dockerHubRepository?: string;
   netsimInstances?: number;
   netsimMode?: string;
   netsimMaxRangeM?: number | null;
