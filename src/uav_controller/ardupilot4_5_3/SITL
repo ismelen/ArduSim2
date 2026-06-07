@@ -3,7 +3,10 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y openjdk-17-jdk
 
 WORKDIR /app
-COPY ardupilot/arducopter4_5_3 /app
+
+ARG ARDUPILOT_BINARY_PATH=./resources/arducopter4_5_3
+COPY ${ARDUPILOT_BINARY_PATH} /app
+
 COPY ardupilot/copter.parm /app
 COPY ./uavController.jar /app
 COPY ./config.json /app
