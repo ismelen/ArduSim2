@@ -40,11 +40,6 @@ func (g *ManifestGenerator) buildKubernetesManifests(swarms []domain.Swarm, conf
 
 	loggerFile, _ := g.writeTemplateConfig("logger_config", g.loggerConfig, nil, writer)
 
-	type uavDep struct {
-		name       string
-		containers []ports.KubeContainer
-		volumes    []ports.KubeVolume
-	}
 	var uavDeployments []uavDep
 
 	for _, swarm := range swarms {
@@ -67,12 +62,8 @@ func (g *ManifestGenerator) buildKubernetesManifests(swarms []domain.Swarm, conf
 			}
 
 			paramFile, _ := g.generateUAVParams(swarm.ID, uav, config, resDir)
-			containers, volumes := g.buildKubernetesUAV(swarm.ID, uav, paramFile, arduPilotHostPath, writer, config, offsets[i], swarm)
-			uavDeployments = append(uavDeployments, uavDep{
-				name:       fmt.Sprintf("swarm-%s-uav-%s", swarm.ID, uav.ID),
-				containers: containers,
-				volumes:    volumes,
-			})
+			deps := g.buildKubernetesUAV(swarm.ID, uav, paramFile, arduPilotHostPath, writer, config, offsets[i], swarm)
+			uavDeployments = append(uavDeployments, deps...)
 		}
 	}
 
@@ -91,7 +82,7 @@ func (g *ManifestGenerator) buildKubernetesManifests(swarms []domain.Swarm, conf
 			Env:          map[string]string{"ADDRS": strings.Join(netsimAddrs, ",")},
 			VolumeMounts: []ports.KubeVolumeMount{{Name: "recursos", MountPath: "/app/config.json", SubPath: gwFile}},
 		},
-	}, []ports.KubeVolume{{Name: "recursos", HostPath: resDir, Type: "Directory"}})
+	}, []ports.KubeVolume{{Name: "recursos", HostPath: resDir, Type: "Directory"}}, "")
 
 	for i := 1; i <= netsimInstances; i++ {
 		builder.AddDeployment(fmt.Sprintf("netsim-%d", i), []ports.KubeContainer{
@@ -101,7 +92,7 @@ func (g *ManifestGenerator) buildKubernetesManifests(swarms []domain.Swarm, conf
 				Env:          map[string]string{"NODE_ID": fmt.Sprintf("netsim_%d", i)},
 				VolumeMounts: []ports.KubeVolumeMount{{Name: "recursos", MountPath: "/app/config.json", SubPath: nsFile}},
 			},
-		}, []ports.KubeVolume{{Name: "recursos", HostPath: resDir, Type: "Directory"}})
+		}, []ports.KubeVolume{{Name: "recursos", HostPath: resDir, Type: "Directory"}}, "")
 	}
 
 	builder.AddDeployment("logger", []ports.KubeContainer{
@@ -114,10 +105,10 @@ func (g *ManifestGenerator) buildKubernetesManifests(swarms []domain.Swarm, conf
 			},
 			VolumeMounts: []ports.KubeVolumeMount{{Name: "recursos", MountPath: "/app/config.json", SubPath: loggerFile}},
 		},
-	}, []ports.KubeVolume{{Name: "recursos", HostPath: resDir, Type: "Directory"}})
+	}, []ports.KubeVolume{{Name: "recursos", HostPath: resDir, Type: "Directory"}}, "")
 
 	for _, dep := range uavDeployments {
-		builder.AddDeployment(dep.name, dep.containers, dep.volumes)
+		builder.AddDeployment(dep.name, dep.containers, dep.volumes, dep.nodeLabel)
 	}
 
 	composePath := filepath.Join(simDir, "kubernetes.yaml")
@@ -125,27 +116,62 @@ func (g *ManifestGenerator) buildKubernetesManifests(swarms []domain.Swarm, conf
 	return composePath, nil
 }
 
-func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, paramFileName, arduPilotHostPath string, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset, swarm domain.Swarm) ([]ports.KubeContainer, []ports.KubeVolume) {
-	var containers []ports.KubeContainer
+type uavDep struct {
+	name       string
+	containers []ports.KubeContainer
+	volumes    []ports.KubeVolume
+	nodeLabel  string
+}
+
+func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, paramFileName, arduPilotHostPath string, writer *ResourceWriter, config domain.GeneralConfig, offset formation.Offset, swarm domain.Swarm) []uavDep {
+	var deployments []uavDep
+	var mainContainers []ports.KubeContainer
+	
+	uavNodeLabel := ""
+	if uav.NodeLabel != nil && *uav.NodeLabel != "" {
+		uavNodeLabel = *uav.NodeLabel
+	}
+
 	uavEnv := map[string]string{
 		"UAV_ID":   uav.ID,
 		"SWARM_ID": swarmID,
 	}
 
-	containers = append(containers, ports.KubeContainer{
+	mainContainers = append(mainContainers, ports.KubeContainer{
 		Name:  "communication-module",
 		Image: g.getImageName("communication_module", config.DockerHubRepository),
 		Env:   uavEnv,
 	})
 
+	volumes := []ports.KubeVolume{
+		{Name: "recursos", HostPath: writer.outputDir, Type: "Directory"},
+	}
+	if arduPilotHostPath != "" {
+		volumes = append(volumes, ports.KubeVolume{
+			Name:     "custom-binary",
+			HostPath: arduPilotHostPath,
+			Type:     "File",
+		})
+	}
+
 	mixer := g.resolveMixer(uav, config)
 	appFile, _, _ := g.buildServiceResources(mixer, writer)
-	containers = append(containers, ports.KubeContainer{
+	mixerContainer := ports.KubeContainer{
 		Name:         "mixer",
 		Image:        g.getImageName(mixer.FolderName, config.DockerHubRepository),
 		Env:          uavEnv,
 		VolumeMounts: []ports.KubeVolumeMount{{Name: "recursos", MountPath: "/app/config.json", SubPath: appFile}},
-	})
+	}
+	if mixer.NodeLabel != "" && mixer.NodeLabel != uavNodeLabel {
+		deployments = append(deployments, uavDep{
+			name:       fmt.Sprintf("swarm-%s-uav-%s-mixer", swarmID, uav.ID),
+			containers: []ports.KubeContainer{mixerContainer},
+			volumes:    volumes,
+			nodeLabel:  mixer.NodeLabel,
+		})
+	} else {
+		mainContainers = append(mainContainers, mixerContainer)
+	}
 
 	ucCfg := g.LoadRawConfig(filepath.Join(g.projectRoot, "..", "uav_controller", "ardupilot4_5_3", "config.sitl.json"))
 	ucFile, _ := writer.Write(uav.ID+"_uav_controller_config", ucCfg)
@@ -172,7 +198,7 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 	if arduPilotHostPath != "" {
 		ctrlMounts = append(ctrlMounts, ports.KubeVolumeMount{Name: "custom-binary", MountPath: "/app/custom_arducopter"})
 	}
-	containers = append(containers, ports.KubeContainer{
+	mainContainers = append(mainContainers, ports.KubeContainer{
 		Name:         "uav-controller",
 		Image:        g.getImageName("uav_controller", config.DockerHubRepository),
 		Env:          ctrlEnv,
@@ -180,7 +206,7 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 	})
 
 	ecFile, _ := g.writeTemplateConfig("external_comms_config", g.externalCommsConfig, nil, writer)
-	containers = append(containers, ports.KubeContainer{
+	mainContainers = append(mainContainers, ports.KubeContainer{
 		Name:         "external-comms",
 		Image:        g.getImageName("external_comms", config.DockerHubRepository),
 		Env:          uavEnv,
@@ -195,24 +221,31 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 			svcMounts = append(svcMounts, ports.KubeVolumeMount{Name: "recursos", MountPath: v.ContainerPath, SubPath: v.HostPath})
 		}
 		
-		containers = append(containers, ports.KubeContainer{
+		svcContainer := ports.KubeContainer{
 			Name:         svc.ServiceId,
 			Image:        g.getImageName(svc.ServiceId, config.DockerHubRepository),
 			Env:          uavEnv,
 			VolumeMounts: svcMounts,
-		})
+		}
+
+		if svc.NodeLabel != "" && svc.NodeLabel != uavNodeLabel {
+			deployments = append(deployments, uavDep{
+				name:       fmt.Sprintf("swarm-%s-uav-%s-%s", swarmID, uav.ID, strings.ToLower(svc.ServiceId)),
+				containers: []ports.KubeContainer{svcContainer},
+				volumes:    volumes,
+				nodeLabel:  svc.NodeLabel,
+			})
+		} else {
+			mainContainers = append(mainContainers, svcContainer)
+		}
 	}
 	
-	volumes := []ports.KubeVolume{
-		{Name: "recursos", HostPath: writer.outputDir, Type: "Directory"},
-	}
-	if arduPilotHostPath != "" {
-		volumes = append(volumes, ports.KubeVolume{
-			Name:     "custom-binary",
-			HostPath: arduPilotHostPath,
-			Type:     "File",
-		})
-	}
+	deployments = append(deployments, uavDep{
+		name:       fmt.Sprintf("swarm-%s-uav-%s", swarmID, uav.ID),
+		containers: mainContainers,
+		volumes:    volumes,
+		nodeLabel:  uavNodeLabel,
+	})
 
-	return containers, volumes
+	return deployments
 }

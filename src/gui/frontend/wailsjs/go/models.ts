@@ -22,6 +22,7 @@ export namespace domain {
 	    folderName: string;
 	    serviceTitle: string;
 	    config: Record<string, any>;
+	    nodeLabel?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new DeployedService(source);
@@ -34,6 +35,7 @@ export namespace domain {
 	        this.folderName = source["folderName"];
 	        this.serviceTitle = source["serviceTitle"];
 	        this.config = source["config"];
+	        this.nodeLabel = source["nodeLabel"];
 	    }
 	}
 	export class GeneralConfig {
@@ -187,6 +189,7 @@ export namespace domain {
 	    batteryCapacity?: number;
 	    homeOverride?: Coordinate;
 	    arduPilotInstance?: string;
+	    nodeLabel?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new UAV(source);
@@ -201,6 +204,7 @@ export namespace domain {
 	        this.batteryCapacity = source["batteryCapacity"];
 	        this.homeOverride = this.convertValues(source["homeOverride"], Coordinate);
 	        this.arduPilotInstance = source["arduPilotInstance"];
+	        this.nodeLabel = source["nodeLabel"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

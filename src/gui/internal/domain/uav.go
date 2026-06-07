@@ -9,4 +9,5 @@ type UAV struct {
 	BatteryCapacity   *int              `json:"batteryCapacity,omitempty"`
 	HomeOverride      *Coordinate       `json:"homeOverride,omitempty"`
 	ArduPilotInstance *string           `json:"arduPilotInstance,omitempty"`
+	NodeLabel         *string           `json:"nodeLabel,omitempty"`
 }

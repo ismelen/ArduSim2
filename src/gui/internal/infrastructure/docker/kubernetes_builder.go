@@ -33,8 +33,13 @@ func (b *kubernetesBuilder) AddConfigMap(name string, files map[string]string) {
 	fmt.Fprintf(&b.manifests, "\n")
 }
 
-func (b *kubernetesBuilder) AddDeployment(name string, containers []ports.KubeContainer, volumes []ports.KubeVolume) {
-	fmt.Fprintf(&b.manifests, "---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: %s\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: %s\n  template:\n    metadata:\n      labels:\n        app: %s\n    spec:\n      containers:\n", name, name, name)
+func (b *kubernetesBuilder) AddDeployment(name string, containers []ports.KubeContainer, volumes []ports.KubeVolume, nodeLabel string) {
+	fmt.Fprintf(&b.manifests, "---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: %s\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: %s\n  template:\n    metadata:\n      labels:\n        app: %s\n    spec:\n", name, name, name)
+
+	if nodeLabel != "" {
+		fmt.Fprintf(&b.manifests, "      nodeSelector:\n        nodo: %s\n", nodeLabel)
+	}
+	fmt.Fprintf(&b.manifests, "      containers:\n")
 
 	for _, c := range containers {
 		fmt.Fprintf(&b.manifests, "      - name: %s\n        image: %s\n", c.Name, c.Image)

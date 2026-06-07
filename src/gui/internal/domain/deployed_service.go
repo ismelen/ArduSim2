@@ -8,4 +8,5 @@ type DeployedService struct {
 	FolderName   string                 `json:"folderName"`
 	ServiceTitle string                 `json:"serviceTitle"`
 	Config       map[string]interface{} `json:"config"`
+	NodeLabel    string                 `json:"nodeLabel,omitempty"`
 }

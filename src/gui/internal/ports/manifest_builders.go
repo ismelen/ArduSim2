@@ -70,7 +70,7 @@ type KubeVolume struct {
 
 type KubernetesBuilder interface {
 	AddConfigMap(name string, files map[string]string)
-	AddDeployment(name string, containers []KubeContainer, volumes []KubeVolume)
+	AddDeployment(name string, containers []KubeContainer, volumes []KubeVolume, nodeLabel string)
 	Build() string
 }
 

@@ -153,6 +153,20 @@ export default function FleetPage() {
                     </span>
                   </span>
                 </div>
+
+                <div className="flex flex-col gap-2 mt-2">
+                  <span className="flex items-end gap-2">
+                    <div className="flex-1">
+                        <FormField
+                          label="Node Label (Optional)"
+                          hint="e.g. node-1"
+                          tooltip="If specified, adds a nodeSelector to this UAV's deployment in Kubernetes"
+                          initValue={uav.nodeLabel ?? ""}
+                          onChange={(val) => updateUav(activeUavIdx!, { nodeLabel: val !== "" ? val : undefined })}
+                        />
+                    </div>
+                  </span>
+                </div>
               </div>
               )}
             </div>

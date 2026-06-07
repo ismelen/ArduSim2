@@ -4,6 +4,7 @@ import { domain } from "../../wailsjs/go/models";
 import Button from "./button";
 import CardTitle from "./card-title";
 import DynamicForm from "./dynamic-form";
+import FormField from "./form-field";
 import { useServices } from "../hooks/useServices";
 import { cn } from "../utils/cn";
 
@@ -31,6 +32,7 @@ export default function AddNewServiceDialog({
   const [currentValues, setCurrentValues] = useState<Record<string, any>>(
     serviceToEdit?.config ?? {},
   );
+  const [nodeLabel, setNodeLabel] = useState(serviceToEdit?.nodeLabel ?? "");
 
   useEffect(() => {
     useServices.getState().loadServices();
@@ -60,6 +62,7 @@ export default function AddNewServiceDialog({
                   onSelect={() => {
                     setServiceIdx(idx);
                     setCurrentValues({});
+                    setNodeLabel("");
                   }}
                 />
               ))}
@@ -79,6 +82,18 @@ export default function AddNewServiceDialog({
                     }));
                   }}
                 />
+              ) : null}
+              {serviceIdx !== -1 && servicesList[serviceIdx] ? (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <h4 className="font-semibold text-dark-gray mb-2">Kubernetes Execution</h4>
+                  <FormField
+                    label="Node Label (Optional)"
+                    hint="e.g. node-1"
+                    tooltip="If specified, adds a nodeSelector to this service for kubernetes deployments"
+                    initValue={nodeLabel}
+                    onChange={setNodeLabel}
+                  />
+                </div>
               ) : null}
             </div>
             <div className="flex justify-end gap-3 p-3 border-t border-border bg-gray h-15 shrink-0">
@@ -101,6 +116,7 @@ export default function AddNewServiceDialog({
                       folderName: servicesList[serviceIdx].folderName,
                       serviceTitle: servicesList[serviceIdx].title,
                       config: currentValues,
+                      nodeLabel: nodeLabel !== "" ? nodeLabel : undefined,
                     }),
                   );
                 }}
