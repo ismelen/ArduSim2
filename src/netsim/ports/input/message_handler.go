@@ -1,10 +1,14 @@
 package input
 
-import "net"
+import (
+	"net"
+	"time"
+)
 
 type RawPacket struct {
-	Data []byte
-	Addr *net.UDPAddr
+	Data       []byte
+	Addr       *net.UDPAddr
+	ReceivedAt time.Time
 }
 
 type MessageHandler interface {

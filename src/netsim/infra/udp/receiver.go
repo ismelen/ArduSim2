@@ -4,6 +4,7 @@ import (
 	"net"
 	"netsim/ports/input"
 	"netsim/ports/output"
+	"time"
 )
 
 type Receiver struct {
@@ -20,6 +21,7 @@ func (r *Receiver) Run(handler input.MessageHandler) {
 
 	for {
 		n, peerAddr, err := r.conn.ReadFromUDP(buf)
+		receivedAt := time.Now()
 		if err != nil {
 			r.logger.Error("Error reading UDP", "error", err)
 			continue
@@ -29,8 +31,9 @@ func (r *Receiver) Run(handler input.MessageHandler) {
 		copy(data, buf[:n])
 
 		handler.Handle(input.RawPacket{
-			Data: data,
-			Addr: peerAddr,
+			Data:       data,
+			Addr:       peerAddr,
+			ReceivedAt: receivedAt,
 		})
 	}
 }

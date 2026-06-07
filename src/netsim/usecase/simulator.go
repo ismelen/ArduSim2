@@ -98,7 +98,7 @@ func (s *Simulator) Handle(pkt input.RawPacket) {
 		var bcast UAVBroadcastPayload
 		if err := json.Unmarshal(msg.Payload, &bcast); err == nil {
 			payloadStr := string(bcast.Payload)
-			s.EnqueueBroadcast(bcast.UAVID, payloadStr, 0, time.Now())
+			s.EnqueueBroadcast(bcast.UAVID, payloadStr, 0, pkt.ReceivedAt)
 			s.NotifyGatewayOfBroadcast(bcast.UAVID, payloadStr)
 			s.Logger.Info(fmt.Sprintf("Processed broadcast from UAV %s", bcast.UAVID), "timestamp", time.Now().Format(time.RFC3339Nano))
 		}
@@ -107,7 +107,7 @@ func (s *Simulator) Handle(pkt input.RawPacket) {
 		if err := json.Unmarshal(msg.Payload, &peerBcast); err == nil {
 			if peerBcast.OriginNode != s.NodeID {
 				payloadStr := string(peerBcast.Payload)
-				s.HandlePeerBroadcast(peerBcast.SenderID, &peerBcast.SenderPosition, payloadStr, time.Now())
+				s.HandlePeerBroadcast(peerBcast.SenderID, &peerBcast.SenderPosition, payloadStr, pkt.ReceivedAt)
 			}
 		}
 	}
