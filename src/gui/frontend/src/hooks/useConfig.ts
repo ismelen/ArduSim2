@@ -18,6 +18,7 @@ export interface GeneralConfig {
   simulationName?: string;
   originalSimulationName?: string;
   dockerHubRepository?: string;
+  kubeConfigPath?: string;
   netsimInstances?: number;
   netsimMode?: string;
   netsimMaxRangeM?: number | null;

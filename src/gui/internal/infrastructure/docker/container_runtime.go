@@ -239,14 +239,92 @@ func (r *DockerRuntime) BuildAllImages(simDir string, dockerHubRepository string
 	return nil
 }
 
-func (r *DockerRuntime) StartKubernetes(manifestPath, dockerHubUser string) error {
-	r.ui.EmitEvent("simulation:log", "Kubernetes deployment logic not yet implemented. The manifest has been generated at: "+manifestPath)
+func (r *DockerRuntime) runStreamedCommand(cmdName string, args ...string) error {
+	cmd := exec.Command(cmdName, args...)
+	var stderrBuf bytes.Buffer
+	stdout, _ := cmd.StdoutPipe()
+	stderrPipe, _ := cmd.StderrPipe()
+	
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		scanner := util.NewLogScanner(stdout, io.TeeReader(stderrPipe, &stderrBuf))
+		for scanner.Scan() {
+			r.ui.EmitEvent("simulation:log", scanner.Text())
+		}
+	}()
+
+	waitErr := cmd.Wait()
+	<-done
+
+	if waitErr != nil {
+		details := strings.TrimSpace(stderrBuf.String())
+		if details != "" {
+			return fmt.Errorf("%s: %w\n%s", cmdName, waitErr, details)
+		}
+		return fmt.Errorf("%s: %w", cmdName, waitErr)
+	}
 	return nil
 }
 
-func (r *DockerRuntime) StopKubernetes(simName string) error {
-	r.ui.EmitEvent("simulation:log", "Kubernetes stop logic not yet implemented.")
-	return nil
+func (r *DockerRuntime) StartKubernetes(manifestPath, dockerHubRepository, kubeConfigPath string) (string, string, error) {
+	r.ui.EmitEvent("simulation:log", "[Kubernetes] Applying manifest: "+manifestPath)
+
+	args := []string{"apply", "-f", manifestPath}
+	if kubeConfigPath != "" {
+		args = append(args, "--kubeconfig="+kubeConfigPath)
+	}
+
+	if err := r.runStreamedCommand("kubectl", args...); err != nil {
+		return "", "", err
+	}
+
+	r.ui.EmitEvent("simulation:log", "[Kubernetes] Waiting for logger pod to be Ready (120s timeout)...")
+	waitLoggerArgs := []string{"wait", "--for=condition=Ready", "pod", "-l", "app=logger", "--timeout=120s"}
+	if kubeConfigPath != "" {
+		waitLoggerArgs = append(waitLoggerArgs, "--kubeconfig="+kubeConfigPath)
+	}
+	if err := r.runStreamedCommand("kubectl", waitLoggerArgs...); err != nil {
+		r.ui.EmitEvent("simulation:log", "[Kubernetes] Warning: logger pod wait failed: "+err.Error())
+	}
+
+	r.ui.EmitEvent("simulation:log", "[Kubernetes] Waiting for netsim-gateway pod to be Ready (120s timeout)...")
+	waitNetsimArgs := []string{"wait", "--for=condition=Ready", "pod", "-l", "app=netsim-gateway", "--timeout=120s"}
+	if kubeConfigPath != "" {
+		waitNetsimArgs = append(waitNetsimArgs, "--kubeconfig="+kubeConfigPath)
+	}
+	if err := r.runStreamedCommand("kubectl", waitNetsimArgs...); err != nil {
+		r.ui.EmitEvent("simulation:log", "[Kubernetes] Warning: netsim-gateway pod wait failed: "+err.Error())
+	}
+
+	getIP := func(appLabel string) string {
+		getArgs := []string{"get", "pods", "-l", "app="+appLabel, "-o", "jsonpath={.items[0].status.podIP}"}
+		if kubeConfigPath != "" {
+			getArgs = append(getArgs, "--kubeconfig="+kubeConfigPath)
+		}
+		out, _ := exec.Command("kubectl", getArgs...).Output()
+		return strings.Trim(string(out), " '\n\r\"")
+	}
+
+	loggerIP := getIP("logger")
+	gatewayIP := getIP("netsim-gateway")
+
+	return loggerIP, gatewayIP, nil
+}
+
+func (r *DockerRuntime) StopKubernetes(manifestPath, kubeConfigPath string) error {
+	r.ui.EmitEvent("simulation:log", "[Kubernetes] Deleting resources from manifest: "+manifestPath)
+	
+	args := []string{"delete", "-f", manifestPath}
+	if kubeConfigPath != "" {
+		args = append(args, "--kubeconfig="+kubeConfigPath)
+	}
+
+	return r.runStreamedCommand("kubectl", args...)
 }
 
 func (r *DockerRuntime) CollectKubernetesLogs(simName, destDir string) error {

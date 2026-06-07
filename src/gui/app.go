@@ -144,6 +144,10 @@ func (a *App) SelectArduPilotInstance() (string, error) {
 	return a.config.SelectArduPilotInstance(a.ctx)
 }
 
+func (a *App) SelectKubeConfig() (string, error) {
+	return a.config.SelectKubeConfig(a.ctx)
+}
+
 
 func (a *App) GetKmlFirstCoordinate(path string) (*domain.Coordinate, error) {
 	return a.config.GetKmlFirstCoordinate(path)

@@ -12,6 +12,9 @@ type activeSession struct {
 	algorithmIDs           map[string]bool
 	stoppedIDs             map[string]bool
 	loggingEnabled         bool
+	loggerIP               string
+	gatewayIP              string
+	kubeConfigPath         string
 }
 
 func newActiveSession() *activeSession {
@@ -31,9 +34,9 @@ func (s *activeSession) isLocal() bool {
 
 func (s *activeSession) loggerHost() string {
 	if s.isLocal() {
-		return ""
+		return "localhost:8080"
 	}
-	return ""
+	return s.loggerIP + ":8080"
 }
 
 func (s *activeSession) markStopped(id string) (allStopped bool) {
@@ -60,4 +63,7 @@ func (s *activeSession) clear() {
 	s.algorithmIDs = make(map[string]bool)
 	s.stoppedIDs = make(map[string]bool)
 	s.loggingEnabled = false
+	s.loggerIP = ""
+	s.gatewayIP = ""
+	s.kubeConfigPath = ""
 }

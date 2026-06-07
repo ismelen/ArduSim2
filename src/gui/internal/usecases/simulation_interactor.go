@@ -95,13 +95,17 @@ func (i *SimulationInteractor) StartSimulation(ctx context.Context, swarms []dom
 		// KUBERNETES MODE
 		i.session.kubernetesManifestPath = composePath
 		i.session.dockerHubUser = config.DockerHubRepository
-		// Start with the specific compose override
-		if err := i.runtime.StartKubernetes(composePath, config.DockerHubRepository); err != nil {
+		i.session.kubeConfigPath = config.KubeConfigPath
+
+		loggerIP, gatewayIP, err := i.runtime.StartKubernetes(composePath, config.DockerHubRepository, config.KubeConfigPath)
+		if err != nil {
 			return err
 		}
+		
+		i.session.loggerIP = loggerIP
+		i.session.gatewayIP = gatewayIP
 
-		// Not fully implemented log stream for Kubernetes right now
-		i.subscriber.SetRemoteAddr("localhost")
+		i.subscriber.SetRemoteAddr(gatewayIP)
 		i.subscriber.SetExpectedFleet(i.session.uavIDs)
 	}
 	go i.subscriber.Start(ctx)
@@ -121,7 +125,7 @@ func (i *SimulationInteractor) BuildImages(ctx context.Context, swarms []domain.
 func (i *SimulationInteractor) StopSimulation() {
 	if i.session.kubernetesManifestPath != "" {
 		_ = i.runtime.CollectKubernetesLogs(i.session.simulationName, "")
-		_ = i.runtime.StopKubernetes(i.session.simulationName)
+		_ = i.runtime.StopKubernetes(i.session.kubernetesManifestPath, i.session.kubeConfigPath)
 	} else if i.session.composePath != "" {
 		_ = i.runtime.StopCompose(i.session.composePath)
 	}

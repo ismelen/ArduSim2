@@ -163,3 +163,10 @@ func (i *ConfigInteractor) SelectArduPilotInstance(ctx context.Context) (string,
 func (i *ConfigInteractor) GetKmlFirstCoordinate(path string) (*domain.Coordinate, error) {
 	return kml.GetFirstCoordinate(path)
 }
+
+func (i *ConfigInteractor) SelectKubeConfig(ctx context.Context) (string, error) {
+	return i.ui.OpenFileDialog(ctx, "Select Kubeconfig File", []ports.FileFilter{
+		{DisplayName: "Kubeconfig (*)", Pattern: "*"},
+		{DisplayName: "All files", Pattern: "*.*"},
+	})
+}

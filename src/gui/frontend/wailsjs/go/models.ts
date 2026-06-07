@@ -51,6 +51,7 @@ export namespace domain {
 	    simulationName: string;
 	    originalSimulationName: string;
 	    dockerHubRepository: string;
+	    kubeConfigPath?: string;
 	    netsimInstances: number;
 	    netsimMode: string;
 	    netsimMaxRangeM?: number;
@@ -75,6 +76,7 @@ export namespace domain {
 	        this.simulationName = source["simulationName"];
 	        this.originalSimulationName = source["originalSimulationName"];
 	        this.dockerHubRepository = source["dockerHubRepository"];
+	        this.kubeConfigPath = source["kubeConfigPath"];
 	        this.netsimInstances = source["netsimInstances"];
 	        this.netsimMode = source["netsimMode"];
 	        this.netsimMaxRangeM = source["netsimMaxRangeM"];

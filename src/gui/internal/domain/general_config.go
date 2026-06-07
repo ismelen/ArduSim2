@@ -26,6 +26,9 @@ type GeneralConfig struct {
 	// Docker Hub repository for pushing images for Kubernetes deployment.
 	DockerHubRepository string `json:"dockerHubRepository"`
 
+	// KubeConfigPath is the optional path to a kubeconfig file for Kubernetes deployment.
+	KubeConfigPath string `json:"kubeConfigPath,omitempty"`
+
 	// NetsimInstances is the number of netsim worker containers to deploy.
 	NetsimInstances int `json:"netsimInstances"`
 

@@ -11,6 +11,7 @@ type ConfigUseCase interface {
 	DiscardCurrentRun(config domain.GeneralConfig) error
 	SelectFile(ctx context.Context) (string, error)
 	SelectArduPilotInstance(ctx context.Context) (string, error)
+	SelectKubeConfig(ctx context.Context) (string, error)
 	GetKmlFirstCoordinate(path string) (*domain.Coordinate, error)
 	LoadFile(path string) (string, error)
 	PopulateDefaults(config *domain.GeneralConfig)

@@ -32,6 +32,8 @@ export function SelectArduPilotInstance():Promise<string>;
 
 export function SelectFile():Promise<string>;
 
+export function SelectKubeConfig():Promise<string>;
+
 export function SendAlgorithmCommand(arg1:string,arg2:string):Promise<void>;
 
 export function StartSimulation(arg1:Array<domain.Swarm>,arg2:domain.GeneralConfig,arg3:boolean):Promise<void>;

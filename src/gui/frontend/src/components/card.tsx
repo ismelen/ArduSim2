@@ -12,7 +12,7 @@ export default function Card({ children, className, style }: Props) {
     <div
       style={style}
       className={cn(
-        "border border-border rounded-md p-3 overflow-clip bg-cwhite shadow-xs",
+        "border border-border rounded-md p-3 bg-cwhite shadow-xs",
         className,
       )}
     >

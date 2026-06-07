@@ -62,6 +62,10 @@ export function SelectFile() {
   return window['go']['main']['App']['SelectFile']();
 }
 
+export function SelectKubeConfig() {
+  return window['go']['main']['App']['SelectKubeConfig']();
+}
+
 export function SendAlgorithmCommand(arg1, arg2) {
   return window['go']['main']['App']['SendAlgorithmCommand'](arg1, arg2);
 }

@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { debounce } from "../utils/debouncer";
+import InfoTooltip from "./info-tooltip";
 
 interface Props {
   hint?: string;
@@ -19,6 +20,7 @@ interface Props {
   min?: number;
   max?: number;
   enabled?: boolean;
+  tooltip?: string;
 }
 
 export default function FormField({
@@ -32,6 +34,7 @@ export default function FormField({
   min,
   max,
   enabled = true,
+  tooltip,
 }: Props) {
   const [localValue, setLocalValue] = useState(initValue ?? "");
 
@@ -54,7 +57,10 @@ export default function FormField({
 
   return (
     <div>
-      <label className="text-dark-gray ">{label}</label>
+      <label className="text-dark-gray flex items-center gap-1 mb-1">
+        {label}
+        {tooltip && <InfoTooltip text={tooltip} />}
+      </label>
       <span className="flex flex-row items-center gap-2">
         {prefix ?? prefix}
         <input
