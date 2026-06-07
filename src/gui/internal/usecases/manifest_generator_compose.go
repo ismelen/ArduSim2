@@ -25,7 +25,7 @@ func (g *ManifestGenerator) buildLocalCompose(swarms []domain.Swarm, config doma
 
 	gwCfg := g.LoadRawConfig(g.netsimGatewayConfig)
 	gwLimits := g.ParseResourceLimits(gwCfg)
-	gwFile, _ := g.writeTemplateConfig("netsim_gateway_config", g.netsimGatewayConfig, nil, writer)
+	gwFile, _ := g.writeTemplateConfig("netsim_gateway_config", g.netsimGatewayConfig, nil, writer, nil, "")
 
 	telPort, msgPort, subPort := 3000, 3001, 3002
 	if p, ok := gwCfg["telemetry_port"].(float64); ok {
@@ -66,7 +66,7 @@ func (g *ManifestGenerator) buildLocalCompose(swarms []domain.Swarm, config doma
 	nsCfg := g.LoadRawConfig(g.netsimConfig)
 	nsLimits := g.ParseResourceLimits(nsCfg)
 	nsOverrides := g.buildNetsimOverrides(config)
-	nsFile, _ := g.writeTemplateConfig("netsim_config", g.netsimConfig, nsOverrides, writer)
+	nsFile, _ := g.writeTemplateConfig("netsim_config", g.netsimConfig, nsOverrides, writer, nil, "")
 
 	for i := 1; i <= netsimInstances; i++ {
 		nsEnv := map[string]string{"NODE_ID": fmt.Sprintf("netsim_%d", i)}
@@ -87,7 +87,7 @@ func (g *ManifestGenerator) buildLocalCompose(swarms []domain.Swarm, config doma
 
 	loggerCfg := g.LoadRawConfig(g.loggerConfig)
 	loggerLimits := g.ParseResourceLimits(loggerCfg)
-	loggerFile, _ := g.writeTemplateConfig("logger_config", g.loggerConfig, nil, writer)
+	loggerFile, _ := g.writeTemplateConfig("logger_config", g.loggerConfig, nil, writer, nil, "")
 
 	builder.AddService(ports.ComposeService{
 		Name:          "logger",
@@ -163,7 +163,7 @@ func (g *ManifestGenerator) buildComposeUAV(swarmID string, uav domain.UAV, para
 	})
 
 	mixer := g.resolveMixer(uav, config)
-	appFile, _, appLimits := g.buildServiceResources(mixer, writer)
+	appFile, _, appLimits := g.buildServiceResources(mixer, writer, nil, "")
 	mixerName := fmt.Sprintf("swarm_%s_uav_%s_mixer", swarmID, uav.ID)
 	services = append(services, ports.ComposeService{
 		Name:          mixerName,
@@ -178,7 +178,7 @@ func (g *ManifestGenerator) buildComposeUAV(swarmID string, uav domain.UAV, para
 
 	ucCfg := g.LoadRawConfig(filepath.Join(g.projectRoot, "..", "uav_controller", "ardupilot4_5_3", "config.sitl.json"))
 	ucLimits := ports.ResourceLimits{} // No limits specified for SITL
-	ucFile, _ := writer.Write(uav.ID+"_uav_controller_config", ucCfg)
+	ucFile, _ := writer.Write("uav_controller_config", ucCfg, "")
 	var homeLat, homeLon float64
 	if uav.HomeOverride != nil {
 		homeLat, homeLon = uav.HomeOverride.Lat, uav.HomeOverride.Lon
@@ -236,7 +236,7 @@ func (g *ManifestGenerator) buildComposeUAV(swarmID string, uav domain.UAV, para
 
 	ecCfg := g.LoadRawConfig(g.externalCommsConfig)
 	ecLimits := g.ParseResourceLimits(ecCfg)
-	ecFile, _ := g.writeTemplateConfig("external_comms_config", g.externalCommsConfig, nil, writer)
+	ecFile, _ := g.writeTemplateConfig("external_comms_config", g.externalCommsConfig, nil, writer, nil, "")
 	
 	ecName := fmt.Sprintf("swarm_%s_uav_%s_external_comms", swarmID, uav.ID)
 	services = append(services, ports.ComposeService{
@@ -251,7 +251,7 @@ func (g *ManifestGenerator) buildComposeUAV(swarmID string, uav domain.UAV, para
 	})
 
 	for _, svc := range uav.Services {
-		svcFile, extraVolumes, algoLimits := g.buildServiceResources(svc, writer)
+		svcFile, extraVolumes, algoLimits := g.buildServiceResources(svc, writer, nil, "")
 		
 		svcMounts := []string{fmt.Sprintf("./resources/%s:/app/config.json", svcFile)}
 		for _, v := range extraVolumes {

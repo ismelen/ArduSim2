@@ -18,12 +18,18 @@ func (g *ManifestGenerator) buildKubernetesManifests(swarms []domain.Swarm, conf
 
 	netsimInstances := normalizeNetsimInstances(config.NetsimInstances)
 	netsimAddrs := make([]string, netsimInstances)
+	globalMapping := map[string]string{
+		"netsim_gateway": "netsim-gateway",
+		"logger":         "logger",
+	}
 	for i := 1; i <= netsimInstances; i++ {
 		netsimAddrs[i-1] = fmt.Sprintf("netsim-%d:3000", i)
+		globalMapping[fmt.Sprintf("netsim_%d", i)] = fmt.Sprintf("netsim-%d", i)
 	}
 
 	gwCfg := g.LoadRawConfig(g.netsimGatewayConfig)
-	gwFile, _ := g.writeTemplateConfig("netsim_gateway_config", g.netsimGatewayConfig, nil, writer)
+	gwMutator := g.createK8sMutator(globalMapping, "netsim-gateway")
+	gwFile, _ := g.writeTemplateConfig("netsim_gateway_config", g.netsimGatewayConfig, nil, writer, gwMutator, "_k8s")
 	telPort, msgPort, subPort := 3000, 3001, 3002
 	if p, ok := gwCfg["telemetry_port"].(float64); ok {
 		telPort = int(p)
@@ -36,9 +42,11 @@ func (g *ManifestGenerator) buildKubernetesManifests(swarms []domain.Swarm, conf
 	}
 
 	nsOverrides := g.buildNetsimOverrides(config)
-	nsFile, _ := g.writeTemplateConfig("netsim_config", g.netsimConfig, nsOverrides, writer)
+	nsMutator := g.createK8sMutator(globalMapping, "netsim")
+	nsFile, _ := g.writeTemplateConfig("netsim_config", g.netsimConfig, nsOverrides, writer, nsMutator, "_k8s")
 
-	loggerFile, _ := g.writeTemplateConfig("logger_config", g.loggerConfig, nil, writer)
+	loggerMutator := g.createK8sMutator(globalMapping, "logger")
+	loggerFile, _ := g.writeTemplateConfig("logger_config", g.loggerConfig, nil, writer, loggerMutator, "_k8s")
 
 	var uavDeployments []uavDep
 
@@ -132,6 +140,34 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 		uavNodeLabel = *uav.NodeLabel
 	}
 
+	mainPodName := fmt.Sprintf("swarm-%s-uav-%s", swarmID, uav.ID)
+	uavMapping := map[string]string{
+		"netsim_gateway":       "netsim-gateway",
+		"logger":               "logger",
+		"communication_module": mainPodName,
+		"uav_controller":       mainPodName,
+		"external_comms":       mainPodName,
+	}
+	netsimInstances := normalizeNetsimInstances(config.NetsimInstances)
+	for i := 1; i <= netsimInstances; i++ {
+		uavMapping[fmt.Sprintf("netsim_%d", i)] = fmt.Sprintf("netsim-%d", i)
+	}
+
+	mixer := g.resolveMixer(uav, config)
+	if mixer.NodeLabel != "" && mixer.NodeLabel != uavNodeLabel {
+		uavMapping["mixer"] = fmt.Sprintf("swarm-%s-uav-%s-mixer", swarmID, uav.ID)
+	} else {
+		uavMapping["mixer"] = mainPodName
+	}
+
+	for _, svc := range uav.Services {
+		if svc.NodeLabel != "" && svc.NodeLabel != uavNodeLabel {
+			uavMapping[svc.ServiceId] = fmt.Sprintf("swarm-%s-uav-%s-%s", swarmID, uav.ID, strings.ToLower(svc.ServiceId))
+		} else {
+			uavMapping[svc.ServiceId] = mainPodName
+		}
+	}
+
 	uavEnv := map[string]string{
 		"UAV_ID":   uav.ID,
 		"SWARM_ID": swarmID,
@@ -154,8 +190,7 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 		})
 	}
 
-	mixer := g.resolveMixer(uav, config)
-	appFile, _, _ := g.buildServiceResources(mixer, writer)
+	appFile, _, _ := g.buildServiceResources(mixer, writer, g.createK8sMutator(uavMapping, uavMapping["mixer"]), "_k8s")
 	mixerContainer := ports.KubeContainer{
 		Name:         "mixer",
 		Image:        g.getImageName(mixer.FolderName, config.DockerHubRepository),
@@ -174,7 +209,9 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 	}
 
 	ucCfg := g.LoadRawConfig(filepath.Join(g.projectRoot, "..", "uav_controller", "ardupilot4_5_3", "config.sitl.json"))
-	ucFile, _ := writer.Write(uav.ID+"_uav_controller_config", ucCfg)
+	ucMutator := g.createK8sMutator(uavMapping, mainPodName)
+	ucMutator(ucCfg)
+	ucFile, _ := writer.Write("uav_controller_config", ucCfg, "_k8s")
 	var homeLat, homeLon float64
 	if uav.HomeOverride != nil {
 		homeLat, homeLon = uav.HomeOverride.Lat, uav.HomeOverride.Lon
@@ -205,7 +242,8 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 		VolumeMounts: ctrlMounts,
 	})
 
-	ecFile, _ := g.writeTemplateConfig("external_comms_config", g.externalCommsConfig, nil, writer)
+	ecMutator := g.createK8sMutator(uavMapping, mainPodName)
+	ecFile, _ := g.writeTemplateConfig("external_comms_config", g.externalCommsConfig, nil, writer, ecMutator, "_k8s")
 	mainContainers = append(mainContainers, ports.KubeContainer{
 		Name:         "external-comms",
 		Image:        g.getImageName("external_comms", config.DockerHubRepository),
@@ -214,7 +252,7 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 	})
 
 	for _, svc := range uav.Services {
-		svcFile, extraVolumes, _ := g.buildServiceResources(svc, writer)
+		svcFile, extraVolumes, _ := g.buildServiceResources(svc, writer, g.createK8sMutator(uavMapping, uavMapping[svc.ServiceId]), "_k8s")
 		
 		svcMounts := []ports.KubeVolumeMount{{Name: "recursos", MountPath: "/app/config.json", SubPath: svcFile}}
 		for _, v := range extraVolumes {
@@ -248,4 +286,38 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 	})
 
 	return deployments
+}
+
+func (g *ManifestGenerator) createK8sMutator(mapping map[string]string, currentDeployment string) func(map[string]interface{}) {
+	return func(cfg map[string]interface{}) {
+		var traverse func(data interface{}) interface{}
+		traverse = func(data interface{}) interface{} {
+			switch v := data.(type) {
+			case string:
+				if targetDep, ok := mapping[v]; ok {
+					if targetDep == currentDeployment {
+						return "127.0.0.1"
+					}
+					return targetDep
+				}
+				return v
+			case map[string]interface{}:
+				for key, val := range v {
+					v[key] = traverse(val)
+				}
+				return v
+			case []interface{}:
+				for i, val := range v {
+					v[i] = traverse(val)
+				}
+				return v
+			default:
+				return v
+			}
+		}
+
+		for k, v := range cfg {
+			cfg[k] = traverse(v)
+		}
+	}
 }

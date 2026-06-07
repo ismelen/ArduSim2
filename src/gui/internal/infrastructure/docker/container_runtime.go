@@ -115,7 +115,7 @@ func (r *DockerRuntime) BuildCompose(composePath string) error {
 	return nil
 }
 
-func (r *DockerRuntime) BuildAllImages(simDir string, dockerHubRepository string, isKubernetes bool, ardupilotPath string) error {
+func (r *DockerRuntime) GenerateBuildManifest(simDir string, dockerHubRepository string, isKubernetes bool, ardupilotPath string) error {
 	builder := NewComposeBuilder()
 	
 	prefixImage := func(img string) string {
@@ -125,46 +125,49 @@ func (r *DockerRuntime) BuildAllImages(simDir string, dockerHubRepository string
 		return img
 	}
 
+	absPath := func(relPath string) string {
+		abs, err := filepath.Abs(relPath)
+		if err == nil {
+			return strings.ReplaceAll(abs, "\\", "/")
+		}
+		return relPath
+	}
+
 	// Core images
 	builder.AddService(ports.ComposeService{
 		Name:  "netsim_gateway",
 		Image: prefixImage("netsim_gateway"),
-		Build: &ports.ComposeBuild{Context: "../../src/netsim_gateway", Dockerfile: "Dockerfile"},
+		Build: &ports.ComposeBuild{Context: absPath("../../src/netsim_gateway"), Dockerfile: "Dockerfile"},
 	})
 	builder.AddService(ports.ComposeService{
 		Name:  "netsim",
 		Image: prefixImage("netsim"),
-		Build: &ports.ComposeBuild{Context: "../../src/netsim", Dockerfile: "Dockerfile"},
+		Build: &ports.ComposeBuild{Context: absPath("../../src/netsim"), Dockerfile: "Dockerfile"},
 	})
 	builder.AddService(ports.ComposeService{
 		Name:  "logger",
 		Image: prefixImage("logger"),
-		Build: &ports.ComposeBuild{Context: "../../src/logger", Dockerfile: "Dockerfile"},
+		Build: &ports.ComposeBuild{Context: absPath("../../src/logger"), Dockerfile: "Dockerfile"},
 	})
 	builder.AddService(ports.ComposeService{
 		Name:  "communication_module",
 		Image: prefixImage("communication_module"),
-		Build: &ports.ComposeBuild{Context: "../../src/communication_module", Dockerfile: "Dockerfile"},
+		Build: &ports.ComposeBuild{Context: absPath("../../src/communication_module"), Dockerfile: "Dockerfile"},
 	})
 	builder.AddService(ports.ComposeService{
 		Name:  "external_comms",
 		Image: prefixImage("external_comms"),
-		Build: &ports.ComposeBuild{Context: "../../src/external_comms", Dockerfile: "Dockerfile"},
+		Build: &ports.ComposeBuild{Context: absPath("../../src/external_comms"), Dockerfile: "Dockerfile"},
 	})
-	// Attempt to make ardupilotPath relative to the context directory
-	contextDir, _ := filepath.Abs("../../src/uav_controller/ardupilot4_5_3")
-	relPath, err := filepath.Rel(contextDir, ardupilotPath)
-	if err != nil || strings.HasPrefix(relPath, "..") {
-		relPath = ardupilotPath
-	}
-	// On Windows, Docker paths inside compose args should use forward slashes
-	relPath = strings.ReplaceAll(relPath, "\\", "/")
+
+	// The argument uses a literal path style: "./resources/..."
+	relPath := "./resources/" + filepath.Base(ardupilotPath)
 
 	builder.AddService(ports.ComposeService{
 		Name:  "uav_controller",
 		Image: prefixImage("uav_controller"),
 		Build: &ports.ComposeBuild{
-			Context: "../../src/uav_controller/ardupilot4_5_3",
+			Context: absPath("../../src/uav_controller/ardupilot4_5_3"),
 			Dockerfile: "SITL",
 			Args: map[string]string{
 				"ARDUPILOT_BINARY_PATH": relPath,
@@ -180,7 +183,7 @@ func (r *DockerRuntime) BuildAllImages(simDir string, dockerHubRepository string
 					builder.AddService(ports.ComposeService{
 						Name:  name,
 						Image: prefixImage(name),
-						Build: &ports.ComposeBuild{Context: fmt.Sprintf("../../src/%s/%s", category, name), Dockerfile: dockerfile},
+						Build: &ports.ComposeBuild{Context: absPath(fmt.Sprintf("../../src/%s/%s", category, name)), Dockerfile: dockerfile},
 					})
 				}
 			}
@@ -197,6 +200,16 @@ func (r *DockerRuntime) BuildAllImages(simDir string, dockerHubRepository string
 	if err := os.WriteFile(composePath, []byte(builder.Build()), 0644); err != nil {
 		return fmt.Errorf("failed to write build compose file: %w", err)
 	}
+
+	return nil
+}
+
+func (r *DockerRuntime) BuildAllImages(simDir string, dockerHubRepository string, isKubernetes bool, ardupilotPath string) error {
+	if err := r.GenerateBuildManifest(simDir, dockerHubRepository, isKubernetes, ardupilotPath); err != nil {
+		return err
+	}
+
+	composePath := filepath.Join(simDir, "docker-compose.build.yaml")
 
 	if err := r.BuildCompose(composePath); err != nil {
 		return err

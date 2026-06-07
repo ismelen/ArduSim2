@@ -21,11 +21,11 @@ func NewResourceWriter(outputDir string) *ResourceWriter {
 	return &ResourceWriter{outputDir: outputDir}
 }
 
-// Write serialises content to a JSON file named "<baseName>_<hash8>.json".
+// Write serialises content to a JSON file named "<baseName>_<hash8><suffix>.json".
 // If a file with the same content hash already exists it is reused.
 // Returns the base filename (not the full path) so callers can reference it
 // in Docker Compose volume mounts.
-func (w *ResourceWriter) Write(baseName string, content map[string]interface{}) (string, error) {
+func (w *ResourceWriter) Write(baseName string, content map[string]interface{}, suffix string) (string, error) {
 	encoded, err := json.MarshalIndent(content, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("marshal config %q: %w", baseName, err)
@@ -34,7 +34,7 @@ func (w *ResourceWriter) Write(baseName string, content map[string]interface{}) 
 	hash := sha256.Sum256(encoded)
 	shortHash := hex.EncodeToString(hash[:])[:8]
 
-	fileName := fmt.Sprintf("%s_%s.json", baseName, shortHash)
+	fileName := fmt.Sprintf("%s_%s%s.json", baseName, shortHash, suffix)
 	filePath := filepath.Join(w.outputDir, fileName)
 
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {

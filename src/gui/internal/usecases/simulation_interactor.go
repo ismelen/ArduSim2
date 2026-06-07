@@ -195,6 +195,10 @@ func (i *SimulationInteractor) ExportSimulation(ctx context.Context, swarms []do
 		return fmt.Errorf("prepare export (kubernetes): %w", err)
 	}
 
+	if err := i.runtime.GenerateBuildManifest(simDir, config.DockerHubRepository, false, config.DefaultArduPilotInstance); err != nil {
+		return fmt.Errorf("prepare export (build file): %w", err)
+	}
+
 	defaultFilename := fmt.Sprintf("ArduSim_Export_%s.zip", config.SimulationName)
 	savePath, err := i.ui.SaveFileDialog(ctx, "Save Export as ZIP", defaultFilename, []ports.FileFilter{{DisplayName: "ZIP Archive", Pattern: "*.zip"}})
 	if err != nil {

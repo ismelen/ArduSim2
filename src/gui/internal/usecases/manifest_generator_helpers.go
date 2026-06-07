@@ -12,7 +12,7 @@ import (
 	"ui/internal/ports"
 )
 
-func (g *ManifestGenerator) buildServiceResources(svc domain.DeployedService, writer *ResourceWriter) (string, []domain.VolumeMount, ports.ResourceLimits) {
+func (g *ManifestGenerator) buildServiceResources(svc domain.DeployedService, writer *ResourceWriter, mutator func(map[string]interface{}), suffix string) (string, []domain.VolumeMount, ports.ResourceLimits) {
 	var extraVolumes []domain.VolumeMount
 	cfg := make(map[string]interface{})
 	for k, v := range svc.Config {
@@ -46,7 +46,11 @@ func (g *ManifestGenerator) buildServiceResources(svc domain.DeployedService, wr
 		}
 	}
 
-	svcFile, _ := writer.Write(svc.ServiceId+"_config", cfg)
+	if mutator != nil {
+		mutator(cfg)
+	}
+
+	svcFile, _ := writer.Write(svc.ServiceId+"_config", cfg, suffix)
 
 	var algoLimits ports.ResourceLimits
 	if schema, err := g.getServiceSchema(svc.FolderName); err == nil {
@@ -111,7 +115,7 @@ func (g *ManifestGenerator) generateUAVParams(swarmID string, uav domain.UAV, co
 	return fileName, nil
 }
 
-func (g *ManifestGenerator) writeTemplateConfig(baseName, templatePath string, overrides map[string]interface{}, writer *ResourceWriter) (string, error) {
+func (g *ManifestGenerator) writeTemplateConfig(baseName, templatePath string, overrides map[string]interface{}, writer *ResourceWriter, mutator func(map[string]interface{}), suffix string) (string, error) {
 	cfg := make(map[string]interface{})
 	if rawData, err := os.ReadFile(templatePath); err == nil {
 		_ = json.Unmarshal(rawData, &cfg)
@@ -119,7 +123,10 @@ func (g *ManifestGenerator) writeTemplateConfig(baseName, templatePath string, o
 	for key, value := range overrides {
 		cfg[key] = value
 	}
-	return writer.Write(baseName, cfg)
+	if mutator != nil {
+		mutator(cfg)
+	}
+	return writer.Write(baseName, cfg, suffix)
 }
 
 func (g *ManifestGenerator) copyFile(src, dst string) error {
