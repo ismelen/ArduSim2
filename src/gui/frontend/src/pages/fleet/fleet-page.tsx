@@ -177,6 +177,7 @@ export default function FleetPage() {
             </span>
             <ServiceCard
               service={uav.mixer ?? defaultMixer ?? { serviceTitle: "Mixer (Default)" } as any}
+              isModified={uav.mixer !== null && uav.mixer !== undefined}
               onSelect={() => setBaseServiceType("mixer")}
             />
 

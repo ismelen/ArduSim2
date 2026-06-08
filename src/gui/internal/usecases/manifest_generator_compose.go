@@ -202,6 +202,7 @@ func (g *ManifestGenerator) buildComposeUAV(swarmID string, uav domain.UAV, para
 	ctrlMounts := []string{
 		fmt.Sprintf("./resources/%s:/app/config.json", ucFile),
 		fmt.Sprintf("./resources/%s:/app/copter.parm", paramFileName),
+		fmt.Sprintf("./logs/swarm_%s_uav_%s/:/app/logs/", swarmID, uav.ID),
 	}
 	if arduPilotInstanceFile != "" {
 		ctrlMounts = append(ctrlMounts, fmt.Sprintf("./resources/%s:/app/%s", arduPilotInstanceFile, arduPilotInstanceFile))

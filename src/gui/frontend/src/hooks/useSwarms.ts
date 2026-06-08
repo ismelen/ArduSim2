@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { useSimulationConfig } from "./useSimulationConfig";
 import { domain } from "../../wailsjs/go/models";
+import { useSimulationConfig } from "./useSimulationConfig";
 
 export type Swarm = domain.Swarm;
 export type UAV = domain.UAV;
@@ -27,6 +27,19 @@ interface State {
   loadSwarms(swarms: Swarm[]): void;
   setSelectedSwarm(idx: number): void;
   setSelectedUav(idx: number | null): void;
+}
+
+function getMaxUavId(swarms: Swarm[]): number {
+  let maxId = 0;
+  for (const s of swarms) {
+    for (const u of s.uavs) {
+      const id = Number(u.id);
+      if (!isNaN(id) && id > maxId) {
+        maxId = id;
+      }
+    }
+  }
+  return maxId;
 }
 
 export const useSwarms = create<State>((set, get) => ({
@@ -59,11 +72,13 @@ export const useSwarms = create<State>((set, get) => ({
       lastId = Number(swarms[swarms.length - 1].id);
       if (isNaN(lastId)) lastId = swarms.length;
     }
+    let lastUavId = getMaxUavId(swarms);
     const newSwarms = [...swarms];
     for (let i = lastId + 1; i <= lastId + count; i++) {
+      lastUavId++;
       newSwarms.push({
         id: i.toString(),
-        uavs: [{ id: "1", services: [] as DeployedService[] }] as UAV[],
+        uavs: [{ id: lastUavId.toString(), services: [] as DeployedService[] }] as UAV[],
         groundFormation: "grid",
         formationCenterLat: 0,
         formationCenterLon: 0,
@@ -177,11 +192,7 @@ export const useSwarms = create<State>((set, get) => ({
     const activeSwarmIdx = get().activeSwarmIdx;
     const swarm = swarms[activeSwarmIdx];
     
-    let lastId = 0;
-    if (swarm.uavs.length > 0) {
-      lastId = Number(swarm.uavs[swarm.uavs.length - 1].id);
-      if (isNaN(lastId)) lastId = swarm.uavs.length;
-    }
+    let lastId = getMaxUavId(swarms);
     
     const newUavs = [...swarm.uavs];
     for (let i = lastId + 1; i <= lastId + count; i++) {
@@ -213,7 +224,11 @@ export const useSwarms = create<State>((set, get) => ({
     ];
 
     if (uavs.length === 0) {
-      uavs = [{ id: "1", services: [] as DeployedService[] } as UAV];
+      const updatedSwarmsTemp = swarms.map((s, idx) => 
+        idx === activeSwarmIdx ? { ...s, uavs: [] as domain.UAV[] } as Swarm : s
+      );
+      let lastId = getMaxUavId(updatedSwarmsTemp);
+      uavs = [{ id: (lastId + 1).toString(), services: [] as DeployedService[] } as UAV];
     }
 
     const updatedSwarms = swarms.map((s, idx) => 
@@ -282,11 +297,7 @@ export const useSwarms = create<State>((set, get) => ({
 
     if (!activeUav) return;
 
-    let lastId = 0;
-    if (uavs.length > 0) {
-      lastId = Number(uavs[uavs.length - 1].id);
-      if (isNaN(lastId)) lastId = uavs.length;
-    }
+    let lastId = getMaxUavId(swarms);
 
     const clonedServices = activeUav.services.map((s) => ({
       ...s,

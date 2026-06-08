@@ -155,6 +155,7 @@ func (s *NetsimSubscriber) Start(ctx context.Context) {
 
 		switch msg.Topic {
 		case "telemetry_snapshot":
+			fmt.Printf("\n%s", msg.Payload)
 			uavsRaw, ok := msg.Payload["uavs"].(map[string]interface{})
 			if !ok {
 				continue

@@ -1,6 +1,8 @@
 package usecases
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,11 +28,13 @@ func (g *ManifestGenerator) buildServiceResources(svc domain.DeployedService, wr
 				if !ok {
 					continue
 				}
-				if format, ok := prop["format"].(string); ok && format == "kml" {
+				if format, ok := prop["format"].(string); ok && (format == "kml" || format == "file") {
 					if srcPath, ok := cfg[key].(string); ok && srcPath != "" {
 						ext := filepath.Ext(srcPath)
-						hostName := fmt.Sprintf("%s_%s%s", svc.ServiceId, key, ext)
 						if data, err := os.ReadFile(srcPath); err == nil {
+							hash := sha256.Sum256(data)
+							hashStr := hex.EncodeToString(hash[:])[:8]
+							hostName := fmt.Sprintf("%s_%s_%s%s", svc.ServiceId, key, hashStr, ext)
 							if err := os.WriteFile(filepath.Join(writer.outputDir, hostName), data, os.ModePerm); err == nil {
 								containerPath := fmt.Sprintf("/app/%s%s", key, ext)
 								cfg[key] = containerPath

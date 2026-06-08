@@ -102,7 +102,6 @@ function SwarmAccordion({
         )}
         onClick={() => {
           onSelectSwarm();
-          setIsExpanded(!isExpanded);
         }}
       >
         <div className="flex items-center gap-2 flex-1">
@@ -159,7 +158,13 @@ function SwarmAccordion({
           >
             add
           </span>
-          <span className="material-symbols-rounded">
+          <span 
+            className="material-symbols-rounded hover:opacity-70 p-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(!isExpanded);
+            }}
+          >
             {isExpanded ? "expand_less" : "expand_more"}
           </span>
         </div>

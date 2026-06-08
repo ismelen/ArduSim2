@@ -6,11 +6,13 @@ export default function ServiceCard({
   onSelect,
   onDelete,
   showId,
+  isModified,
 }: {
   service: domain.DeployedService;
   onSelect?(): void;
   onDelete?(): void;
   showId?: boolean;
+  isModified?: boolean;
 }) {
   return (
     <div
@@ -19,6 +21,7 @@ export default function ServiceCard({
     >
       <span className="text-lg">
         {service.serviceTitle}
+        {isModified && <span className="text-primary font-bold ml-1">*</span>}
         <p className="text-gray-500 text-sm">{showId && service.serviceId ? ` (${service.serviceId})` : ""}</p>
       </span>
       <span className="flex gap-2">
