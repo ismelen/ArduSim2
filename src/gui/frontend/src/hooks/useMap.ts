@@ -158,7 +158,7 @@ export const useMap = create<State>((set, get) => ({
 
   updateMarkers(uavs: TelemetryData[]) {
     let changed = false;
-    for (const [idx, uav] of uavs.entries()) {
+    for (const uav of uavs) {
       const pos = uav.position;
       // Skip UAVs that haven't acquired a valid GPS fix yet, or have corrupt data
       if (
@@ -169,7 +169,7 @@ export const useMap = create<State>((set, get) => ({
       let marker = markersData[uav.uav_id!];
       if (!marker) {
         marker = {
-          color: getRgbUavColor(idx),
+          color: getRgbUavColor(Number(uav.uav_id!)),
           id: uav.uav_id!,
           position: [],
         };
