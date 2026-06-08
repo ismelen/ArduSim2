@@ -56,17 +56,19 @@ func (g *ManifestGenerator) buildKubernetesManifests(swarms []domain.Swarm, conf
 
 		for i, uav := range swarm.UAVs {
 			arduPilotInstance := config.DefaultArduPilotInstance
-			if uav.ArduPilotInstance != nil {
+			if uav.ArduPilotInstance != nil && *uav.ArduPilotInstance != "" {
 				arduPilotInstance = *uav.ArduPilotInstance
 			}
+			if arduPilotInstance == "" {
+				arduPilotInstance = filepath.Join(g.projectRoot, "..", "uav_controller", "ardupilot4_5_3", "ardupilot", "arducopter4_5_3")
+			}
+			
 			var arduPilotHostPath string
-			if arduPilotInstance != "" {
-				absPath, err := filepath.Abs(arduPilotInstance)
-				if err == nil {
-					arduPilotHostPath = absPath
-				} else {
-					arduPilotHostPath = arduPilotInstance
-				}
+			absPath, err := filepath.Abs(arduPilotInstance)
+			if err == nil {
+				arduPilotHostPath = absPath
+			} else {
+				arduPilotHostPath = arduPilotInstance
 			}
 
 			paramFile, _ := g.generateUAVParams(swarm.ID, uav, config, resDir)

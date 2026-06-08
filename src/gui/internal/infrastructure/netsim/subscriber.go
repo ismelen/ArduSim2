@@ -165,7 +165,10 @@ func (s *NetsimSubscriber) Start(ctx context.Context) {
 			s.mu.Lock()
 			for id, raw := range uavsRaw {
 				var t domain.TelemetryData
-				_ = mapstructure.Decode(raw, &t)
+				err := mapstructure.WeakDecode(raw, &t)
+				if err != nil {
+					fmt.Printf("DECODE ERROR for UAV %s: %v\n", id, err)
+				}
 				snapshotMap[id] = t
 				
 				if t.NrGpsOnline > 0 && !s.ready {

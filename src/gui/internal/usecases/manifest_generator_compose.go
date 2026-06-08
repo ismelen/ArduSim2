@@ -114,15 +114,16 @@ func (g *ManifestGenerator) buildLocalCompose(swarms []domain.Swarm, config doma
 
 		for i, uav := range swarm.UAVs {
 			arduPilotInstance := config.DefaultArduPilotInstance
-			if uav.ArduPilotInstance != nil {
+			if uav.ArduPilotInstance != nil && *uav.ArduPilotInstance != "" {
 				arduPilotInstance = *uav.ArduPilotInstance
 			}
-			var arduPilotInstanceFile string
-			if arduPilotInstance != "" {
-				arduPilotInstanceFile = filepath.Base(arduPilotInstance)
-				destPath := filepath.Join(resDir, arduPilotInstanceFile)
-				_ = g.copyFile(arduPilotInstance, destPath)
+			if arduPilotInstance == "" {
+				arduPilotInstance = filepath.Join(g.projectRoot, "..", "uav_controller", "ardupilot4_5_3", "ardupilot", "arducopter4_5_3")
 			}
+			
+			arduPilotInstanceFile := filepath.Base(arduPilotInstance)
+			destPath := filepath.Join(resDir, arduPilotInstanceFile)
+			_ = g.copyFile(arduPilotInstance, destPath)
 
 			paramFile, _ := g.generateUAVParams(swarm.ID, uav, config, resDir)
 			
@@ -211,11 +212,6 @@ func (g *ManifestGenerator) buildComposeUAV(swarmID string, uav domain.UAV, para
 	
 	ctrlName := fmt.Sprintf("swarm_%s_uav_%s_controller", swarmID, uav.ID)
 	
-	arduPilotAbsPath := config.DefaultArduPilotInstance
-	if uav.ArduPilotInstance != nil && *uav.ArduPilotInstance != "" {
-		arduPilotAbsPath = *uav.ArduPilotInstance
-	}
-
 	services = append(services, ports.ComposeService{
 		Name:          ctrlName,
 		Image:         "uav_controller",
@@ -225,13 +221,6 @@ func (g *ManifestGenerator) buildComposeUAV(swarmID string, uav domain.UAV, para
 		Volumes:       ctrlMounts,
 		Networks:      map[string][]string{uavNet: {"uav_controller"}},
 		Limits:        ucLimits,
-		Build: &ports.ComposeBuild{
-			Context:    "../../src/uav_controller/ardupilot4_5_3",
-			Dockerfile: "SITL",
-			Args: map[string]string{
-				"ARDUCOPTER_PATH": arduPilotAbsPath,
-			},
-		},
 	})
 
 	ecCfg := g.LoadRawConfig(g.externalCommsConfig)
