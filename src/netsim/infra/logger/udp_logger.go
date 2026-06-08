@@ -70,6 +70,8 @@ func (l *UDPLogger) log(level, msg string, fields ...any) {
 		fullMsg += fmt.Sprintf(" %v", f)
 	}
 
+	fmt.Printf("[%s] %s\n", level, fullMsg)
+
 	select {
 	case l.logChan <- LogMessage{
 		InstanceID: l.instanceID,
