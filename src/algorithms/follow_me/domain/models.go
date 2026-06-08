@@ -22,15 +22,17 @@ type FollowMeMessage struct {
 	RelativeAlt float64 `mapstructure:"relative_alt" json:"relative_alt"`
 	Heading     float64 `mapstructure:"heading" json:"heading"`
 	Timestamp   int64   `mapstructure:"timestamp" json:"timestamp"`
+	DstSwarmId string `json:"dst_swarm_id"`
 }
 
-func (f FollowMeMessage) FromTelemetry(t Telemetry) FollowMeMessage {
+func (f FollowMeMessage) FromTelemetry(t Telemetry, dstSwarmId string) FollowMeMessage {
 	f.Lat = t.Position.Lat
 	f.Lon = t.Position.Lon
 	f.Alt = t.Position.Alt
 	f.RelativeAlt = t.Position.RelativeAlt
 	f.Heading = t.Position.Heading
 	f.Timestamp = time.Now().UnixMilli()
+	f.DstSwarmId = dstSwarmId
 
 	return f
 }

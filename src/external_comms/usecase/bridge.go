@@ -83,6 +83,7 @@ func (g *GatewayBridge) handleExternalNetMessage(msg domain.ReceivedNetSimMessag
 	// External to Internal
 	// Ignore our own echo if NetSim broadcasts everything back
 	log.Printf("[External->Internal] Forwarding message from %s: %v", msg.Source, msg.Payload)
+	log.Printf("Message: %v", msg)
 	if msg.Source == g.config.UAVId {
 		return
 	}

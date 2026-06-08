@@ -103,8 +103,7 @@ func (f *FollowMeAsMaster) sendTelemetry() {
 		f.Cfg.BroadcastTopic,
 		map[string]any{
 			"topic":         f.Cfg.SubscriptionTopic,
-			"payload":       domain.FollowMeMessage{}.FromTelemetry(*f.lastTelemetry),
-			"dest_swarm_id": f.Cfg.DestSwarmId,
+			"payload":       domain.FollowMeMessage{}.FromTelemetry(*f.lastTelemetry, f.Cfg.DestSwarmId),
 		},
 	)
 }
