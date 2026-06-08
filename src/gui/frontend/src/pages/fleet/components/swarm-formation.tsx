@@ -82,10 +82,15 @@ export default function SwarmFormation() {
   return (
     <aside className="border-l border-border min-w-70 max-w-90 flex-1/4 bg-cwhite">
       <span className="border-b border-border flex flex-row items-center justify-between px-3 py-3 bg-gray">
-        <CardTitle label={`Swarm ${swarm.id} Formation`} icon="grid_3x3" />
+        <CardTitle label={`Swarm ${swarm.id}`} icon="grid_3x3" />
       </span>
       <div className="p-2 flex flex-col gap-2">
-        <FormationModeSelection />
+        <div>
+          <label className="text-dark-gray flex items-center gap-1 mb-1">
+            Ground Formation
+          </label>
+          <FormationModeSelection />
+        </div>
         <FormField
           initValue={`${formationSpacing}`}
           type="number"

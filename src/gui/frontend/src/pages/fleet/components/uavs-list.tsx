@@ -199,26 +199,36 @@ function UavCard({ uav, onClick, selected }: UavCardProps) {
         },
       )}
     >
-      <div className="flex-1 ml-4 border-l-2 border-border pl-3 flex flex-col justify-center">
-        <p
-          className={cn("text-sm font-medium text-dark-gray", {
-            "text-onPrimary": selected,
-          })}
+      <div className="flex-1 ml-4 flex flex-row items-center gap-2">
+        <span 
+          className={cn("material-symbols-rounded text-dark-gray opacity-50", {
+            "text-onPrimary opacity-100": selected,
+          })} 
+          style={{ fontSize: "18px" }}
         >
-          Uav {uav.id}
-        </p>
-        {uav.services.length > 0 && 
-        <span className="flex gap-1 items-center mt-1">
-          {uav.services.map((service, idx) => (
-            <div
-              key={service.serviceId || idx}
-              className={cn("rounded-full aspect-square h-1.5 bg-dark-gray", {
-                "bg-onPrimary": selected,
-              })}
-            />
-          ))}
+          subdirectory_arrow_right
         </span>
-        }
+        <div className="flex flex-col justify-center">
+          <p
+            className={cn("text-sm font-medium text-dark-gray", {
+              "text-onPrimary": selected,
+            })}
+          >
+            Uav {uav.id}
+          </p>
+          {uav.services.length > 0 && 
+          <span className="flex gap-1 items-center mt-1">
+            {uav.services.map((service, idx) => (
+              <div
+                key={service.serviceId || idx}
+                className={cn("rounded-full aspect-square h-1.5 bg-dark-gray", {
+                  "bg-onPrimary": selected,
+                })}
+              />
+            ))}
+          </span>
+          }
+        </div>
       </div>
       {selected === true ? (
         <span className="material-symbols-rounded text-onPrimary" style={{ fontSize: "16px" }}>
