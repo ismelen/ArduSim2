@@ -82,12 +82,28 @@ def send_telemetry(sock, uav_count):
         sock.sendto(json.dumps(payload).encode('utf-8'), (GATEWAY_IP, TELEMETRY_PORT))
 
 def send_broadcast(sock, uav_id):
-    large_data = "A" * 50000
     payload = {
         "uav_id": str(uav_id),
         "payload": {
-            "topic": "test",
-            "payload": large_data
+            "nr_gps_online": 2,
+            "position": {
+                "heading": 1,
+                "alt": 0.06,
+                "relative_alt": -0.04,
+                "lon": -0.3462649,
+                "lat": 39.4825939
+            },
+            "type": "MAV_TYPE_QUADROTOR",
+            "battery": 100,
+            "version": "4.5.3",
+            "time_boot_ms": 127069,
+            "speed": {
+                "vx": -0.01,
+                "vy": 0.01,
+                "vz": 0
+            },
+            "status": "OK",
+            "flight_mode": "STABILIZE Custom mode; Stabilize; Manual input; "
         }
     }
     sock.sendto(json.dumps(payload).encode('utf-8'), (GATEWAY_IP, MESSAGES_PORT))

@@ -3,7 +3,7 @@ version: '3.8'
 services:
   gateway:
     build:
-      context: ../src/netsim_gateway
+      context: ../../src/netsim_gateway
       dockerfile: Dockerfile
     working_dir: /app_config
     volumes:
@@ -15,7 +15,7 @@ services:
 
   netsim1:
     build:
-      context: ../src/netsim
+      context: ../../src/netsim
       dockerfile: Dockerfile
     working_dir: /app_config
     volumes:
@@ -27,7 +27,7 @@ services:
 
   netsim2:
     build:
-      context: ../src/netsim
+      context: ../../src/netsim
       dockerfile: Dockerfile
     working_dir: /app_config
     volumes:

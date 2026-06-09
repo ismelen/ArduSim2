@@ -14,23 +14,56 @@ func (s *Simulator) SendMessages() {
 
 	// Dispatch pending
 	if len(s.PendingMsgs) > 0 {
-		pending := s.PendingMsgs
-		s.PendingMsgs = make(map[string][]model.Message)
+		newPendingMsgs := make(map[string][]model.Message)
+		toDispatch := make(map[string][]model.Message)
 
-		for recID, msgs := range pending {
-			totalLen := 0
+		for recID, msgs := range s.PendingMsgs {
+			detectCollisions(msgs)
+
+			var keep []model.Message
+			var dispatch []model.Message
+
 			for _, m := range msgs {
-				totalLen += len(m.Payload)
-			}
-			if uav, ok := s.UAVs[recID]; ok {
-				uav.BufferUsed -= totalLen
-				if uav.BufferUsed < 0 {
-					uav.BufferUsed = 0
+				if now.Before(m.To) {
+					// Still receiving, keep in pending
+					keep = append(keep, m)
+				} else {
+					// Finished receiving
+					if m.Overlapped {
+						// Discard due to collision
+						s.Logger.Info(fmt.Sprintf("Discarded message from %s to %s: collision detected", m.SenderID, recID), "timestamp", time.Now().Format(time.RFC3339Nano))
+						if uav, ok := s.UAVs[recID]; ok {
+							uav.BufferUsed -= len(m.Payload)
+							if uav.BufferUsed < 0 {
+								uav.BufferUsed = 0
+							}
+						}
+					} else {
+						// Ready to dispatch
+						dispatch = append(dispatch, m)
+						if uav, ok := s.UAVs[recID]; ok {
+							uav.BufferUsed -= len(m.Payload)
+							if uav.BufferUsed < 0 {
+								uav.BufferUsed = 0
+							}
+						}
+					}
 				}
+			}
+
+			if len(keep) > 0 {
+				newPendingMsgs[recID] = keep
+			}
+			if len(dispatch) > 0 {
+				toDispatch[recID] = dispatch
 			}
 		}
 
-		go s.dispatchToGateway(pending)
+		s.PendingMsgs = newPendingMsgs
+
+		if len(toDispatch) > 0 {
+			go s.dispatchToGateway(toDispatch)
+		}
 	}
 
 	// Retry delayed
@@ -73,6 +106,17 @@ func (s *Simulator) dispatchToGateway(pending map[string][]model.Message) {
 			data, _ := json.Marshal(deliver)
 			s.Sender.Send(data, nil)
 			s.Logger.Info(fmt.Sprintf("Dispatched message from %s to %s via gateway", msg.SenderID, recID), "timestamp", time.Now().Format(time.RFC3339Nano))
+		}
+	}
+}
+
+func detectCollisions(msgs []model.Message) {
+	for i := 0; i < len(msgs); i++ {
+		for j := i + 1; j < len(msgs); j++ {
+			if msgs[i].From.Before(msgs[j].To) && msgs[j].From.Before(msgs[i].To) {
+				msgs[i].Overlapped = true
+				msgs[j].Overlapped = true
+			}
 		}
 	}
 }
