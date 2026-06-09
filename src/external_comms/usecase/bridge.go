@@ -83,7 +83,11 @@ func (g *GatewayBridge) handleExternalNetMessage(msg domain.ReceivedNetSimMessag
 	// External to Internal
 	// Ignore our own echo if NetSim broadcasts everything back
 	log.Printf("[External->Internal] Forwarding message from %s: %v", msg.Source, msg.Payload)
-	log.Printf("Message: %v", msg)
+	innerPayload, ok:= msg.Payload["payload"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	
 	if msg.Source == g.config.UAVId {
 		return
 	}
@@ -91,13 +95,13 @@ func (g *GatewayBridge) handleExternalNetMessage(msg domain.ReceivedNetSimMessag
 		return
 	}
 
-	if destUavId, ok := msg.Payload["dest_uav_id"]; ok && destUavId != "" {
+	if destUavId, ok := innerPayload["dest_uav_id"]; ok && destUavId != "" {
 		if destUavIdStr, isStr := destUavId.(string); isStr && destUavIdStr != g.config.UAVId {
 			return
 		}
 	}
 
-	if destSwarmId, ok := msg.Payload["dest_swarm_id"]; ok && destSwarmId != "" {
+	if destSwarmId, ok := innerPayload["dest_swarm_id"]; ok && destSwarmId != "" {
 		if destSwarmIdStr, isStr := destSwarmId.(string); isStr && destSwarmIdStr != g.config.SwarmId {
 			return
 		}
