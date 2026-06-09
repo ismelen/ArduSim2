@@ -177,9 +177,8 @@ func (g *ManifestGenerator) buildComposeUAV(swarmID string, uav domain.UAV, para
 		Limits:        appLimits,
 	})
 
-	ucCfg := g.LoadRawConfig(filepath.Join(g.projectRoot, "..", "uav_controller", "ardupilot4_5_3", "config.sitl.json"))
-	ucLimits := ports.ResourceLimits{} // No limits specified for SITL
-	ucFile, _ := writer.Write("uav_controller_config", ucCfg, "")
+	controller := g.resolveController(uav, config)
+	ucFile, _, ucLimits := g.buildServiceResources(controller, writer, nil, "")
 	var homeLat, homeLon float64
 	if uav.HomeOverride != nil {
 		homeLat, homeLon = uav.HomeOverride.Lat, uav.HomeOverride.Lon
@@ -206,9 +205,13 @@ func (g *ManifestGenerator) buildComposeUAV(swarmID string, uav domain.UAV, para
 	ctrlName := fmt.Sprintf("swarm_%s_uav_%s_controller", swarmID, uav.ID)
 	
 	// Format the image name based on the binary
-	uavControllerImage := "uav_controller"
+	serviceId := controller.ServiceId
+	if serviceId == "" {
+		serviceId = controller.FolderName
+	}
+	uavControllerImage := serviceId
 	if arduPilotInstanceFile != "" {
-		uavControllerImage = fmt.Sprintf("uav_controller_%s", strings.ToLower(strings.ReplaceAll(arduPilotInstanceFile, ".", "_")))
+		uavControllerImage = fmt.Sprintf("%s_%s", serviceId, strings.ToLower(strings.ReplaceAll(arduPilotInstanceFile, ".", "_")))
 	}
 	
 	services = append(services, ports.ComposeService{

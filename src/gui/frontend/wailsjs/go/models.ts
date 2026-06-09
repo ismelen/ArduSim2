@@ -42,6 +42,7 @@ export namespace domain {
 	    defaultUAVSpeed: number;
 	    defaultArduPilotInstance: string;
 	    defaultMixer: DeployedService;
+	    defaultController: DeployedService;
 	    loggingEnabled: boolean;
 	    batteryRestricted: boolean;
 	    batteryCapacity: number;
@@ -67,6 +68,7 @@ export namespace domain {
 	        this.defaultUAVSpeed = source["defaultUAVSpeed"];
 	        this.defaultArduPilotInstance = source["defaultArduPilotInstance"];
 	        this.defaultMixer = this.convertValues(source["defaultMixer"], DeployedService);
+	        this.defaultController = this.convertValues(source["defaultController"], DeployedService);
 	        this.loggingEnabled = source["loggingEnabled"];
 	        this.batteryRestricted = source["batteryRestricted"];
 	        this.batteryCapacity = source["batteryCapacity"];
@@ -185,6 +187,7 @@ export namespace domain {
 	    id: string;
 	    services: DeployedService[];
 	    mixer?: DeployedService;
+	    controller?: DeployedService;
 	    speed?: number;
 	    batteryCapacity?: number;
 	    homeOverride?: Coordinate;
@@ -200,6 +203,7 @@ export namespace domain {
 	        this.id = source["id"];
 	        this.services = this.convertValues(source["services"], DeployedService);
 	        this.mixer = this.convertValues(source["mixer"], DeployedService);
+	        this.controller = this.convertValues(source["controller"], DeployedService);
 	        this.speed = source["speed"];
 	        this.batteryCapacity = source["batteryCapacity"];
 	        this.homeOverride = this.convertValues(source["homeOverride"], Coordinate);

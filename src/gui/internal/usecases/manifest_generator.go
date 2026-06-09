@@ -88,4 +88,11 @@ func (g *ManifestGenerator) resolveMixer(uav domain.UAV, config domain.GeneralCo
 	return config.DefaultMixer
 }
 
+func (g *ManifestGenerator) resolveController(uav domain.UAV, config domain.GeneralConfig) domain.DeployedService {
+	if uav.Controller != nil {
+		return *uav.Controller
+	}
+	return config.DefaultController
+}
+
 

@@ -118,7 +118,7 @@ func (i *SimulationInteractor) BuildImages(ctx context.Context, swarms []domain.
 	simDir := filepath.Join(i.repo.GetSimulationsDir(), config.SimulationName)
 
 	// Build all known images and all local algorithms, independent of simulation size/mode
-	return i.runtime.BuildAllImages(simDir, config.DockerHubRepository, !isLocal, config.DefaultArduPilotInstance)
+	return i.runtime.BuildAllImages(simDir, config.DockerHubRepository, !isLocal, swarms, config)
 }
 
 
@@ -195,7 +195,7 @@ func (i *SimulationInteractor) ExportSimulation(ctx context.Context, swarms []do
 		return fmt.Errorf("prepare export (kubernetes): %w", err)
 	}
 
-	if err := i.runtime.GenerateBuildManifest(simDir, config.DockerHubRepository, false, config.DefaultArduPilotInstance); err != nil {
+	if err := i.runtime.GenerateBuildManifest(simDir, config.DockerHubRepository, false, swarms, config); err != nil {
 		return fmt.Errorf("prepare export (build file): %w", err)
 	}
 

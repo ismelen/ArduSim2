@@ -8,9 +8,9 @@ import { useServices } from "../../../hooks/useServices";
 export default function BaseServicesCard() {
   const config = useConfig((s) => s.config);
   const updateConfig = useConfig((s) => s.update);
-  const { mixers } = useServices();
+  const { mixers, controllers } = useServices();
 
-  const [editType, setEditType] = useState<"mixer" | undefined>(undefined);
+  const [editType, setEditType] = useState<"mixer" | "controller" | undefined>(undefined);
 
   return (
     <div className="border border-border p-4 rounded-md shadow-sm">
@@ -24,20 +24,28 @@ export default function BaseServicesCard() {
             onSelect={() => setEditType("mixer")}
           />
         </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-dark-gray text-sm">Default Controller</label>
+          <ServiceCard
+            service={config.defaultController ?? { serviceTitle: "Select Default Controller" } as any}
+            onSelect={() => setEditType("controller")}
+          />
+        </div>
       </div>
 
       {editType !== undefined && (
         <AddNewServiceDialog
-          servicesList={mixers}
-          title={`Edit Default Mixer`}
-          serviceToEdit={config.defaultMixer}
+          servicesList={editType === "mixer" ? mixers : controllers}
+          title={`Edit Default ${editType === "mixer" ? "Mixer" : "Controller"}`}
+          serviceToEdit={editType === "mixer" ? config.defaultMixer : config.defaultController}
           onExit={() => setEditType(undefined)}
           onAccept={(service) => {
             if (!service) return setEditType(undefined);
-            updateConfig((c) => ({
-              ...c,
-              defaultMixer: service
-            }));
+            if (editType === "mixer") {
+              updateConfig((c) => ({ ...c, defaultMixer: service }));
+            } else {
+              updateConfig((c) => ({ ...c, defaultController: service }));
+            }
             setEditType(undefined);
           }}
         />

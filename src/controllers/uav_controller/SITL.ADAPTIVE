@@ -1,0 +1,55 @@
+FROM ubuntu:22.04 AS ardupilot-builder
+
+ARG ARDUPILOT_BRANCH=Copter-4.5.3
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+git curl ca-certificates sudo lsb-release tzdata \
+python3 python3-pip python3-dev \
+gcc g++ make cmake ninja-build \
+ccache pkg-config \
+libxml2-dev libxslt1-dev \
+&& rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m ardupilot && echo "ardupilot ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+WORKDIR /opt
+RUN git clone --recurse-submodules --shallow-submodules \
+--branch ${ARDUPILOT_BRANCH} \
+https://github.com/ArduPilot/ardupilot.git \
+&& chown -R ardupilot:ardupilot /opt/ardupilot
+
+WORKDIR /opt/ardupilot
+
+USER ardupilot
+
+RUN sed -i 's/sudo usermod -a -G dialout/sudo usermod -a -G dialout ardupilot/' \
+Tools/environment_install/install-prereqs-ubuntu.sh \
+&& Tools/environment_install/install-prereqs-ubuntu.sh -y \
+&& sudo rm -rf /var/lib/apt/lists/*
+
+RUN python3 waf configure --board sitl \
+&& python3 waf copter
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y openjdk-17-jdk \
+&& rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=ardupilot-builder /opt/ardupilot/build/sitl/bin/arducopter ./arducopter4_5_3
+
+COPY ardupilot/copter.parm /app
+COPY ./uavController.jar /app
+COPY ./config.json /app
+COPY run.sh /app
+
+RUN chmod +x /app/arducopter4_5_3 \
+&& chmod +x /app/run.sh
+
+EXPOSE 9876
+EXPOSE 9877
+
+CMD ["./run.sh"]

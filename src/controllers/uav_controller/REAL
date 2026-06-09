@@ -1,0 +1,12 @@
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y openjdk-17-jdk
+
+WORKDIR /app
+COPY ./uavController.jar /app
+COPY ./config.json /app
+
+EXPOSE 9876
+EXPOSE 9877
+
+CMD ["java", "-jar", "./uavController.jar", "config.json"]

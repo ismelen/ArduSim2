@@ -11,6 +11,7 @@ type GeneralConfig struct {
 	DefaultUAVSpeed          float64         `json:"defaultUAVSpeed"`
 	DefaultArduPilotInstance string          `json:"defaultArduPilotInstance"`
 	DefaultMixer             DeployedService `json:"defaultMixer"`
+	DefaultController        DeployedService `json:"defaultController"`
 	LoggingEnabled           bool            `json:"loggingEnabled"`
 	BatteryRestricted        bool            `json:"batteryRestricted"`
 	BatteryCapacity          int             `json:"batteryCapacity"`

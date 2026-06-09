@@ -203,10 +203,9 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 		mainContainers = append(mainContainers, mixerContainer)
 	}
 
-	ucCfg := g.LoadRawConfig(filepath.Join(g.projectRoot, "..", "uav_controller", "ardupilot4_5_3", "config.sitl.json"))
+	controller := g.resolveController(uav, config)
 	ucMutator := g.createK8sMutator(uavMapping, mainPodName)
-	ucMutator(ucCfg)
-	ucFile, _ := writer.Write("uav_controller_config", ucCfg, "_k8s")
+	ucFile, _, _ := g.buildServiceResources(controller, writer, ucMutator, "_k8s")
 	var homeLat, homeLon float64
 	if uav.HomeOverride != nil {
 		homeLat, homeLon = uav.HomeOverride.Lat, uav.HomeOverride.Lon
@@ -225,10 +224,14 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 		{Name: "recursos", MountPath: "/app/copter.parm", SubPath: paramFileName},
 	}
 	
-	uavControllerImage := "uav_controller"
+	serviceId := controller.ServiceId
+	if serviceId == "" {
+		serviceId = controller.FolderName
+	}
+	uavControllerImage := serviceId
 	if arduPilotHostPath != "" {
 		binName := filepath.Base(arduPilotHostPath)
-		uavControllerImage = fmt.Sprintf("uav_controller_%s", strings.ToLower(strings.ReplaceAll(binName, ".", "_")))
+		uavControllerImage = fmt.Sprintf("%s_%s", serviceId, strings.ToLower(strings.ReplaceAll(binName, ".", "_")))
 	}
 	
 	mainContainers = append(mainContainers, ports.KubeContainer{

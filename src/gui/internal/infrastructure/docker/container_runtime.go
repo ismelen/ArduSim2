@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"ui/internal/domain"
 	"ui/internal/infrastructure/util"
 	"ui/internal/ports"
 )
@@ -126,7 +127,7 @@ func (r *DockerRuntime) BuildCompose(composePath string) error {
 	return r.buildComposeServices(composePath)
 }
 
-func (r *DockerRuntime) GenerateBuildManifest(simDir string, dockerHubRepository string, isKubernetes bool, ardupilotPath string) error {
+func (r *DockerRuntime) GenerateBuildManifest(simDir string, dockerHubRepository string, isKubernetes bool, swarms []domain.Swarm, config domain.GeneralConfig) error {
 	builder := NewComposeBuilder()
 	
 	prefixImage := func(img string) string {
@@ -171,37 +172,73 @@ func (r *DockerRuntime) GenerateBuildManifest(simDir string, dockerHubRepository
 		Build: &ports.ComposeBuild{Context: absPath("../../src/external_comms"), Dockerfile: "Dockerfile"},
 	})
 
-	// Build base uav_controller image
-	builder.AddService(ports.ComposeService{
-		Name:  "uav_controller_base",
-		Image: prefixImage("uav_controller_base:latest"),
-		Build: &ports.ComposeBuild{
-			Context:    absPath("../../src/uav_controller/ardupilot4_5_3"),
-			Dockerfile: "SITL",
-		},
-	})
-
-	binName := filepath.Base(ardupilotPath)
-	uavControllerImage := "uav_controller"
-	if binName != "" {
-		uavControllerImage = fmt.Sprintf("uav_controller_%s", strings.ToLower(strings.ReplaceAll(binName, ".", "_")))
-	}
-
 	resDir := filepath.Join(simDir, "resources")
 	os.MkdirAll(resDir, 0755)
 
-	dockerfileContent := fmt.Sprintf("FROM %s\nCOPY %s /app/arducopter\nRUN chmod +x /app/arducopter\n", prefixImage("uav_controller_base:latest"), binName)
-	_ = os.WriteFile(filepath.Join(resDir, "Dockerfile.uav_controller"), []byte(dockerfileContent), 0644)
+	type controllerConfig struct {
+		Folder   string
+		Binaries map[string]bool
+	}
+	controllersToBuild := make(map[string]*controllerConfig)
 
-	builder.AddService(ports.ComposeService{
-		Name:      uavControllerImage,
-		Image:     prefixImage(uavControllerImage),
-		DependsOn: []string{"uav_controller_base"},
-		Build: &ports.ComposeBuild{
-			Context:    "./resources",
-			Dockerfile: "Dockerfile.uav_controller",
-		},
-	})
+	addController := func(ctrl domain.DeployedService, binName string) {
+		serviceId := ctrl.ServiceId
+		if serviceId == "" {
+			serviceId = ctrl.FolderName
+		}
+		if _, exists := controllersToBuild[serviceId]; !exists {
+			controllersToBuild[serviceId] = &controllerConfig{
+				Folder:   ctrl.FolderName,
+				Binaries: make(map[string]bool),
+			}
+		}
+		if binName != "" {
+			controllersToBuild[serviceId].Binaries[binName] = true
+		}
+	}
+
+	for _, swarm := range swarms {
+		for _, uav := range swarm.UAVs {
+			ctrl := config.DefaultController
+			if uav.Controller != nil {
+				ctrl = *uav.Controller
+			}
+			arduPilotInstance := config.DefaultArduPilotInstance
+			if uav.ArduPilotInstance != nil && *uav.ArduPilotInstance != "" {
+				arduPilotInstance = *uav.ArduPilotInstance
+			}
+			addController(ctrl, filepath.Base(arduPilotInstance))
+		}
+	}
+
+	for serviceId, cfg := range controllersToBuild {
+		baseImage := serviceId + "_base"
+		builder.AddService(ports.ComposeService{
+			Name:  baseImage,
+			Image: prefixImage(baseImage + ":latest"),
+			Build: &ports.ComposeBuild{
+				Context:    absPath(filepath.Join("../../src/controllers", cfg.Folder)),
+				Dockerfile: "Dockerfile",
+			},
+		})
+
+		for binName := range cfg.Binaries {
+			derivedImage := fmt.Sprintf("%s_%s", serviceId, strings.ToLower(strings.ReplaceAll(binName, ".", "_")))
+			dockerfileName := fmt.Sprintf("Dockerfile.%s", derivedImage)
+			dockerfileContent := fmt.Sprintf("FROM %s\nCOPY %s /app/arducopter\nRUN chmod +x /app/arducopter\n", prefixImage(baseImage+":latest"), binName)
+			_ = os.WriteFile(filepath.Join(resDir, dockerfileName), []byte(dockerfileContent), 0644)
+
+			builder.AddService(ports.ComposeService{
+				Name:      derivedImage,
+				Image:     prefixImage(derivedImage),
+				DependsOn: []string{baseImage},
+				Build: &ports.ComposeBuild{
+					Context:    "./resources",
+					Dockerfile: dockerfileName,
+				},
+			})
+		}
+	}
 
 	appendServices := func(dir, category string, dockerfile string) {
 		if entries, err := os.ReadDir(dir); err == nil {
@@ -241,16 +278,39 @@ func (r *DockerRuntime) GenerateBuildManifest(simDir string, dockerHubRepository
 	return nil
 }
 
-func (r *DockerRuntime) BuildAllImages(simDir string, dockerHubRepository string, isKubernetes bool, ardupilotPath string) error {
-	if err := r.GenerateBuildManifest(simDir, dockerHubRepository, isKubernetes, ardupilotPath); err != nil {
+func (r *DockerRuntime) BuildAllImages(simDir string, dockerHubRepository string, isKubernetes bool, swarms []domain.Swarm, config domain.GeneralConfig) error {
+	if err := r.GenerateBuildManifest(simDir, dockerHubRepository, isKubernetes, swarms, config); err != nil {
 		return err
 	}
 
 	composePath := filepath.Join(simDir, "docker-compose.build.yaml")
 
-	r.ui.EmitEvent("simulation:log", "[Build] Pre-building uav_controller_base...")
-	if err := r.buildComposeServices(composePath, "uav_controller_base"); err != nil {
-		return fmt.Errorf("failed to pre-build uav_controller_base: %w", err)
+	// Collect base controllers to pre-build
+	var baseControllers []string
+	seen := make(map[string]bool)
+	for _, swarm := range swarms {
+		for _, uav := range swarm.UAVs {
+			ctrl := config.DefaultController
+			if uav.Controller != nil {
+				ctrl = *uav.Controller
+			}
+			serviceId := ctrl.ServiceId
+			if serviceId == "" {
+				serviceId = ctrl.FolderName
+			}
+			baseName := serviceId + "_base"
+			if !seen[baseName] {
+				seen[baseName] = true
+				baseControllers = append(baseControllers, baseName)
+			}
+		}
+	}
+
+	if len(baseControllers) > 0 {
+		r.ui.EmitEvent("simulation:log", fmt.Sprintf("[Build] Pre-building base controllers: %s...", strings.Join(baseControllers, ", ")))
+		if err := r.buildComposeServices(composePath, baseControllers...); err != nil {
+			return fmt.Errorf("failed to pre-build base controllers: %w", err)
+		}
 	}
 
 	if err := r.BuildCompose(composePath); err != nil {

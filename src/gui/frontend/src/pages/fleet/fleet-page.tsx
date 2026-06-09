@@ -22,11 +22,11 @@ export default function FleetPage() {
   const activeSwarmIdx = useSwarms((s) => s.activeSwarmIdx);
   const activeUavIdx = useSwarms((s) => s.activeUavIdx);
   const cloneUav = useSwarms((s) => s.cloneUav);
-  const { defaultUAVSpeed, defaultArduPilotInstance, defaultMixer, batteryCapacity } = useConfig((s) => s.config);
-  const { services, mixers } = useServices();
+  const { defaultUAVSpeed, defaultArduPilotInstance, defaultMixer, defaultController, batteryCapacity } = useConfig((s) => s.config);
+  const { services, mixers, controllers } = useServices();
 
   const [serviceIdx, setServiceIdx] = useState<number | undefined>(undefined);
-  const [baseServiceType, setBaseServiceType] = useState<"mixer" | undefined>(undefined);
+  const [baseServiceType, setBaseServiceType] = useState<"mixer" | "controller" | undefined>(undefined);
   const [isConfigCollapsed, setIsConfigCollapsed] = useState(true);
 
   const swarm = swarms[activeSwarmIdx];
@@ -180,6 +180,11 @@ export default function FleetPage() {
               isModified={uav.mixer !== null && uav.mixer !== undefined}
               onSelect={() => setBaseServiceType("mixer")}
             />
+            <ServiceCard
+              service={uav.controller ?? defaultController ?? { serviceTitle: "Controller (Default)" } as any}
+              isModified={uav.controller !== null && uav.controller !== undefined}
+              onSelect={() => setBaseServiceType("controller")}
+            />
 
             <span className="flex justify-between items-center mt-5">
               <h5 className="font-semibold text-2xl text-dark-gray">
@@ -231,16 +236,22 @@ export default function FleetPage() {
       ) : null}
       {baseServiceType !== undefined && activeUavIdx !== null ? (
         <AddNewServiceDialog
-          servicesList={mixers}
-          title={`Edit Base Mixer`}
-          serviceToEdit={swarms[activeSwarmIdx].uavs[activeUavIdx].mixer ?? defaultMixer}
+          servicesList={baseServiceType === "mixer" ? mixers : controllers}
+          title={`Edit Base ${baseServiceType === "mixer" ? "Mixer" : "Controller"}`}
+          serviceToEdit={
+            baseServiceType === "mixer"
+              ? swarms[activeSwarmIdx].uavs[activeUavIdx].mixer ?? defaultMixer
+              : swarms[activeSwarmIdx].uavs[activeUavIdx].controller ?? defaultController
+          }
           onExit={() => setBaseServiceType(undefined)}
           onAccept={(service) => {
             if (!service) return setBaseServiceType(undefined);
 
-            updateUav(activeUavIdx, {
-              mixer: service
-            });
+            if (baseServiceType === "mixer") {
+              updateUav(activeUavIdx, { mixer: service });
+            } else {
+              updateUav(activeUavIdx, { controller: service });
+            }
             setBaseServiceType(undefined);
           }}
         />
