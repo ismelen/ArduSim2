@@ -22,7 +22,7 @@ type FollowMeMessage struct {
 	RelativeAlt float64 `mapstructure:"relative_alt" json:"relative_alt"`
 	Heading     float64 `mapstructure:"heading" json:"heading"`
 	Timestamp   int64   `mapstructure:"timestamp" json:"timestamp"`
-	DstSwarmId string `json:"dst_swarm_id"`
+	DestSwarmId string `json:"dest_swarm_id,omitempty"`
 }
 
 func (f FollowMeMessage) FromTelemetry(t Telemetry, dstSwarmId string) FollowMeMessage {
@@ -32,7 +32,7 @@ func (f FollowMeMessage) FromTelemetry(t Telemetry, dstSwarmId string) FollowMeM
 	f.RelativeAlt = t.Position.RelativeAlt
 	f.Heading = t.Position.Heading
 	f.Timestamp = time.Now().UnixMilli()
-	f.DstSwarmId = dstSwarmId
+	f.DestSwarmId = dstSwarmId
 
 	return f
 }
@@ -72,7 +72,7 @@ type Config struct {
 	SendPeriodMs          int     `json:"send_period_ms"`
 	LogsTopic             string  `json:"logs_topic"`
 	ServiceID             string  `json:"service_id"`
-	DestSwarmId           string  `json:"dest_swarm_id"`
+	SwarmId           string
 }
 
 // Suggestion endpoints for uav_controller

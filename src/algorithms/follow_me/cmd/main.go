@@ -31,6 +31,7 @@ func main() {
 		log.Fatalf("Error unmarshalling config: %v", err)
 	}
 	configFile.Close()
+	cfg.SwarmId = os.Getenv("SWARM_ID")
 
 	// Initialize components
 	udpBroker := broker.NewUDPBroker()
