@@ -184,13 +184,6 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 	volumes := []ports.KubeVolume{
 		{Name: "recursos", HostPath: writer.outputDir, Type: "Directory"},
 	}
-	if arduPilotHostPath != "" {
-		volumes = append(volumes, ports.KubeVolume{
-			Name:     "custom-binary",
-			HostPath: arduPilotHostPath,
-			Type:     "File",
-		})
-	}
 
 	appFile, _, _ := g.buildServiceResources(mixer, writer, g.createK8sMutator(uavMapping, uavMapping["mixer"]), "_k8s")
 	mixerContainer := ports.KubeContainer{
@@ -226,20 +219,21 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 		"UAV_ID":            uav.ID,
 		"SWARM_ID":          swarmID,
 	}
-	if arduPilotHostPath != "" {
-		ctrlEnv["ARDUPILOT_INSTANCE"] = "/app/custom_arducopter"
-	}
 	
 	ctrlMounts := []ports.KubeVolumeMount{
 		{Name: "recursos", MountPath: "/app/config.json", SubPath: ucFile},
 		{Name: "recursos", MountPath: "/app/copter.parm", SubPath: paramFileName},
 	}
+	
+	uavControllerImage := "uav_controller"
 	if arduPilotHostPath != "" {
-		ctrlMounts = append(ctrlMounts, ports.KubeVolumeMount{Name: "custom-binary", MountPath: "/app/custom_arducopter"})
+		binName := filepath.Base(arduPilotHostPath)
+		uavControllerImage = fmt.Sprintf("uav_controller_%s", strings.ToLower(strings.ReplaceAll(binName, ".", "_")))
 	}
+	
 	mainContainers = append(mainContainers, ports.KubeContainer{
 		Name:         "uav-controller",
-		Image:        g.getImageName("uav_controller", config.DockerHubRepository),
+		Image:        g.getImageName(uavControllerImage, config.DockerHubRepository),
 		Env:          ctrlEnv,
 		VolumeMounts: ctrlMounts,
 	})

@@ -195,16 +195,9 @@ func (g *ManifestGenerator) buildComposeUAV(swarmID string, uav domain.UAV, para
 	if config.VerboseLogging {
 		ctrlEnv["DEBUG"] = "true"
 	}
-	if arduPilotInstanceFile != "" {
-		ctrlEnv["ARDUPILOT_INSTANCE"] = "/app/" + arduPilotInstanceFile
-	}
-	
 	ctrlMounts := []string{
 		fmt.Sprintf("./resources/%s:/app/config.json", ucFile),
 		fmt.Sprintf("./resources/%s:/app/copter.parm", paramFileName),
-	}
-	if arduPilotInstanceFile != "" {
-		ctrlMounts = append(ctrlMounts, fmt.Sprintf("./resources/%s:/app/%s", arduPilotInstanceFile, arduPilotInstanceFile))
 	}
 	if config.LoggingEnabled {
 		ctrlMounts = append(ctrlMounts, fmt.Sprintf("./uav_logs/swarm_%s_uav_%s/:/app/logs/", swarmID, uav.ID))
@@ -212,9 +205,15 @@ func (g *ManifestGenerator) buildComposeUAV(swarmID string, uav domain.UAV, para
 	
 	ctrlName := fmt.Sprintf("swarm_%s_uav_%s_controller", swarmID, uav.ID)
 	
+	// Format the image name based on the binary
+	uavControllerImage := "uav_controller"
+	if arduPilotInstanceFile != "" {
+		uavControllerImage = fmt.Sprintf("uav_controller_%s", strings.ToLower(strings.ReplaceAll(arduPilotInstanceFile, ".", "_")))
+	}
+	
 	services = append(services, ports.ComposeService{
 		Name:          ctrlName,
-		Image:         "uav_controller",
+		Image:         uavControllerImage,
 		ContainerName: ctrlName,
 		DependsOn:     []string{commName},
 		Environment:   ctrlEnv,

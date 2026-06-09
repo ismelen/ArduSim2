@@ -76,13 +76,15 @@ func (r *DockerRuntime) StopCompose(composePath string) error {
 	return cmd.Run()
 }
 
-func (r *DockerRuntime) BuildCompose(composePath string) error {
+func (r *DockerRuntime) buildComposeServices(composePath string, services ...string) error {
 	checkCmd := exec.Command("docker", "info")
 	if err := checkCmd.Run(); err != nil {
 		return fmt.Errorf("DOCKER_NOT_RUNNING")
 	}
 
-	cmd := exec.Command("docker", "compose", "-f", filepath.Base(composePath), "build")
+	args := []string{"compose", "-f", filepath.Base(composePath), "build"}
+	args = append(args, services...)
+	cmd := exec.Command("docker", args...)
 	cmd.Dir = filepath.Dir(composePath)
 
 	var stderrBuf bytes.Buffer
@@ -112,8 +114,16 @@ func (r *DockerRuntime) BuildCompose(composePath string) error {
 		}
 		return fmt.Errorf("docker compose build: %w", waitErr)
 	}
-	r.ui.EmitEvent("simulation:log", "[Build] Images successfully built.")
+	if len(services) == 0 {
+		r.ui.EmitEvent("simulation:log", "[Build] Images successfully built.")
+	} else {
+		r.ui.EmitEvent("simulation:log", fmt.Sprintf("[Build] Service(s) %s successfully built.", strings.Join(services, ", ")))
+	}
 	return nil
+}
+
+func (r *DockerRuntime) BuildCompose(composePath string) error {
+	return r.buildComposeServices(composePath)
 }
 
 func (r *DockerRuntime) GenerateBuildManifest(simDir string, dockerHubRepository string, isKubernetes bool, ardupilotPath string) error {
@@ -161,18 +171,35 @@ func (r *DockerRuntime) GenerateBuildManifest(simDir string, dockerHubRepository
 		Build: &ports.ComposeBuild{Context: absPath("../../src/external_comms"), Dockerfile: "Dockerfile"},
 	})
 
-	// The argument uses a literal path style: "./resources/..."
-	relPath := "./resources/" + filepath.Base(ardupilotPath)
+	// Build base uav_controller image
+	builder.AddService(ports.ComposeService{
+		Name:  "uav_controller_base",
+		Image: prefixImage("uav_controller_base:latest"),
+		Build: &ports.ComposeBuild{
+			Context:    absPath("../../src/uav_controller/ardupilot4_5_3"),
+			Dockerfile: "SITL",
+		},
+	})
+
+	binName := filepath.Base(ardupilotPath)
+	uavControllerImage := "uav_controller"
+	if binName != "" {
+		uavControllerImage = fmt.Sprintf("uav_controller_%s", strings.ToLower(strings.ReplaceAll(binName, ".", "_")))
+	}
+
+	resDir := filepath.Join(simDir, "resources")
+	os.MkdirAll(resDir, 0755)
+
+	dockerfileContent := fmt.Sprintf("FROM %s\nCOPY %s /app/arducopter\nRUN chmod +x /app/arducopter\n", prefixImage("uav_controller_base:latest"), binName)
+	_ = os.WriteFile(filepath.Join(resDir, "Dockerfile.uav_controller"), []byte(dockerfileContent), 0644)
 
 	builder.AddService(ports.ComposeService{
-		Name:  "uav_controller",
-		Image: prefixImage("uav_controller"),
+		Name:      uavControllerImage,
+		Image:     prefixImage(uavControllerImage),
+		DependsOn: []string{"uav_controller_base"},
 		Build: &ports.ComposeBuild{
-			Context: absPath("../../src/uav_controller/ardupilot4_5_3"),
-			Dockerfile: "SITL",
-			Args: map[string]string{
-				"ARDUPILOT_BINARY_PATH": relPath,
-			},
+			Context:    "./resources",
+			Dockerfile: "Dockerfile.uav_controller",
 		},
 	})
 
@@ -206,9 +233,6 @@ func (r *DockerRuntime) GenerateBuildManifest(simDir string, dockerHubRepository
 	appendServices(r.algorithmsDir, "algorithms", "Dockerfile")
 	appendServices(r.mixersDir, "mixers", "Dockerfile")
 
-	resDir := filepath.Join(simDir, "resources")
-	os.MkdirAll(resDir, 0755)
-
 	composePath := filepath.Join(simDir, "docker-compose.build.yaml")
 	if err := os.WriteFile(composePath, []byte(builder.Build()), 0644); err != nil {
 		return fmt.Errorf("failed to write build compose file: %w", err)
@@ -223,6 +247,11 @@ func (r *DockerRuntime) BuildAllImages(simDir string, dockerHubRepository string
 	}
 
 	composePath := filepath.Join(simDir, "docker-compose.build.yaml")
+
+	r.ui.EmitEvent("simulation:log", "[Build] Pre-building uav_controller_base...")
+	if err := r.buildComposeServices(composePath, "uav_controller_base"); err != nil {
+		return fmt.Errorf("failed to pre-build uav_controller_base: %w", err)
+	}
 
 	if err := r.BuildCompose(composePath); err != nil {
 		return err
