@@ -2,6 +2,7 @@ package docker
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -179,11 +180,23 @@ func (r *DockerRuntime) GenerateBuildManifest(simDir string, dockerHubRepository
 		if entries, err := os.ReadDir(dir); err == nil {
 			for _, entry := range entries {
 				if entry.IsDir() {
-					name := entry.Name()
+					folderName := entry.Name()
+					imageName := folderName
+
+					schemaPath := filepath.Join(dir, folderName, "schema.json")
+					if rawData, err := os.ReadFile(schemaPath); err == nil {
+						var schema struct {
+							ServiceID string `json:"service_id"`
+						}
+						if err := json.Unmarshal(rawData, &schema); err == nil && schema.ServiceID != "" {
+							imageName = schema.ServiceID
+						}
+					}
+
 					builder.AddService(ports.ComposeService{
-						Name:  name,
-						Image: prefixImage(name),
-						Build: &ports.ComposeBuild{Context: absPath(fmt.Sprintf("../../src/%s/%s", category, name)), Dockerfile: dockerfile},
+						Name:  imageName,
+						Image: prefixImage(imageName),
+						Build: &ports.ComposeBuild{Context: absPath(fmt.Sprintf("../../src/%s/%s", category, folderName)), Dockerfile: dockerfile},
 					})
 				}
 			}
