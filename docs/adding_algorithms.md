@@ -14,9 +14,9 @@ src/algorithms/<your-algorithm-name>/
 
 Two files are **mandatory** regardless of the language or framework you use:
 
-| File | Purpose |
-|------|---------|
-| `Dockerfile` | Builds and runs the algorithm as a containerized service |
+| File          | Purpose                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------- |
+| `Dockerfile`  | Builds and runs the algorithm as a containerized service                                          |
 | `schema.json` | Describes the algorithm's configuration so the GUI can render a form and generate a `config.json` |
 
 Everything else (source code, dependencies, tests, etc.) is up to you.
@@ -52,11 +52,11 @@ Once your algorithm is ready, add an entry for it in the **Implemented Algorithm
 ```markdown
 ## Implemented Algorithms
 
-| Algorithm | Description |
-|-----------|-------------|
-| [Mission](src/algorithms/mission/README.md) | Follows a predefined KML route, sending suggestions to the UAV controller. |
-| [Follow Me](src/algorithms/follow_me/README.md) | Master/slave swarm behaviour where slaves follows a master UAV. |
-| [My Algorithm](src/algorithms/my-algorithm/README.md) | One-line description of what it does. |
+| Algorithm                                             | Description                                                                |
+| ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| [Mission](src/algorithms/mission/README.md)           | Follows a predefined KML route, sending suggestions to the UAV controller. |
+| [Follow Me](src/algorithms/follow_me/README.md)       | Master/slave swarm behaviour where slaves follows a master UAV.            |
+| [My Algorithm](src/algorithms/my-algorithm/README.md) | One-line description of what it does.                                      |
 ```
 
 Keep the description short — one sentence is enough. The full explanation lives in the algorithm's own README.
@@ -102,9 +102,10 @@ The only invariant is that the entrypoint receives `config.json` as its first ar
 
 The GUI automatically injects the following environment variables into every container it starts, regardless of what the algorithm does:
 
-| Variable | Value | Description |
-|----------|-------|-------------|
-| `UAV_ID` | Numeric ID of the UAV instance | Identifies which UAV this container belongs to. Use it to tag log messages, derive per-UAV topic names, or implement any other instance-specific behaviour. |
+| Variable   | Value                            | Description                                                                                                                                                 |
+| ---------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `UAV_ID`   | Numeric ID of the UAV instance   | Identifies which UAV this container belongs to. Use it to tag log messages, derive per-UAV topic names, or implement any other instance-specific behaviour. |
+| `SWARM_ID` | Numeric ID of the Swarm instance | Identifies which Swarm the UAV belongs to. Use it to tag log messages, derive per-swarm topic name, or implement any other instance-specific behabiour.     |
 
 You don't need to declare these in your `schema.json` — they are always present. If you run the container manually (e.g. for local testing), you'll need to set them yourself:
 
@@ -120,11 +121,11 @@ The `schema.json` file is what ties your algorithm into the system. The GUI read
 
 ### Required top-level fields
 
-| Field | Description |
-|-------|-------------|
+| Field        | Description                                                                                                                                                                        |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `service_id` | A unique identifier for this algorithm. Other services will use this ID to reference yours (e.g. when routing messages). Keep it short and lowercase — `mission`, `followme`, etc. |
-| `title` | Human-readable name shown in the GUI. |
-| `properties` | Object containing all configuration parameters. |
+| `title`      | Human-readable name shown in the GUI.                                                                                                                                              |
+| `properties` | Object containing all configuration parameters.                                                                                                                                    |
 
 ```json
 {
