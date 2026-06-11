@@ -5,10 +5,7 @@
     "role": {
       "title": "Role",
       "type": "string",
-      "enum": [
-        "master",
-        "slave"
-      ],
+      "enum": ["master", "slave"],
       "description": "Current role of the UAV in the Follow Me protocol. Must be set manually.",
       "default": "master"
     },
@@ -19,13 +16,13 @@
       "default": 3400
     },
     "telemetry_topic": {
-      "default": "uav/telemetry"
+      "default": "telemetry"
     },
     "suggestions_topic": {
-      "default": "uav/suggestions"
+      "default": "suggestions"
     },
     "broadcast_topic": {
-      "default": "external/messages"
+      "default": "external"
     },
     "subscription_topic": {
       "default": "algo/followme"
@@ -43,7 +40,7 @@
       "default": 1000
     },
     "logs_topic": {
-      "default": "uav/logs"
+      "default": "logs"
     }
   }
 }

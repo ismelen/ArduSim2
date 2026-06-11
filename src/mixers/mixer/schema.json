@@ -18,16 +18,16 @@
       "default": 3500
     },
     "telemetry_topic": {
-      "default": "uav/telemetry"
+      "default": "telemetry"
     },
     "suggestions_topic": {
-      "default": "uav/suggestions"
+      "default": "suggestions"
     },
     "global_commands": {
-      "default": "global/commands"
+      "default": "global"
     },
     "logs_topic": {
-      "default": "uav/logs"
+      "default": "logs"
     },
     "mix_window_ms": {
       "type": "integer",

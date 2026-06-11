@@ -19,10 +19,10 @@
       "default": "algo/mission"
     },
     "publish_topic": {
-      "default": "uav/suggestions"
+      "default": "suggestions"
     },
     "telemetry_topic": {
-      "default": "uav/telemetry"
+      "default": "telemetry"
     },
     "distance_to_waypoint_reached": {
       "type": "number",
@@ -35,16 +35,12 @@
       "default": 5.0
     },
     "external_messages_topic": {
-      "default": "external/messages"
+      "default": "external"
     },
     "mission_end": {
       "type": "string",
       "title": "Mission End",
-      "enum": [
-        "unmodified",
-        "land",
-        "rtl"
-      ],
+      "enum": ["unmodified", "land", "rtl"],
       "default": "unmodified"
     },
     "final_altitude_for_rtl": {
@@ -89,7 +85,7 @@
       "default": false
     },
     "logs_topic": {
-      "default": "uav/logs"
+      "default": "logs"
     },
     "service_id": {
       "type": "string",

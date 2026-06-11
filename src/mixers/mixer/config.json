@@ -4,10 +4,10 @@
   "uav_controller_ip": "uav_controller",
   "uav_controller_port": 9876,
   "uav_telemetry_port": 3500,
-  "telemetry_topic": "uav/telemetry",
-  "suggestions_topic": "uav/suggestions",
-  "global_commands": "global/commands",
-  "logs_topic": "uav/logs",
+  "telemetry_topic": "telemetry",
+  "suggestions_topic": "suggestions",
+  "global_commands": "global",
+  "logs_topic": "logs",
   "mix_window_ms": 200,
   "services_priority": []
 }
