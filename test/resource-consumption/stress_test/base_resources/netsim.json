@@ -1,0 +1,17 @@
+{
+  "buffer_size_bytes": 163840,
+  "chunk_radius": 2,
+  "chunk_size_m": 350,
+  "csma_range_m": 700,
+  "flush_interval_ms": 10,
+  "gateway_ip": "netsim_gateway",
+  "gateway_port": 3003,
+  "level": "info",
+  "listen_port": 3000,
+  "logger_ip": "logger",
+  "logger_port": 5000,
+  "loss_mode": "realistic",
+  "max_csma_retries": 5,
+  "max_range_m": 1350,
+  "snapshot_interval_s": 1
+}

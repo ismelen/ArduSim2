@@ -48,4 +48,4 @@ volumes:
 networks:
   air:
     external: true
-    name: followme_mission_5_air
+    name: air

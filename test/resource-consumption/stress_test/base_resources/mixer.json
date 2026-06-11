@@ -1,0 +1,13 @@
+{
+  "broker_ip": "communication_module",
+  "broker_port": 3400,
+  "global_commands": "global",
+  "logs_topic": "logs",
+  "mix_window_ms": 200,
+  "services_priority": [],
+  "suggestions_topic": "suggestions",
+  "telemetry_topic": "telemetry",
+  "uav_controller_ip": "uav_controller",
+  "uav_controller_port": 9876,
+  "uav_telemetry_port": 3500
+}

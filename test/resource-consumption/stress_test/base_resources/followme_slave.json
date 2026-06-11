@@ -1,0 +1,12 @@
+{
+  "broadcast_topic": "external",
+  "broker_ip": "communication_module",
+  "broker_port": 3400,
+  "logs_topic": "logs",
+  "role": "slave",
+  "send_period_ms": 1000,
+  "slaves_takeoff_altitude": 5,
+  "subscription_topic": "algo/followme",
+  "suggestions_topic": "suggestions",
+  "telemetry_topic": "telemetry"
+}
