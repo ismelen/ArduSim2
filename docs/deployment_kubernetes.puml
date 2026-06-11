@@ -1,0 +1,144 @@
+@startuml ArduSim2_Deployment_Kubernetes
+
+title ArduSim2 - Despliegue Distribuido (Kubernetes)\nS swarms x N UAVs por swarm
+
+top to bottom direction
+
+skinparam shadowing false
+skinparam linetype ortho
+skinparam nodesep 60
+skinparam ranksep 40
+
+<style>
+root {
+  FontName Arial
+  FontSize 11
+}
+title {
+  FontSize 13
+  FontStyle bold
+}
+node {
+  BackgroundColor #EBF5FB
+  BorderColor     #2980B9
+  BorderThickness 1.5
+  FontColor       #1A5276
+}
+artifact {
+  BackgroundColor #FDFEFE
+  BorderColor     #95A5A6
+  FontColor       #444444
+  FontSize        10
+}
+component {
+  BackgroundColor #D5F5E3
+  BorderColor     #27AE60
+  FontColor       #1D6A39
+}
+cloud {
+  BackgroundColor #F0F3F4
+  BorderColor     #95A5A6
+  FontColor       #555555
+}
+rectangle {
+  BackgroundColor #FDFEFE
+  BorderColor     #BDC3C7
+  BorderThickness 1
+  FontColor       #555555
+  FontSize        10
+  FontStyle       italic
+}
+arrow {
+  LineColor       #444444
+  LineThickness   1.2
+  FontColor       #555555
+  FontSize        9
+}
+</style>
+
+' ======================================================
+' ELEMENTOS EXTERNOS AL CLUSTER
+' ======================================================
+
+together {
+    component "GUI  (Wails)  [~/.kube/config]" as GUI
+    cloud "Docker Hub" as DockerHub
+    GUI -[hidden]right- DockerHub
+}
+
+' ======================================================
+' CLUSTER
+' ======================================================
+
+rectangle "Cluster Kubernetes  (Flannel 10.244.0.0/16)" as K8sCluster {
+
+    ' -- COLUMNA IZQUIERDA: Infraestructura --
+    rectangle "Infraestructura compartida  [1 global]" as Infra {
+
+        node "Manager  (Control Plane)  [:6443]" as Manager {
+            artifact "kube-apiserver  scheduler\ncontroller-manager  etcd" as K8sCore
+        }
+
+        node "netsim-gateway\n:3000 UAVs  :3001 NetSim  :3002 UI" as GW {
+            artifact "netsim_gateway:latest" as GWImg
+        }
+
+        node "netsim-1 ... netsim-K  [env NODE_ID]" as NS {
+            artifact "netsim:latest (x K)" as NSImg
+        }
+
+        node "logger  [:5000 UDP  :8080 TCP]" as Log {
+            artifact "logger:latest" as LogImg
+        }
+        
+        Manager -[hidden]down- GW
+        GW -[hidden]down- NS
+        NS -[hidden]down- Log
+    }
+
+    ' -- COLUMNA DERECHA: Pod por UAV --
+    rectangle "Deployment: swarm-[S]-uav-[N]  [replicado S x N veces]" as UAVDeploy {
+
+        node "Pod multi-contenedor  [loopback compartido]" as UAVPod {
+
+            artifact "communication-module" as CM
+            
+            together {
+                artifact "external-comms" as EC
+                artifact "algorithm_1 ... A" as ALGO
+                artifact "mixer" as MX
+            }
+
+            artifact "uav-controller  +  SITL\n[:5760 SITL  :9876 cmd  :3500 telem]" as UC
+
+            CM -[hidden]down- EC
+            EC -[hidden]right- ALGO
+            ALGO -[hidden]right- MX
+            MX -[hidden]down- UC
+        }
+    }
+
+    Infra -[hidden]right- UAVDeploy
+}
+
+' ======================================================
+' CONEXIONES
+' ======================================================
+
+GUI       -down-> Manager : "kubectl :6443"
+GUI       -down-> GW      : "subscribe :3002"
+DockerHub -down-> Manager : "image pull"
+
+GW -down-> NS  : ":3001"
+GW -down-> Log : ":5000"
+NS -down-> Log : ":5000"
+
+CM -down-> EC   : ":3400"
+CM -down-> ALGO : ":3400"
+CM -down-> MX   : ":3400"
+MX -down-> UC   : ":9876 / :3500"
+
+EC -left-> GW  : ":3000"
+EC -left-> Log : ":5000"
+
+@enduml
