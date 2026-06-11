@@ -37,6 +37,8 @@ wails build
 
 For instructions on deploying ArduSim2 on a Raspberry Pi, please refer to the [Raspberry Pi Deployment Guide](docs/Deploy_raspberry_pi.md).
 
+For instructions on setting up a Kubernetes cluster (configuring nodes, manager node initialisation, obtaining the kubeconfig, publishing images to Docker Hub, and opening the required ports), please refer to the [Kubernetes Setup Guide](docs/kubernetes_setup.md).
+
 ## Repository structure
 
 In this section, I explain how this repository is structured so you can easily navigate through its numerous folders.
