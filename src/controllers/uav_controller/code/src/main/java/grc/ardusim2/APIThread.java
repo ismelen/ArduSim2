@@ -43,7 +43,7 @@ public class APIThread extends Thread{
         running = true;
         try {
             socket = new DatagramSocket(Config.API_PORT);
-            socket.setSoTimeout(1);
+            socket.setSoTimeout(100);
             receiveData = new byte[1024];
         }catch(Exception ignored){}
 

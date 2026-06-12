@@ -35,9 +35,12 @@ public class HeartbeatThread extends Thread{
         long prevTime = System.nanoTime();
         while(running){
             long posTime = System.nanoTime();
-            if (posTime - prevTime > HEARTBEAT_PERIOD) {
+            long remainingNs = HEARTBEAT_PERIOD - (posTime - prevTime);
+            if (remainingNs <= 0) {
                 connection.send(Config.GCS_ID,0,payload);
                 prevTime = posTime;
+            } else {
+                try { Thread.sleep(remainingNs / 1000000); } catch (InterruptedException e) {}
             }
         }
     }

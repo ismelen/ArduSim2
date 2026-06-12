@@ -36,7 +36,8 @@ public class InfoPublisherThread extends Thread {
         logger.debug("Starting info publisher.");
         while(running){
             long posTime = System.currentTimeMillis();
-            if (posTime - prevTime > Config.PUBLISHING_PERIOD) {
+            long remainingMs = (long)(Config.PUBLISHING_PERIOD - (posTime - prevTime));
+            if (remainingMs <= 0) {
                 byte[] sendData = drone.toJSON().toString().getBytes();
                 DatagramPacket packet = new DatagramPacket(sendData, sendData.length, address, port);
                 try {
@@ -46,6 +47,8 @@ public class InfoPublisherThread extends Thread {
                     logger.warn("Could not send drone data, {}",e.getMessage());
                 }
                 prevTime = posTime;
+            } else {
+                try { Thread.sleep(remainingMs); } catch (InterruptedException e) {}
             }
         }
     }
