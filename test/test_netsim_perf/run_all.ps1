@@ -1,21 +1,15 @@
-$intervals = @(1, 5, 10, 15, 20)
-$configFile = "resources\netsim\config.json"
+$flushInterval = 10
 $logFile = "run_all_results.log"
 Clear-Content $logFile -ErrorAction SilentlyContinue
 
-foreach ($val in $intervals) {
-    Write-Host "Running for flush_interval_ms = $val"
-    Add-Content $logFile "========== FLUSH INTERVAL = $val ms =========="
-    
-    $content = Get-Content $configFile
-    $content = $content -replace '"flush_interval_ms": \d+', "`"flush_interval_ms`": $val"
-    Set-Content $configFile $content
+Write-Host "Running with flush_interval_ms = $flushInterval"
+Add-Content $logFile "========== FLUSH INTERVAL = $flushInterval ms =========="
 
-    docker-compose up --build --abort-on-container-exit > "compose_$val.log" 2>&1
-    
-    # Extract results
-    $results = Select-String -Path "compose_$val.log" -Pattern "tester-1   \| \d+" | Select-Object -ExpandProperty Line
-    Add-Content $logFile $results
-    Add-Content $logFile "`n"
-}
-Write-Host "All done!"
+docker-compose up --build --abort-on-container-exit > "compose_$flushInterval.log" 2>&1
+
+# Extract results: lines from tester with numeric content or result headers
+$results = Select-String -Path "compose_$flushInterval.log" -Pattern "tester-1\s+\|" | Select-Object -ExpandProperty Line
+Add-Content $logFile $results
+
+Write-Host "All done! Results saved to $logFile"
+Write-Host "Full compose log: compose_$flushInterval.log"

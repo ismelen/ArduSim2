@@ -12,17 +12,13 @@ TELEMETRY_PORT = 3000
 MESSAGES_PORT = 3001
 LOGGER_PORT = 5000
 
-# Dictionary: uav_id -> list of (timestamp_datetime, target_uav_id, msg_type)
 logs_lock = threading.Lock()
-forwarded_logs = []  # list of datetime
-delivered_logs = []  # list of (datetime, target_uav_id)
-stats = {
-    "retries": 0,
-    "max_retries": 0,
-    "discarded_dist": 0,
-    "discarded_busy": 0,
-    "discarded_buff": 0
-}
+forwarded_logs = []  # list of datetime (from gateway logs)
+delivered_logs = []  # list of (datetime, target_uav_id) (from gateway logs)
+
+# Track send timestamps to calculate message send interval
+send_timestamps_lock = threading.Lock()
+send_timestamps = []  # list of datetime when broadcast from UAV 1 was sent
 
 def logger_server():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -31,6 +27,11 @@ def logger_server():
         data, _ = sock.recvfrom(65535)
         try:
             log_entry = json.loads(data.decode('utf-8'))
+
+            # Only process logs from the gateway
+            if log_entry.get("InstanceID") != "netsim_gateway":
+                continue
+
             msg = log_entry.get("Message", "")
             
             if "Forwarded broadcast from 1 to" in msg:
@@ -51,20 +52,9 @@ def logger_server():
                     ts = datetime.datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
                     with logs_lock:
                         delivered_logs.append((ts, target_uav))
-            
-            elif "Delayed message from 1:" in msg:
-                with logs_lock:
-                    stats["retries"] += 1
-            elif "Max retries exceeded" in msg and "sender 1" in msg:
-                with logs_lock:
-                    stats["max_retries"] += 1
-            elif "Discarded message from 1 to" in msg:
-                with logs_lock:
-                    if "distance" in msg: stats["discarded_dist"] += 1
-                    elif "busy" in msg: stats["discarded_busy"] += 1
-                    elif "buffer" in msg: stats["discarded_buff"] += 1
         except Exception:
             pass
+
 
 def send_telemetry(sock, uav_count):
     # Send telemetry for N UAVs
@@ -106,7 +96,21 @@ def send_broadcast(sock, uav_id):
             "flight_mode": "STABILIZE Custom mode; Stabilize; Manual input; "
         }
     }
+    if uav_id == 1:
+        with send_timestamps_lock:
+            send_timestamps.append(datetime.datetime.now(datetime.timezone.utc))
     sock.sendto(json.dumps(payload).encode('utf-8'), (GATEWAY_IP, MESSAGES_PORT))
+
+def calculate_send_interval():
+    """Calculate average interval between consecutive sends from UAV 1."""
+    with send_timestamps_lock:
+        ts_copy = list(send_timestamps)
+        send_timestamps.clear()
+    if len(ts_copy) < 2:
+        return None
+    intervals = [(ts_copy[i+1] - ts_copy[i]).total_seconds() * 1000
+                 for i in range(len(ts_copy) - 1)]
+    return statistics.mean(intervals)
 
 def calculate_delays():
     # Group deliveries to the closest forwarded log
@@ -130,8 +134,8 @@ def calculate_delays():
         matched_deliveries = [d for d in deliv_logs if fwd_ts <= d[0] <= window_end]
         
         if matched_deliveries:
-            avg_delay = statistics.mean([(d[0] - fwd_ts).total_seconds() * 1000 for d in matched_deliveries])
-            delays.append(avg_delay)
+            max_delay = max([(d[0] - fwd_ts).total_seconds() * 1000 for d in matched_deliveries])
+            delays.append(max_delay)
             
     return delays
 
@@ -150,6 +154,7 @@ def main():
     
     results_phase1 = {}
     results_phase2 = {}
+    send_intervals = {}  # uav_count -> avg send interval in ms
     
     for uav_count in uav_counts:
         print(f"\n--- Testing with {uav_count} UAVs ---")
@@ -170,25 +175,32 @@ def main():
         with logs_lock:
             forwarded_logs.clear()
             delivered_logs.clear()
-            for k in stats: stats[k] = 0
+        with send_timestamps_lock:
+            send_timestamps.clear()
             
+        phase1_send_times = []
         for _ in range(3):
+            t_send = datetime.datetime.now(datetime.timezone.utc)
+            phase1_send_times.append(t_send)
             send_broadcast(sock, 1)
             time.sleep(1)
             
         time.sleep(1) 
         
         delays_1 = calculate_delays()
-        with logs_lock:
-            p1_stats = dict(stats)
-            
+        interval_1 = None
+        if len(phase1_send_times) >= 2:
+            intervals = [(phase1_send_times[i+1] - phase1_send_times[i]).total_seconds() * 1000
+                         for i in range(len(phase1_send_times) - 1)]
+            interval_1 = statistics.mean(intervals)
+
         if delays_1:
             avg_1 = statistics.mean(delays_1)
-            print(f"Phase 1 Average Delay: {avg_1:.2f} ms")
-            results_phase1[uav_count] = (avg_1, p1_stats)
+            print(f"Phase 1 Average Delay: {avg_1:.2f} ms  |  Avg send interval: {interval_1:.0f} ms" if interval_1 else f"Phase 1 Average Delay: {avg_1:.2f} ms")
+            results_phase1[uav_count] = (avg_1, interval_1)
         else:
             print("Phase 1: No deliveries recorded!")
-            results_phase1[uav_count] = (-1, p1_stats)
+            results_phase1[uav_count] = (-1, interval_1)
             
         # Phase 2
         print("Running Phase 2 (Saturated Sending)...")
@@ -207,25 +219,32 @@ def main():
         with logs_lock:
             forwarded_logs.clear()
             delivered_logs.clear()
-            for k in stats: stats[k] = 0
+        with send_timestamps_lock:
+            send_timestamps.clear()
             
+        phase2_send_times = []
         for _ in range(3):
+            t_send = datetime.datetime.now(datetime.timezone.utc)
+            phase2_send_times.append(t_send)
             send_broadcast(sock, 1)
             time.sleep(1) 
             
         time.sleep(1)
         
         delays_2 = calculate_delays()
-        with logs_lock:
-            p2_stats = dict(stats)
-            
+        interval_2 = None
+        if len(phase2_send_times) >= 2:
+            intervals = [(phase2_send_times[i+1] - phase2_send_times[i]).total_seconds() * 1000
+                         for i in range(len(phase2_send_times) - 1)]
+            interval_2 = statistics.mean(intervals)
+
         if delays_2:
             avg_2 = statistics.mean(delays_2)
-            print(f"Phase 2 Average Delay: {avg_2:.2f} ms")
-            results_phase2[uav_count] = (avg_2, p2_stats)
+            print(f"Phase 2 Average Delay: {avg_2:.2f} ms  |  Avg send interval: {interval_2:.0f} ms" if interval_2 else f"Phase 2 Average Delay: {avg_2:.2f} ms")
+            results_phase2[uav_count] = (avg_2, interval_2)
         else:
             print("Phase 2: No deliveries recorded!")
-            results_phase2[uav_count] = (-1, p2_stats)
+            results_phase2[uav_count] = (-1, interval_2)
             
         stop_event.set()
         telemetry_thread.join()
@@ -234,23 +253,50 @@ def main():
         print(f"Waiting 2 seconds before next configuration...")
         time.sleep(2)
 
-    print("\n\n=== FINAL RESULTS ===")
-    print(f"{'UAVs':<6} | {'Phase 1 (ms)':<15} | {'P1 Retries':<10} | {'P1 Discard':<12} || {'Phase 2 (ms)':<15} | {'P2 Retries':<10} | {'P2 Discard':<12}")
-    print("-" * 105)
+    print("\n\n=== FINAL RESULTS (flush_interval_ms = 10, solo logs del gateway) ===")
+    header = (
+        f"{'UAVs':<6} | "
+        f"{'Phase 1 avg (ms)':<18} | "
+        f"{'P1 Send Interval':<18} || "
+        f"{'Phase 2 avg (ms)':<18} | "
+        f"{'P2 Send Interval':<18}"
+    )
+    print(header)
+    print("-" * len(header))
+
     for c in uav_counts:
-        p1 = results_phase1.get(c, (-1, {}))
-        p2 = results_phase2.get(c, (-1, {}))
+        p1 = results_phase1.get(c, (-1, None))
+        p2 = results_phase2.get(c, (-1, None))
         
-        p1_ms = f"{p1[0]:.2f}"
-        p1_ret = str(p1[1].get('retries', 0) + p1[1].get('max_retries', 0))
-        p1_disc = str(p1[1].get('discarded_dist', 0) + p1[1].get('discarded_busy', 0) + p1[1].get('discarded_buff', 0))
+        p1_ms = f"{p1[0]:.2f}" if p1[0] >= 0 else "N/A"
+        p1_interval = f"{p1[1]:.0f} ms" if p1[1] is not None else "N/A"
         
-        p2_ms = f"{p2[0]:.2f}"
-        p2_ret = str(p2[1].get('retries', 0) + p2[1].get('max_retries', 0))
-        p2_disc = str(p2[1].get('discarded_dist', 0) + p2[1].get('discarded_busy', 0) + p2[1].get('discarded_buff', 0))
+        p2_ms = f"{p2[0]:.2f}" if p2[0] >= 0 else "N/A"
+        p2_interval = f"{p2[1]:.0f} ms" if p2[1] is not None else "N/A"
         
-        print(f"{c:<6} | {p1_ms:<15} | {p1_ret:<10} | {p1_disc:<12} || {p2_ms:<15} | {p2_ret:<10} | {p2_disc:<12}")
-        
+        print(
+            f"{c:<6} | "
+            f"{p1_ms:<18} | "
+            f"{p1_interval:<18} || "
+            f"{p2_ms:<18} | "
+            f"{p2_interval:<18}"
+        )
+
+    # Summary by phase
+    print("\n--- Phase 1 Summary (Isolated Sending) ---")
+    for c in uav_counts:
+        p1 = results_phase1.get(c, (-1, None))
+        p1_ms = f"{p1[0]:.2f} ms" if p1[0] >= 0 else "N/A"
+        p1_interval = f"{p1[1]:.0f} ms" if p1[1] is not None else "N/A"
+        print(f"  {c:>3} UAVs -> avg delay: {p1_ms:<12}  send interval: {p1_interval}")
+
+    print("\n--- Phase 2 Summary (Saturated Sending) ---")
+    for c in uav_counts:
+        p2 = results_phase2.get(c, (-1, None))
+        p2_ms = f"{p2[0]:.2f} ms" if p2[0] >= 0 else "N/A"
+        p2_interval = f"{p2[1]:.0f} ms" if p2[1] is not None else "N/A"
+        print(f"  {c:>3} UAVs -> avg delay: {p2_ms:<12}  send interval: {p2_interval}")
+
     # Keep container alive briefly so we can read logs if we want
     time.sleep(5)
     print("Test finished successfully.")
