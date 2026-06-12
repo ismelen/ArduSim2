@@ -79,7 +79,19 @@ func (g *ManifestGenerator) getServiceSchema(folderName string) (map[string]inte
 }
 
 func (g *ManifestGenerator) generateUAVParams(swarmID string, uav domain.UAV, config domain.GeneralConfig, resDir string) (string, error) {
-	baseParmPath := filepath.Join(g.projectRoot, "..", "uav_controller", "ardupilot4_5_3", "ardupilot", "copter.parm")
+	// Resolve the base copter.parm from the selected controller's folder.
+	controller := g.resolveController(uav, config)
+	baseParmPath := ""
+	if controller.FolderName != "" {
+		candidate := filepath.Join(g.controllersDir, controller.FolderName, "ardupilot", "copter.parm")
+		if _, err := os.Stat(candidate); err == nil {
+			baseParmPath = candidate
+		}
+	}
+	if baseParmPath == "" {
+		// Fallback: legacy hardcoded path
+		baseParmPath = filepath.Join(g.projectRoot, "..", "uav_controller", "ardupilot4_5_3", "ardupilot", "copter.parm")
+	}
 	content, _ := os.ReadFile(baseParmPath)
 	params := string(content)
 	if !strings.HasSuffix(params, "\n") {

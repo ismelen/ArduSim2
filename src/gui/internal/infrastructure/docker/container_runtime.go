@@ -38,7 +38,13 @@ func (r *DockerRuntime) StartCompose(composePath string) error {
 		return fmt.Errorf("DOCKER_NOT_RUNNING")
 	}
 
-	cmd := exec.Command("docker", "compose", "-f", filepath.Base(composePath), "up", "--build", "-d")
+	r.ui.EmitEvent("simulation:log", "Cleaning up previous simulation state...")
+	downCmd := exec.Command("docker", "compose", "-f", filepath.Base(composePath), "down", "--remove-orphans")
+	downCmd.Dir = filepath.Dir(composePath)
+	_ = downCmd.Run() // Ignore errors, as it might fail if there's nothing to down or some other transient issue
+
+	r.ui.EmitEvent("simulation:log", "Starting simulation containers...")
+	cmd := exec.Command("docker", "compose", "-f", filepath.Base(composePath), "up", "--build", "-d", "--remove-orphans")
 	cmd.Dir = filepath.Dir(composePath)
 
 	var stderrBuf bytes.Buffer
@@ -72,9 +78,39 @@ func (r *DockerRuntime) StartCompose(composePath string) error {
 }
 
 func (r *DockerRuntime) StopCompose(composePath string) error {
+	r.ui.EmitEvent("simulation:log", "Stopping local simulation containers...")
 	cmd := exec.Command("docker", "compose", "-f", filepath.Base(composePath), "down", "--remove-orphans", "--volumes")
 	cmd.Dir = filepath.Dir(composePath)
-	return cmd.Run()
+
+	var stderrBuf bytes.Buffer
+	stdout, _ := cmd.StdoutPipe()
+	stderrPipe, _ := cmd.StderrPipe()
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		scanner := util.NewLogScanner(stdout, io.TeeReader(stderrPipe, &stderrBuf))
+		for scanner.Scan() {
+			r.ui.EmitEvent("simulation:log", scanner.Text())
+		}
+	}()
+
+	waitErr := cmd.Wait()
+	<-done
+
+	if waitErr != nil {
+		details := strings.TrimSpace(stderrBuf.String())
+		if details != "" {
+			return fmt.Errorf("docker compose down: %w\n%s", waitErr, details)
+		}
+		return fmt.Errorf("docker compose down: %w", waitErr)
+	}
+	r.ui.EmitEvent("simulation:log", "Simulation containers stopped successfully.")
+	return nil
 }
 
 func (r *DockerRuntime) buildComposeServices(composePath string, services ...string) error {
@@ -177,11 +213,11 @@ func (r *DockerRuntime) GenerateBuildManifest(simDir string, dockerHubRepository
 
 	type controllerConfig struct {
 		Folder   string
-		Binaries map[string]bool
+		Binaries map[string]string // binName -> fullPath
 	}
 	controllersToBuild := make(map[string]*controllerConfig)
 
-	addController := func(ctrl domain.DeployedService, binName string) {
+	addController := func(ctrl domain.DeployedService, binName string, binFullPath string) {
 		serviceId := ctrl.ServiceId
 		if serviceId == "" {
 			serviceId = ctrl.FolderName
@@ -189,11 +225,11 @@ func (r *DockerRuntime) GenerateBuildManifest(simDir string, dockerHubRepository
 		if _, exists := controllersToBuild[serviceId]; !exists {
 			controllersToBuild[serviceId] = &controllerConfig{
 				Folder:   ctrl.FolderName,
-				Binaries: make(map[string]bool),
+				Binaries: make(map[string]string),
 			}
 		}
 		if binName != "" {
-			controllersToBuild[serviceId].Binaries[binName] = true
+			controllersToBuild[serviceId].Binaries[binName] = binFullPath
 		}
 	}
 
@@ -207,7 +243,7 @@ func (r *DockerRuntime) GenerateBuildManifest(simDir string, dockerHubRepository
 			if uav.ArduPilotInstance != nil && *uav.ArduPilotInstance != "" {
 				arduPilotInstance = *uav.ArduPilotInstance
 			}
-			addController(ctrl, filepath.Base(arduPilotInstance))
+			addController(ctrl, filepath.Base(arduPilotInstance), arduPilotInstance)
 		}
 	}
 
@@ -222,7 +258,14 @@ func (r *DockerRuntime) GenerateBuildManifest(simDir string, dockerHubRepository
 			},
 		})
 
-		for binName := range cfg.Binaries {
+		for binName, binFullPath := range cfg.Binaries {
+			// Copy the ArduPilot binary into the resources folder so it is
+			// available within the Docker build context (./resources).
+			destBinPath := filepath.Join(resDir, binName)
+			if err := copyFile(binFullPath, destBinPath); err != nil {
+				return fmt.Errorf("copy ardupilot binary %q: %w", binName, err)
+			}
+
 			derivedImage := fmt.Sprintf("%s_%s", serviceId, strings.ToLower(strings.ReplaceAll(binName, ".", "_")))
 			dockerfileName := fmt.Sprintf("Dockerfile.%s", derivedImage)
 			dockerfileContent := fmt.Sprintf("FROM %s\nCOPY %s /app/arducopter\nRUN chmod +x /app/arducopter\n", prefixImage(baseImage+":latest"), binName)
@@ -445,4 +488,24 @@ func (r *DockerRuntime) StopKubernetes(manifestPath, kubeConfigPath string) erro
 func (r *DockerRuntime) CollectKubernetesLogs(simName, destDir string) error {
 	r.ui.EmitEvent("simulation:log", "Kubernetes log collection not yet implemented.")
 	return nil
+}
+
+// copyFile copies a file from src to dst, creating or overwriting dst.
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err = io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Sync()
 }

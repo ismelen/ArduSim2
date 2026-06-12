@@ -75,9 +75,15 @@ func (i *LogInteractor) SearchLogs(zipPath string, filter domain.LogFilter) ([]d
 		rc.Close()
 	}
 
-	// Sort logs chronologically (oldest first, so newest at the bottom as requested)
-	sort.Slice(allLogs, func(a, b int) bool {
-		return allLogs[a].Timestamp.Before(allLogs[b].Timestamp)
+	// Sort logs chronologically (oldest first, so newest at the bottom as requested).
+	// Use ReceivedAt as tiebreaker to preserve arrival order for logs with equal Timestamp.
+	sort.SliceStable(allLogs, func(a, b int) bool {
+		ta := allLogs[a].Timestamp
+		tb := allLogs[b].Timestamp
+		if ta.Equal(tb) {
+			return allLogs[a].ReceivedAt.Before(allLogs[b].ReceivedAt)
+		}
+		return ta.Before(tb)
 	})
 
 	return allLogs, nil

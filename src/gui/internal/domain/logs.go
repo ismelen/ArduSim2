@@ -10,6 +10,7 @@ type LogMessage struct {
 	Timestamp  time.Time `json:"Timestamp"`
 	Message    string    `json:"Message"`
 	EventID    string    `json:"EventID,omitempty"`
+	ReceivedAt time.Time `json:"ReceivedAt"` // Enriched by the logger service
 }
 
 // LogFilter defines the criteria for filtering logs in the viewer.

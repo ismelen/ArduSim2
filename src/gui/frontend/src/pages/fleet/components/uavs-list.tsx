@@ -7,6 +7,7 @@ import { cn } from "../../../utils/cn";
 export default function UavsList() {
   const swarms = useSwarms((s) => s.swarms);
   const addSwarms = useSwarms((s) => s.addSwarms);
+  const cloneSwarm = useSwarms((s) => s.cloneSwarm);
   const activeSwarmIdx = useSwarms((s) => s.activeSwarmIdx);
   const activeUavIdx = useSwarms((s) => s.activeUavIdx);
   const setSelectedSwarm = useSwarms((s) => s.setSelectedSwarm);
@@ -53,6 +54,7 @@ export default function UavsList() {
               setSelectedUav(uIdx);
             }}
             onChangeName={(name) => updateSwarm(idx, { id: name })}
+            onClone={() => cloneSwarm(idx)}
             onDelete={() => {
               setSelectedSwarm(idx);
               deleteSwarm();
@@ -72,6 +74,7 @@ interface SwarmAccordionProps {
   onSelectSwarm: () => void;
   onSelectUav: (idx: number) => void;
   onChangeName: (name: string) => void;
+  onClone: () => void;
   onDelete: () => void;
 }
 
@@ -82,6 +85,7 @@ function SwarmAccordion({
   onSelectSwarm,
   onSelectUav,
   onChangeName,
+  onClone,
   onDelete,
 }: SwarmAccordionProps) {
   const [isExpanded, setIsExpanded] = useState(isActiveSwarm);
@@ -136,6 +140,16 @@ function SwarmAccordion({
           )}
         </div>
         <div className="flex items-center gap-1">
+          <span
+            className="material-symbols-rounded hover:opacity-70 p-1"
+            title="Duplicate Swarm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClone();
+            }}
+          >
+            content_copy
+          </span>
           <span 
             className="material-symbols-rounded hover:opacity-70 p-1"
             title="Delete Swarm"

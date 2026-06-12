@@ -120,6 +120,23 @@ func (i *ConfigInteractor) PopulateDefaults(config *domain.GeneralConfig) {
 			}
 		}
 	}
+
+	availableControllers := i.repo.GetAvailableControllers()
+	if config.DefaultController.ServiceId == "" && len(availableControllers) > 0 {
+		best := availableControllers[0]
+		config.DefaultController.ServiceId = best.ID
+		config.DefaultController.FolderName = best.FolderName
+		config.DefaultController.ServiceTitle = best.Title
+		config.DefaultController.InstanceId = uuid.NewString()
+		config.DefaultController.Config = parseDefaultConfig(best.SchemaRaw)
+	} else if config.DefaultController.ServiceId != "" && config.DefaultController.FolderName == "" {
+		for _, c := range availableControllers {
+			if c.ID == config.DefaultController.ServiceId {
+				config.DefaultController.FolderName = c.FolderName
+				break
+			}
+		}
+	}
 }
 
 func parseDefaultConfig(schemaRaw string) map[string]interface{} {

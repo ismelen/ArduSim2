@@ -132,6 +132,8 @@ export namespace domain {
 	    Timestamp: any;
 	    Message: string;
 	    EventID?: string;
+	    // Go type: time
+	    ReceivedAt: any;
 	
 	    static createFrom(source: any = {}) {
 	        return new LogMessage(source);
@@ -145,6 +147,7 @@ export namespace domain {
 	        this.Timestamp = this.convertValues(source["Timestamp"], null);
 	        this.Message = source["Message"];
 	        this.EventID = source["EventID"];
+	        this.ReceivedAt = this.convertValues(source["ReceivedAt"], null);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

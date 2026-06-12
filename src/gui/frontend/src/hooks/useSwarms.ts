@@ -12,6 +12,7 @@ interface State {
   activeUavIdx: number | null;
 
   addSwarms(count: number): void;
+  cloneSwarm(idx: number): void;
   deleteSwarm(): void;
   updateSwarm(idx: number, patch: Partial<Swarm>): void;
 
@@ -87,6 +88,43 @@ export const useSwarms = create<State>((set, get) => ({
       } as Swarm);
     }
     set({ swarms: newSwarms });
+    useSimulationConfig.getState().update((s) => ({ ...s, swarms: newSwarms }));
+  },
+
+  cloneSwarm(idx: number) {
+    const swarms = get().swarms;
+    const source = swarms[idx];
+    if (!source) return;
+
+    // Compute new unique swarm ID
+    const maxSwarmId = swarms.reduce((max, s) => {
+      const n = Number(s.id);
+      return !isNaN(n) && n > max ? n : max;
+    }, 0);
+    const newSwarmId = (maxSwarmId + 1).toString();
+
+    // Deep-clone UAVs with new unique IDs
+    let lastUavId = getMaxUavId(swarms);
+    const clonedUavs: UAV[] = source.uavs.map((uav) => {
+      lastUavId++;
+      return {
+        ...uav,
+        id: lastUavId.toString(),
+        services: uav.services.map((s) => ({
+          ...s,
+          instanceId: crypto.randomUUID(),
+        })) as DeployedService[],
+      } as UAV;
+    });
+
+    const clonedSwarm = { ...source, id: newSwarmId, uavs: clonedUavs } as Swarm;
+    const newSwarms = [
+      ...swarms.slice(0, idx + 1),
+      clonedSwarm,
+      ...swarms.slice(idx + 1),
+    ];
+
+    set({ swarms: newSwarms, activeSwarmIdx: idx + 1, activeUavIdx: null });
     useSimulationConfig.getState().update((s) => ({ ...s, swarms: newSwarms }));
   },
 

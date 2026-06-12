@@ -33,7 +33,7 @@ func (w *BrokerLogWriter) Write(p []byte) (n int, err error) {
 		"InstanceID": instanceID,
 		"ServiceID":  "mission",
 		"Level":      "INFO",
-		"Timestamp":  time.Now().Format(time.RFC3339),
+		"Timestamp":  time.Now().Format(time.RFC3339Nano),
 		"Message":    msg,
 	}
 
