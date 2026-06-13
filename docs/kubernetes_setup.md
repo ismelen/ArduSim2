@@ -92,74 +92,12 @@ Save the file in an accessible path.
 
 ## 6. Port Requirements
 
-ArduSim2 uses several ports for inter-service communication. For the cluster to work correctly, these ports must be **open and reachable between all machines** in the cluster. This typically requires configuring the firewall on each node.
+For the cluster to work correctly, you must ensure that your firewall is configured to leave open all the ports required by Kubernetes, as well as the specific ports that your ArduSim2 services are going to use. 
 
-### 6.1 Kubernetes control plane ports (Manager node)
-
-| Port | Protocol | Purpose |
-|------|----------|---------|
-| `6443` | TCP | Kubernetes API server (required by all nodes and the GUI) |
-| `8472` | UDP | Flannel VXLAN (internal networking) |
-| `10250` | TCP | Kubelet metrics |
-
-### 6.2 Kubernetes worker node ports
-
-| Port | Protocol | Purpose |
-|------|----------|---------|
-| `8472` | UDP | Flannel VXLAN (internal networking) |
-| `10250` | TCP | Kubelet metrics |
-| `30000–32767` | TCP/UDP | NodePort services (used to expose services externally) |
-
-### 6.3 ArduSim2 application ports
-
-Any ports that are going to be used by your ArduSim2 services must be open and accessible between the nodes.
+These ports must be **open and reachable between all machines** in the cluster.
 
 > [!IMPORTANT]
-> The ports must not only be **open in the firewall** of each node, but also **accessible from other machines** on the network. A port that is only listening on `localhost` (or `127.0.0.1`) will not be reachable by other nodes. Ensure services bind to `0.0.0.0` or the node's external IP.
-
-### 6.4 Opening ports with `ufw` (Ubuntu)
-
-```bash
-# Kubernetes API server (manager only)
-sudo ufw allow 6443/tcp
-
-# Flannel & Kubelet (all nodes)
-sudo ufw allow 8472/udp
-sudo ufw allow 10250/tcp
-
-# NodePort range (all nodes)
-sudo ufw allow 30000:32767/tcp
-sudo ufw allow 30000:32767/udp
-
-# Custom ArduSim2 ports
-# Example: sudo ufw allow <PORT>/tcp
-# Example: sudo ufw allow <PORT>/udp
-
-sudo ufw reload
-```
-
-### 6.5 Opening ports with `firewalld` (RHEL/Fedora/CentOS)
-
-```bash
-sudo firewall-cmd --permanent --add-port=6443/tcp
-sudo firewall-cmd --permanent --add-port=8472/udp
-sudo firewall-cmd --permanent --add-port=10250/tcp
-sudo firewall-cmd --permanent --add-port=30000-32767/tcp
-sudo firewall-cmd --permanent --add-port=30000-32767/udp
-# Custom ArduSim2 ports
-# Example: sudo firewall-cmd --permanent --add-port=<PORT>/tcp
-# Example: sudo firewall-cmd --permanent --add-port=<PORT>/udp
-sudo firewall-cmd --reload
-```
-
-> [!TIP]
-> After opening ports, verify connectivity from another machine using `nc` (netcat):
-> ```bash
-> # TCP check
-> nc -zv <NODE_IP> 6443
-> # UDP check
-> nc -zuv <NODE_IP> 8472
-> ```
+> A port that is only listening on `localhost` (or `127.0.0.1`) will not be reachable by other nodes. Ensure services bind to `0.0.0.0` or the node's external IP so they are accessible from other machines.
 
 ---
 

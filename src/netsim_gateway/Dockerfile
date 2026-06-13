@@ -6,8 +6,9 @@ COPY . .
 RUN CGO_ENABLED=0 go build -o netsim_gateway .
 
 FROM scratch
-COPY --from=builder /app/netsim_gateway /netsim_gateway
-COPY --from=builder /app/config.json /config.json
+WORKDIR /app
+COPY --from=builder /app/netsim_gateway .
+COPY --from=builder /app/config.json .
 EXPOSE 3000/udp
 EXPOSE 3001/udp
-ENTRYPOINT ["/netsim_gateway"]
+ENTRYPOINT ["./netsim_gateway"]

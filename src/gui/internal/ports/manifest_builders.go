@@ -48,6 +48,7 @@ type KubeContainer struct {
 	Ports        []KubePort
 	Env          map[string]string
 	VolumeMounts []KubeVolumeMount
+	Command      []string
 }
 
 type KubePort struct {
@@ -68,9 +69,17 @@ type KubeVolume struct {
 	Type      string
 }
 
+type KubeServicePort struct {
+	Name       string
+	Port       int
+	TargetPort int
+	Protocol   string
+}
+
 type KubernetesBuilder interface {
 	AddConfigMap(name string, files map[string]string)
-	AddDeployment(name string, containers []KubeContainer, volumes []KubeVolume, nodeLabel string)
+	AddDeployment(name string, containers []KubeContainer, volumes []KubeVolume, nodeLabel string, hostNetwork bool)
+	AddService(name string, selector map[string]string, ports []KubeServicePort, isLoadBalancer bool)
 	Build() string
 }
 

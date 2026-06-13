@@ -34,9 +34,9 @@ func (s *activeSession) isLocal() bool {
 
 func (s *activeSession) loggerHost() string {
 	if s.isLocal() {
-		return "localhost:8080"
+		return "localhost"
 	}
-	return s.loggerIP + ":8080"
+	return s.loggerIP
 }
 
 func (s *activeSession) markStopped(id string) (allStopped bool) {

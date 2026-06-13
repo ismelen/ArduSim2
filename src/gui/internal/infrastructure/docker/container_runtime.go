@@ -432,7 +432,18 @@ func (r *DockerRuntime) runStreamedCommand(cmdName string, args ...string) error
 func (r *DockerRuntime) StartKubernetes(manifestPath, dockerHubRepository, kubeConfigPath string) (string, string, error) {
 	r.ui.EmitEvent("simulation:log", "[Kubernetes] Applying manifest: "+manifestPath)
 
-	args := []string{"apply", "-f", manifestPath}
+	configMapsPath := filepath.Join(filepath.Dir(manifestPath), "configmaps.yaml")
+	if _, err := os.Stat(configMapsPath); err == nil {
+		argsCM := []string{"apply", "--server-side", "-f", configMapsPath}
+		if kubeConfigPath != "" {
+			argsCM = append(argsCM, "--kubeconfig="+kubeConfigPath)
+		}
+		if err := r.runStreamedCommand("kubectl", argsCM...); err != nil {
+			return "", "", err
+		}
+	}
+
+	args := []string{"apply", "--server-side", "-f", manifestPath}
 	if kubeConfigPath != "" {
 		args = append(args, "--kubeconfig="+kubeConfigPath)
 	}
@@ -460,12 +471,71 @@ func (r *DockerRuntime) StartKubernetes(manifestPath, dockerHubRepository, kubeC
 	}
 
 	getIP := func(appLabel string) string {
-		getArgs := []string{"get", "pods", "-l", "app="+appLabel, "-o", "jsonpath={.items[0].status.podIP}"}
+		// 1. Get the Node where the pod is running
+		getPodArgs := []string{"get", "pods", "-l", "app=" + appLabel, "-o", "jsonpath={.items[0].spec.nodeName}"}
 		if kubeConfigPath != "" {
-			getArgs = append(getArgs, "--kubeconfig="+kubeConfigPath)
+			getPodArgs = append(getPodArgs, "--kubeconfig="+kubeConfigPath)
 		}
-		out, _ := exec.Command("kubectl", getArgs...).Output()
-		return strings.Trim(string(out), " '\n\r\"")
+		out, err := exec.Command("kubectl", getPodArgs...).Output()
+		if err != nil {
+			return ""
+		}
+		nodeName := strings.Trim(string(out), " '\n\r\"")
+		if nodeName == "" {
+			return ""
+		}
+
+		// 2. Get the Node's IPs
+		getNodeArgs := []string{"get", "node", nodeName, "-o", "jsonpath={range .status.addresses[*]}{.type}={.address};{end}"}
+		if kubeConfigPath != "" {
+			getNodeArgs = append(getNodeArgs, "--kubeconfig="+kubeConfigPath)
+		}
+		outNode, err := exec.Command("kubectl", getNodeArgs...).Output()
+		if err != nil {
+			return ""
+		}
+		
+		addresses := strings.Trim(string(outNode), " '\n\r\"")
+		var internalIP, externalIP string
+		for _, addr := range strings.Split(addresses, ";") {
+			parts := strings.Split(addr, "=")
+			if len(parts) == 2 {
+				if parts[0] == "ExternalIP" {
+					externalIP = parts[1]
+				} else if parts[0] == "InternalIP" {
+					internalIP = parts[1]
+				}
+			}
+		}
+
+		selectedIP := externalIP
+		if selectedIP == "" {
+			selectedIP = internalIP
+		}
+
+		// 3. Fallback to API server IP from kubeconfig if it's a suspected isolated Docker IP (172.17-31.x.x or 192.168.65.x)
+		if kubeConfigPath != "" && selectedIP != "" && (strings.HasPrefix(selectedIP, "172.") || strings.HasPrefix(selectedIP, "192.168.65.")) {
+			args := []string{"config", "view", "--minify", "-o", "jsonpath={.clusters[0].cluster.server}", "--kubeconfig=" + kubeConfigPath}
+			outConfig, err := exec.Command("kubectl", args...).Output()
+			if err == nil {
+				serverURL := strings.Trim(string(outConfig), " '\n\r\"")
+				if strings.HasPrefix(serverURL, "https://") {
+					serverURL = strings.TrimPrefix(serverURL, "https://")
+				}
+				if strings.HasPrefix(serverURL, "http://") {
+					serverURL = strings.TrimPrefix(serverURL, "http://")
+				}
+				host := strings.Split(serverURL, ":")[0]
+				if host != "" && host != "127.0.0.1" && host != "localhost" && host != "kubernetes.docker.internal" {
+					return host
+				}
+			}
+		}
+
+		if selectedIP != "" {
+			return selectedIP
+		}
+		return "localhost"
 	}
 
 	loggerIP := getIP("logger")
@@ -482,7 +552,18 @@ func (r *DockerRuntime) StopKubernetes(manifestPath, kubeConfigPath string) erro
 		args = append(args, "--kubeconfig="+kubeConfigPath)
 	}
 
-	return r.runStreamedCommand("kubectl", args...)
+	err := r.runStreamedCommand("kubectl", args...)
+
+	configMapsPath := filepath.Join(filepath.Dir(manifestPath), "configmaps.yaml")
+	if _, statErr := os.Stat(configMapsPath); statErr == nil {
+		argsCM := []string{"delete", "-f", configMapsPath}
+		if kubeConfigPath != "" {
+			argsCM = append(argsCM, "--kubeconfig="+kubeConfigPath)
+		}
+		_ = r.runStreamedCommand("kubectl", argsCM...)
+	}
+
+	return err
 }
 
 func (r *DockerRuntime) CollectKubernetesLogs(simName, destDir string) error {

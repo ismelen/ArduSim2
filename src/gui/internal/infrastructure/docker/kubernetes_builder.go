@@ -23,6 +23,7 @@ func (b *kubernetesBuilder) AddConfigMap(name string, files map[string]string) {
 		// Ensure proper indentation for multiline content
 		lines := strings.Split(content, "\n")
 		for _, line := range lines {
+			line = strings.TrimRight(line, "\r")
 			if line == "" {
 				fmt.Fprintf(&b.manifests, "\n")
 			} else {
@@ -33,8 +34,12 @@ func (b *kubernetesBuilder) AddConfigMap(name string, files map[string]string) {
 	fmt.Fprintf(&b.manifests, "\n")
 }
 
-func (b *kubernetesBuilder) AddDeployment(name string, containers []ports.KubeContainer, volumes []ports.KubeVolume, nodeLabel string) {
+func (b *kubernetesBuilder) AddDeployment(name string, containers []ports.KubeContainer, volumes []ports.KubeVolume, nodeLabel string, hostNetwork bool) {
 	fmt.Fprintf(&b.manifests, "---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: %s\nspec:\n  replicas: 1\n  selector:\n    matchLabels:\n      app: %s\n  template:\n    metadata:\n      labels:\n        app: %s\n    spec:\n", name, name, name)
+
+	if hostNetwork {
+		fmt.Fprintf(&b.manifests, "      hostNetwork: true\n")
+	}
 
 	if nodeLabel != "" {
 		fmt.Fprintf(&b.manifests, "      nodeSelector:\n        nodo: %s\n", nodeLabel)
@@ -44,6 +49,13 @@ func (b *kubernetesBuilder) AddDeployment(name string, containers []ports.KubeCo
 	for _, c := range containers {
 		fmt.Fprintf(&b.manifests, "      - name: %s\n        image: %s\n", c.Name, c.Image)
 		
+		if len(c.Command) > 0 {
+			fmt.Fprintf(&b.manifests, "        command:\n")
+			for _, cmd := range c.Command {
+				fmt.Fprintf(&b.manifests, "        - %q\n", cmd)
+			}
+		}
+
 		if len(c.Ports) > 0 {
 			fmt.Fprintf(&b.manifests, "        ports:\n")
 			for _, p := range c.Ports {
@@ -90,6 +102,26 @@ func (b *kubernetesBuilder) AddDeployment(name string, containers []ports.KubeCo
 		}
 	}
 
+	fmt.Fprintf(&b.manifests, "\n")
+}
+
+func (b *kubernetesBuilder) AddService(name string, selector map[string]string, ports []ports.KubeServicePort, isLoadBalancer bool) {
+	fmt.Fprintf(&b.manifests, "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: %s\nspec:\n", name)
+	if isLoadBalancer {
+		fmt.Fprintf(&b.manifests, "  type: LoadBalancer\n")
+	}
+	fmt.Fprintf(&b.manifests, "  selector:\n")
+	for k, v := range selector {
+		fmt.Fprintf(&b.manifests, "    %s: %s\n", k, v)
+	}
+	fmt.Fprintf(&b.manifests, "  ports:\n")
+	for _, p := range ports {
+		protocol := "TCP"
+		if p.Protocol != "" {
+			protocol = p.Protocol
+		}
+		fmt.Fprintf(&b.manifests, "    - name: %s\n      port: %d\n      targetPort: %d\n      protocol: %s\n", p.Name, p.Port, p.TargetPort, protocol)
+	}
 	fmt.Fprintf(&b.manifests, "\n")
 }
 

@@ -44,6 +44,7 @@ func NewManifestGenerator(
 
 func (g *ManifestGenerator) Generate(swarms []domain.Swarm, config domain.GeneralConfig, isLocal bool, simDir string) (string, error) {
 	resDir := filepath.Join(simDir, "resources")
+	_ = os.RemoveAll(resDir)
 	if err := os.MkdirAll(resDir, 0755); err != nil {
 		return "", fmt.Errorf("create simulation dirs: %w", err)
 	}

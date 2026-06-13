@@ -47,6 +47,9 @@ func NewSimulationInteractor(
 func (i *SimulationInteractor) StartSimulation(ctx context.Context, swarms []domain.Swarm, config domain.GeneralConfig, isLocal bool) error {
 	config.SanitizeSimulationName()
 	simDir := filepath.Join(i.repo.GetSimulationsDir(), config.SimulationName)
+	
+	// Delete previous uav_logs before starting
+	os.RemoveAll(filepath.Join(simDir, "uav_logs"))
 
 	composePath, err := i.generator.Generate(swarms, config, isLocal, simDir)
 	if err != nil {
