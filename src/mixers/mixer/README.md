@@ -1,4 +1,4 @@
-# Application
+# Mixer
 
 The central orchestrator of ArduSim2. Every UAV in the simulation has one instance of this service running alongside it. It sits between the algorithms and the UAV controller: it collects movement suggestions from all running algorithms, arbitrates between them through a time-windowed mixing strategy, and forwards the result directly to the UAV controller. It also receives raw telemetry from the UAV controller and rebroadcasts it to the broker so that every subscribed algorithm can see the UAV's current state.
 

@@ -1,19 +1,18 @@
 # Kubernetes Setup for ArduSim2
 
-This guide walks you through setting up a Kubernetes cluster for running ArduSim2 in a distributed environment. It covers cluster initialisation, node roles, obtaining the cluster configuration, publishing images to Docker Hub, and ensuring network ports are correctly exposed.
+This guide walks you through setting up a Kubernetes cluster for running ArduSim2 in a distributed environment. It covers cluster initialisation, node roles, obtaining the cluster configuration, and ensuring network ports are correctly exposed.
 
 ---
 
 ## Table of Contents
 
 1. [Prerequisites](#1-prerequisites)
-2. [Installing Kubernetes](#2-installing-kubernetes)
-3. [Initialising the Manager Node](#3-initialising-the-manager-node)
-4. [Joining Worker Nodes to the Cluster](#4-joining-worker-nodes-to-the-cluster)
-5. [Obtaining the Kubernetes Config](#5-obtaining-the-kubernetes-config)
-6. [Publishing Docker Images to Docker Hub](#6-publishing-docker-images-to-docker-hub)
-7. [Port Requirements](#7-port-requirements)
-8. [Verifying the Setup](#8-verifying-the-setup)
+2. [Defining the Master Node (Control Plane)](#2-defining-the-master-node-control-plane)
+3. [Obtaining the Join Token](#3-obtaining-the-join-token)
+4. [Adding a Worker Node to the Network](#4-adding-a-worker-node-to-the-network)
+5. [Obtaining the Configuration File (Kubeconfig)](#5-obtaining-the-configuration-file-kubeconfig)
+6. [Port Requirements](#6-port-requirements)
+7. [Verifying the Setup](#7-verifying-the-setup)
 
 ---
 
@@ -21,312 +20,134 @@ This guide walks you through setting up a Kubernetes cluster for running ArduSim
 
 Before setting up the cluster, make sure **every node** (both manager and workers) meets the following requirements:
 
-- **OS**: A supported Linux distribution (Ubuntu 20.04 LTS or newer recommended).
-- **Hardware**: At least 2 CPUs and 2 GB of RAM per node.
-- **Docker installed**: All nodes must have Docker (or another compatible container runtime such as `containerd`) installed and running. See [the official Docker installation guide](https://docs.docker.com/engine/install/) or the existing [`scripts/docker.sh`](../scripts/docker.sh) helper script for Ubuntu/Debian systems.
-- **Unique hostnames**: Each node must have a unique hostname. Verify with `hostnamectl` and set a new one if needed:
-  ```bash
-  sudo hostnamectl set-hostname <new-hostname>
-  ```
-- **Swap disabled**: Kubernetes requires swap to be off on every node:
-  ```bash
-  sudo swapoff -a
-  # Make it permanent:
-  sudo sed -i '/ swap / s/^/#/' /etc/fstab
-  ```
-- **Time synchronisation**: All nodes must have their clocks in sync (e.g., via `timedatectl` and NTP).
+- **Docker installed**: All nodes must have Docker installed and running. See [the official Docker installation guide](https://docs.docker.com/engine/install/) or the existing [`scripts/docker.sh`](../scripts/docker.sh) helper script for Ubuntu/Debian systems.
 
 > [!NOTE]
 > All commands in this guide assume you are logged in as a user with `sudo` privileges.
 
 ---
 
-## 2. Installing Kubernetes
+## 2. Defining the Master Node (Control Plane)
 
-The following steps must be performed on **every node** in the cluster (manager and workers alike).
+The master node is not defined in any text file or previous network configuration. It automatically becomes the master simply because it is the machine where you execute the server installation command.
 
-### 2.1 Install `kubeadm`, `kubelet`, and `kubectl`
-
-```bash
-sudo apt-get update
-sudo apt-get install -y apt-transport-https ca-certificates curl gpg
-
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | \
-  sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-
-echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] \
-  https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | \
-  sudo tee /etc/apt/sources.list.d/kubernetes.list
-
-sudo apt-get update
-sudo apt-get install -y kubelet kubeadm kubectl
-sudo apt-mark hold kubelet kubeadm kubectl
-```
-
-### 2.2 Enable `containerd` as the container runtime
-
-If you installed Docker, `containerd` is typically already present. Configure it to use the `systemd` cgroup driver:
+Log in via SSH to the computer you want to be the manager and execute:
 
 ```bash
-sudo mkdir -p /etc/containerd
-containerd config default | sudo tee /etc/containerd/config.toml
-
-# Set the cgroup driver to systemd
-sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
-
-sudo systemctl restart containerd
-sudo systemctl enable containerd
+curl -sfL https://get.k3s.io | sh -
 ```
+
+That's it! That machine is now your Master node. K3s will have installed everything (API, state database, internal network, etc.).
 
 ---
 
-## 3. Initialising the Manager Node
+## 3. Obtaining the Join Token
 
-The **manager node** (also called the *control plane*) is the machine that coordinates the entire cluster. Run the following command **only on the manager node**:
-
-```bash
-sudo kubeadm init --pod-network-cidr=10.244.0.0/16
-```
-
-> [!IMPORTANT]
-> The `--pod-network-cidr` value above (`10.244.0.0/16`) is required when using **Flannel** as the pod network add-on (see below). If you choose a different CNI plugin, adjust this value accordingly.
-
-After initialisation completes, `kubeadm` will print a `kubeadm join` command — **copy and save it**. You will need it in the next section to add worker nodes.
-
-### 3.1 Install a Pod Network Add-on (Flannel)
-
-Kubernetes requires a CNI (Container Network Interface) plugin so pods can communicate across nodes. Install Flannel on the manager node:
+Just like Swarm needs a security token to prevent unauthorized servers from joining your cluster, Kubernetes does too. On your master node, run this command to read the auto-generated password:
 
 ```bash
-kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+sudo cat /var/lib/rancher/k3s/server/node-token
 ```
 
-Wait until all system pods are running before proceeding:
-
-```bash
-kubectl get pods -n kube-system --watch
-```
+*(Copy the long text string it returns).*
 
 ---
 
-## 4. Joining Worker Nodes to the Cluster
+## 4. Adding a Worker Node to the Network
 
-On each **worker node**, run the `join` command that was printed during manager initialisation. It looks like this:
-
-```bash
-sudo kubeadm join <MANAGER_IP>:6443 \
-  --token <TOKEN> \
-  --discovery-token-ca-cert-hash sha256:<HASH>
-```
-
-Replace `<MANAGER_IP>`, `<TOKEN>`, and `<HASH>` with the actual values from the output of `kubeadm init`.
-
-> [!NOTE]
-> The bootstrap token expires after **24 hours**. If you need to add a node later, generate a new token on the manager node:
-> ```bash
-> kubeadm token create --print-join-command
-> ```
-
-Verify all nodes appear in the cluster from the manager:
+Now log in via SSH to the second computer (which will be the slave or "worker" node). Instead of installing the server, you install the agent, pointing it to your Master's IP and providing the token:
 
 ```bash
-kubectl get nodes
+curl -sfL https://get.k3s.io | K3S_URL=https://<MASTER-NODE-IP>:6443 K3S_TOKEN=<YOUR-TOKEN> sh -
 ```
 
-All nodes should eventually show a `Ready` status.
+As soon as that command finishes, the worker node will connect to the master, configure its network rules to talk to it (automatically creating the equivalent of your global air network), and will wait to receive Pods.
+
+If you go back to the master node and type `kubectl get nodes`, you will see the full list of your machines ready to work.
 
 ---
 
-## 5. Obtaining the Kubernetes Config
+## 5. Obtaining the Configuration File (Kubeconfig)
 
-The Kubernetes config file (commonly called `kubeconfig`) is the credential file that grants access to your cluster. It is needed by `kubectl` and by ArduSim2's GUI to deploy workloads.
-
-### 5.1 On the manager node itself
-
-After `kubeadm init`, the config is placed at `/etc/kubernetes/admin.conf`. Copy it to your user's home directory so `kubectl` can use it without root:
+Log in via SSH to your Master Node and run this command to display the contents of the configuration file:
 
 ```bash
-mkdir -p $HOME/.kube
-sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config
+sudo cat /etc/rancher/k3s/k3s.yaml
 ```
 
-Verify access:
+You will see it outputs a long text in YAML format (it will start with `apiVersion: v1` and will have several sections with unintelligible certificates). Copy absolutely all of that text.
 
-```bash
-kubectl cluster-info
-```
-
-### 5.2 Accessing the cluster from another machine
-
-To control the cluster from a remote machine (e.g., your development laptop or the ArduSim2 GUI host), copy the config file from the manager:
-
-```bash
-# Run this on the remote machine
-scp <manager-user>@<MANAGER_IP>:/etc/kubernetes/admin.conf ~/.kube/config
-```
-
-> [!CAUTION]
-> The `admin.conf` file contains cluster-admin credentials. Treat it like a private key — do not share it, do not commit it to version control, and restrict file permissions:
-> ```bash
-> chmod 600 ~/.kube/config
-> ```
-
-### 5.3 Providing the config to ArduSim2
-
-ArduSim2's GUI expects the kubeconfig to be available at the default location (`~/.kube/config`), or via the `KUBECONFIG` environment variable:
-
-```bash
-export KUBECONFIG=/path/to/your/kubeconfig
-```
-
----
-
-## 6. Publishing Docker Images to Docker Hub
-
-ArduSim2's containers must be pushed to a Docker registry (Docker Hub by default) so that all Kubernetes nodes can pull them. Docker Hub is a public registry — images you push there are accessible by any node in the cluster without additional configuration.
-
-### 6.1 Log in to Docker Hub
-
-> [!IMPORTANT]
-> You must be logged in to Docker Hub **before** building and pushing images. Run this on the machine where you are building the images (typically your development machine or the CI runner):
-> ```bash
-> docker login
-> ```
-> You will be prompted for your Docker Hub username and password (or an access token). Without an active session, the push will be rejected with a `denied: requested access to the resource is denied` error.
-
-To avoid entering credentials repeatedly, you can create an **access token** in your Docker Hub account settings and use it instead of your password:
-
-```bash
-docker login -u <your-dockerhub-username>
-# When prompted for a password, paste your access token
-```
-
-### 6.2 The destination repository must exist
-
-Docker Hub does **not** automatically create repositories. You must create the target repository before pushing to it for the first time.
-
-1. Log in to [hub.docker.com](https://hub.docker.com).
-2. Click **Create repository**.
-3. Set the name to match the image tag you plan to use (e.g., `ardusim2-netsim`).
-4. Choose **Public** (required for nodes to pull without credentials) or **Private** (requires configuring an image pull secret in Kubernetes — see section 6.4).
-5. Click **Create**.
-
-> [!WARNING]
-> If you push to a repository that does not exist, Docker Hub will return a `repository does not exist` error. Always create the repository first.
-
-### 6.3 Building and pushing an image
-
-Tag the image to include your Docker Hub username and the target repository:
-
-```bash
-# Build the image
-docker build -t <your-dockerhub-username>/<repository-name>:<tag> ./src/<module>/
-
-# Push the image
-docker push <your-dockerhub-username>/<repository-name>:<tag>
-```
-
-**Example** for the `netsim` module:
-
-```bash
-docker build -t myuser/ardusim2-netsim:latest ./src/netsim/
-docker push myuser/ardusim2-netsim:latest
-```
-
-### 6.4 Pulling private images in Kubernetes (optional)
-
-If your Docker Hub repositories are set to **Private**, each Kubernetes node needs credentials to pull the images. Create an image pull secret and reference it in your deployment manifests:
-
-```bash
-kubectl create secret docker-registry regcred \
-  --docker-server=https://index.docker.io/v1/ \
-  --docker-username=<your-dockerhub-username> \
-  --docker-password=<your-access-token> \
-  --docker-email=<your-email>
-```
-
-Then add `imagePullSecrets` to your Pod spec:
+If you look closely at the text you just copied, you will see a line near the beginning that says something like this:
 
 ```yaml
-spec:
-  imagePullSecrets:
-    - name: regcred
-  containers:
-    - name: netsim
-      image: myuser/ardusim2-netsim:latest
+    server: https://127.0.0.1:6443
 ```
+
+Since K3s generated that file to be used within the machine itself, it points to itself (`127.0.0.1`). You must delete that local IP and replace it with the real IP of your Master Node on your network.
+
+Save the file in an accessible path.
 
 ---
 
-## 7. Port Requirements
+## 6. Port Requirements
 
 ArduSim2 uses several ports for inter-service communication. For the cluster to work correctly, these ports must be **open and reachable between all machines** in the cluster. This typically requires configuring the firewall on each node.
 
-### 7.1 Kubernetes control plane ports (Manager node)
+### 6.1 Kubernetes control plane ports (Manager node)
 
 | Port | Protocol | Purpose |
 |------|----------|---------|
 | `6443` | TCP | Kubernetes API server (required by all nodes and the GUI) |
-| `2379–2380` | TCP | etcd server client API |
-| `10250` | TCP | Kubelet API |
-| `10257` | TCP | kube-controller-manager |
-| `10259` | TCP | kube-scheduler |
+| `8472` | UDP | Flannel VXLAN (internal networking) |
+| `10250` | TCP | Kubelet metrics |
 
-### 7.2 Kubernetes worker node ports
+### 6.2 Kubernetes worker node ports
 
 | Port | Protocol | Purpose |
 |------|----------|---------|
-| `10250` | TCP | Kubelet API |
-| `30000–32767` | TCP/UDP | NodePort services (used to expose ArduSim2 services externally) |
+| `8472` | UDP | Flannel VXLAN (internal networking) |
+| `10250` | TCP | Kubelet metrics |
+| `30000–32767` | TCP/UDP | NodePort services (used to expose services externally) |
 
-### 7.3 ArduSim2 application ports
+### 6.3 ArduSim2 application ports
 
-The following ports are used by ArduSim2 services and must be open between UAV nodes and the ground station:
-
-| Port | Protocol | Service | Notes |
-|------|----------|---------|-------|
-| `3400` | UDP | Communication Module (broker) | Internal pub/sub broker |
-| `9876` | UDP | UAV Controller | MAVLink over UDP |
-| `14550` | UDP | GCS Telemetry | Standard MAVLink ground station port |
-| `8765` | TCP | NetSim Gateway | Swarm-wide network simulation bus |
+Any ports that are going to be used by your ArduSim2 services must be open and accessible between the nodes.
 
 > [!IMPORTANT]
-> The ports listed above must not only be **open in the firewall** of each node, but also **accessible from other machines** on the network. A port that is only listening on `localhost` (or `127.0.0.1`) will not be reachable by other nodes. Ensure services bind to `0.0.0.0` or the node's external IP.
+> The ports must not only be **open in the firewall** of each node, but also **accessible from other machines** on the network. A port that is only listening on `localhost` (or `127.0.0.1`) will not be reachable by other nodes. Ensure services bind to `0.0.0.0` or the node's external IP.
 
-### 7.4 Opening ports with `ufw` (Ubuntu)
+### 6.4 Opening ports with `ufw` (Ubuntu)
 
 ```bash
 # Kubernetes API server (manager only)
 sudo ufw allow 6443/tcp
 
-# Kubelet (all nodes)
+# Flannel & Kubelet (all nodes)
+sudo ufw allow 8472/udp
 sudo ufw allow 10250/tcp
 
 # NodePort range (all nodes)
 sudo ufw allow 30000:32767/tcp
 sudo ufw allow 30000:32767/udp
 
-# ArduSim2 services
-sudo ufw allow 3400/udp
-sudo ufw allow 9876/udp
-sudo ufw allow 14550/udp
-sudo ufw allow 8765/tcp
+# Custom ArduSim2 ports
+# Example: sudo ufw allow <PORT>/tcp
+# Example: sudo ufw allow <PORT>/udp
 
 sudo ufw reload
 ```
 
-### 7.5 Opening ports with `firewalld` (RHEL/Fedora/CentOS)
+### 6.5 Opening ports with `firewalld` (RHEL/Fedora/CentOS)
 
 ```bash
 sudo firewall-cmd --permanent --add-port=6443/tcp
+sudo firewall-cmd --permanent --add-port=8472/udp
 sudo firewall-cmd --permanent --add-port=10250/tcp
 sudo firewall-cmd --permanent --add-port=30000-32767/tcp
 sudo firewall-cmd --permanent --add-port=30000-32767/udp
-sudo firewall-cmd --permanent --add-port=3400/udp
-sudo firewall-cmd --permanent --add-port=9876/udp
-sudo firewall-cmd --permanent --add-port=14550/udp
-sudo firewall-cmd --permanent --add-port=8765/tcp
+# Custom ArduSim2 ports
+# Example: sudo firewall-cmd --permanent --add-port=<PORT>/tcp
+# Example: sudo firewall-cmd --permanent --add-port=<PORT>/udp
 sudo firewall-cmd --reload
 ```
 
@@ -336,12 +157,12 @@ sudo firewall-cmd --reload
 > # TCP check
 > nc -zv <NODE_IP> 6443
 > # UDP check
-> nc -zuv <NODE_IP> 3400
+> nc -zuv <NODE_IP> 8472
 > ```
 
 ---
 
-## 8. Verifying the Setup
+## 7. Verifying the Setup
 
 Run the following checks from the **manager node** to confirm the cluster is healthy before deploying ArduSim2:
 
@@ -360,14 +181,6 @@ kubectl get pods -n kube-system
 ```
 
 All pods should be in `Running` or `Completed` state.
-
-### Docker Hub connectivity (on each worker)
-
-```bash
-docker pull hello-world
-```
-
-If the pull succeeds, the node can reach Docker Hub and pull images.
 
 ### Port connectivity
 
@@ -389,9 +202,5 @@ nc -zv <ANY_NODE_IP> <NODEPORT>
 
 | Symptom | Likely Cause | Fix |
 |---------|-------------|-----|
-| `kubectl get nodes` shows `NotReady` | CNI plugin not installed or pods not running | Check `kubectl get pods -n kube-system` and apply the Flannel manifest again |
-| `docker push` fails with `denied` | Not logged in to Docker Hub | Run `docker login` and retry |
-| `docker push` fails with `repository does not exist` | Destination repo not created | Create the repository on hub.docker.com first |
-| Pods stuck in `ImagePullBackOff` | Node cannot pull the image | Check repository visibility; if private, configure `imagePullSecrets` |
+| `kubectl get nodes` shows `NotReady` | Networking issues or pods not running | Check `kubectl get pods -n kube-system` to see if system pods are running properly |
 | Services not reachable from other nodes | Port blocked by firewall | Open the required ports with `ufw` or `firewalld` |
-| `kubeadm join` fails | Token expired (>24 h) | Run `kubeadm token create --print-join-command` on the manager and use the new command |
