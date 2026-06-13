@@ -291,7 +291,6 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 		Image:        g.getImageName(uavControllerImage, config.DockerHubRepository),
 		Env:          ctrlEnv,
 		VolumeMounts: vmsCtrl,
-		Command:      []string{"/bin/sh", "-c", "sed -i 's/\\r$//' ./run.sh && ./run.sh"},
 	})
 	mainVolumes = append(mainVolumes, vsCtrl...)
 
