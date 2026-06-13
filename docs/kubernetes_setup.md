@@ -20,6 +20,7 @@ This guide walks you through setting up a Kubernetes cluster for running ArduSim
 
 Before setting up the cluster, make sure **every node** (both manager and workers) meets the following requirements:
 
+- **Windows Support**: To run this setup on Windows, you will need to use **WSL** (Windows Subsystem for Linux).
 - **Docker installed**: All nodes must have Docker installed and running. See [the official Docker installation guide](https://docs.docker.com/engine/install/) or the existing [`scripts/docker.sh`](../scripts/docker.sh) helper script for Ubuntu/Debian systems.
 
 > [!NOTE]

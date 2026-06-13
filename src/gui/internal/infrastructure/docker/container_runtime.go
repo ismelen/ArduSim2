@@ -251,7 +251,7 @@ func (r *DockerRuntime) GenerateBuildManifest(simDir string, dockerHubRepository
 		baseImage := serviceId + "_base"
 		builder.AddService(ports.ComposeService{
 			Name:  baseImage,
-			Image: prefixImage(baseImage + ":latest"),
+			Image: prefixImage(baseImage),
 			Build: &ports.ComposeBuild{
 				Context:    absPath(filepath.Join("../../src/controllers", cfg.Folder)),
 				Dockerfile: "Dockerfile",
@@ -268,7 +268,7 @@ func (r *DockerRuntime) GenerateBuildManifest(simDir string, dockerHubRepository
 
 			derivedImage := fmt.Sprintf("%s_%s", serviceId, strings.ToLower(strings.ReplaceAll(binName, ".", "_")))
 			dockerfileName := fmt.Sprintf("Dockerfile.%s", derivedImage)
-			dockerfileContent := fmt.Sprintf("FROM %s\nCOPY %s /app/arducopter\nRUN chmod +x /app/arducopter\n", prefixImage(baseImage+":latest"), binName)
+			dockerfileContent := fmt.Sprintf("FROM %s\nCOPY %s /app/arducopter\nRUN chmod +x /app/arducopter\n", prefixImage(baseImage), binName)
 			_ = os.WriteFile(filepath.Join(resDir, dockerfileName), []byte(dockerfileContent), 0644)
 
 			builder.AddService(ports.ComposeService{
