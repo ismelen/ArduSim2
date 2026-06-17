@@ -42,7 +42,7 @@ func (b *kubernetesBuilder) AddDeployment(name string, containers []ports.KubeCo
 	}
 
 	if nodeLabel != "" {
-		fmt.Fprintf(&b.manifests, "      nodeSelector:\n        nodo: %s\n", nodeLabel)
+		fmt.Fprintf(&b.manifests, "      nodeSelector:\n        node: %s\n", nodeLabel)
 	}
 	fmt.Fprintf(&b.manifests, "      containers:\n")
 

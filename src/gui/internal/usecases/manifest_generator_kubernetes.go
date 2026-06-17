@@ -199,7 +199,6 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 		"netsim_gateway":       "netsim-gateway",
 		"logger":               "logger",
 		"communication_module": mainPodName,
-		"uav_controller":       mainPodName,
 		"external_comms":       mainPodName,
 	}
 	netsimInstances := normalizeNetsimInstances(config.NetsimInstances)
@@ -212,6 +211,13 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 		uavMapping["mixer"] = fmt.Sprintf("swarm-%s-uav-%s-mixer", swarmID, uav.ID)
 	} else {
 		uavMapping["mixer"] = mainPodName
+	}
+
+	controller := g.resolveController(uav, config)
+	if controller.NodeLabel != "" && controller.NodeLabel != uavNodeLabel {
+		uavMapping["uav_controller"] = fmt.Sprintf("swarm-%s-uav-%s-uav-controller", swarmID, uav.ID)
+	} else {
+		uavMapping["uav_controller"] = mainPodName
 	}
 
 	for _, svc := range uav.Services {
@@ -255,8 +261,7 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 		mainVolumes = append(mainVolumes, vsMixer...)
 	}
 
-	controller := g.resolveController(uav, config)
-	ucMutator := g.createK8sMutator(uavMapping, mainPodName)
+	ucMutator := g.createK8sMutator(uavMapping, uavMapping["uav_controller"])
 	ucFile, _, _ := g.buildServiceResources(controller, writer, ucMutator, "_k8s")
 	var homeLat, homeLon float64
 	if uav.HomeOverride != nil {
@@ -286,13 +291,23 @@ func (g *ManifestGenerator) buildKubernetesUAV(swarmID string, uav domain.UAV, p
 		uavControllerImage = fmt.Sprintf("%s_%s", serviceId, strings.ToLower(strings.ReplaceAll(binName, ".", "_")))
 	}
 
-	mainContainers = append(mainContainers, ports.KubeContainer{
+	controllerContainer := ports.KubeContainer{
 		Name:         "uav-controller",
 		Image:        g.getImageName(uavControllerImage, config.DockerHubRepository),
 		Env:          ctrlEnv,
 		VolumeMounts: vmsCtrl,
-	})
-	mainVolumes = append(mainVolumes, vsCtrl...)
+	}
+	if controller.NodeLabel != "" && controller.NodeLabel != uavNodeLabel {
+		deployments = append(deployments, uavDep{
+			name:       fmt.Sprintf("swarm-%s-uav-%s-uav-controller", swarmID, uav.ID),
+			containers: []ports.KubeContainer{controllerContainer},
+			volumes:    vsCtrl,
+			nodeLabel:  controller.NodeLabel,
+		})
+	} else {
+		mainContainers = append(mainContainers, controllerContainer)
+		mainVolumes = append(mainVolumes, vsCtrl...)
+	}
 
 	ecMutator := g.createK8sMutator(uavMapping, mainPodName)
 	ecFile, _ := g.writeTemplateConfig("external_comms_config", g.externalCommsConfig, nil, writer, ecMutator, "_k8s")
